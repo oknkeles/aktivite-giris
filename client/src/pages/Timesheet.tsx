@@ -281,7 +281,7 @@ export default function Timesheet() {
                     <div
                       className={clsx(
                         'absolute left-0 bottom-0 h-[3px] transition-all',
-                        pct >= 100 ? 'bg-grad-warm shadow-[0_-2px_18px_rgba(168,85,247,.4)]' : 'bg-grad-primary'
+                        pct >= 100 ? 'bg-grad-warm shadow-[0_-2px_18px_rgba(37,99,235,.4)]' : 'bg-grad-primary'
                       )}
                       style={{ width: `${pct}%` }}
                     />
@@ -375,7 +375,7 @@ function SidePanel({ entries, onAddToday }: { entries: Entry[]; onAddToday: () =
     <aside className="hidden xl:flex flex-col gap-4 min-w-0">
       <button
         onClick={onAddToday}
-        className="bg-grad-primary text-white rounded-2xl p-4 font-bold flex items-center justify-center gap-2 shadow-glow hover:shadow-[0_12px_30px_rgba(168,85,247,.45)] hover:-translate-y-0.5 transition-all"
+        className="bg-grad-primary text-white rounded-2xl p-4 font-bold flex items-center justify-center gap-2 shadow-glow hover:shadow-[0_12px_30px_rgba(37,99,235,.45)] hover:-translate-y-0.5 transition-all"
         style={{ backgroundSize: '200% 200%' }}
       >
         <Plus size={18} /> Bugüne Hızlı Kayıt

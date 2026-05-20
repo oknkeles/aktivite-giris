@@ -38,7 +38,7 @@ export function ToastHost() {
 }
 
 export function confettiBurst() {
-  const colors = ['#6366F1', '#A855F7', '#EC4899', '#F59E0B', '#10B981', '#0EA5E9', '#F43F5E'];
+  const colors = ['#2563EB', '#1E40AF', '#0891B2', '#F59E0B', '#10B981', '#0EA5E9', '#06B6D4'];
   const container = document.createElement('div');
   container.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden;';
   document.body.appendChild(container);

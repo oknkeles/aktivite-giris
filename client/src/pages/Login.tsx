@@ -30,11 +30,11 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
          style={{
-           background: '#0E0B26',
+           background: '#0B1224',
            backgroundImage:
-             'radial-gradient(circle at 15% 30%, rgba(168,85,247,.3) 0%, transparent 45%),' +
-             'radial-gradient(circle at 85% 70%, rgba(236,72,153,.25) 0%, transparent 45%),' +
-             'radial-gradient(circle at 50% 100%, rgba(99,102,241,.22) 0%, transparent 50%)',
+             'radial-gradient(circle at 15% 30%, rgba(37,99,235,.32) 0%, transparent 45%),' +
+             'radial-gradient(circle at 85% 70%, rgba(8,145,178,.25) 0%, transparent 45%),' +
+             'radial-gradient(circle at 50% 100%, rgba(30,64,175,.22) 0%, transparent 50%)',
          }}>
       <div className="w-full max-w-md relative z-10">
         <div className="inline-flex items-center gap-2.5 bg-white/[.06] border border-white/10 backdrop-blur-md rounded-full pl-2 pr-4 py-1.5 mb-6">
@@ -84,7 +84,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-grad-primary text-white font-bold rounded-xl py-3.5 mt-2 hover:-translate-y-0.5 shadow-glow hover:shadow-[0_12px_32px_rgba(168,85,247,.5)] transition-all flex items-center justify-center gap-2"
+            className="w-full bg-grad-primary text-white font-bold rounded-xl py-3.5 mt-2 hover:-translate-y-0.5 shadow-glow hover:shadow-[0_12px_32px_rgba(37,99,235,.5)] transition-all flex items-center justify-center gap-2"
             style={{ backgroundSize: '200% 200%' }}
           >
             {loading ? 'Giriş yapılıyor...' : (<>Giriş Yap <ArrowRight size={16} /></>)}

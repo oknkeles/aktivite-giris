@@ -55,6 +55,6 @@ app.use((err: any, _req: any, res: any, _next: any) => {
   res.status(err.status || 500).json({ error: err.message || 'Server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 API running on port ${PORT} (${isProd ? 'production' : 'development'})`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 API running on 0.0.0.0:${PORT} (${isProd ? 'production' : 'development'})`);
 });

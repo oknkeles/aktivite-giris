@@ -8,7 +8,7 @@
     "server"
   ],
   "scripts": {
-    "install:all": "npm install && npm --workspace=server install && npm --workspace=client install",
+    "install:all": "npm install --include=dev && npm --workspace=server install --include=dev && npm --workspace=client install --include=dev",
     "db:push": "npm --workspace=server run db:push",
     "db:seed": "npm --workspace=server run db:seed",
     "db:migrate": "cd server && npx prisma migrate deploy",

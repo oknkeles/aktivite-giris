@@ -53,14 +53,14 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
 
       <aside
         className={clsx(
-          'fixed top-0 left-0 bottom-0 w-64 bg-[linear-gradient(180deg,#1A1438_0%,#0E0B26_100%)] z-50',
+          'fixed top-0 left-0 bottom-0 w-64 bg-[linear-gradient(180deg,#0F1B3D_0%,#0B1224_100%)] z-50',
           'flex flex-col transition-transform duration-300 lg:translate-x-0',
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         {/* Brand */}
         <div className="flex items-center gap-3 p-5 border-b border-white/5">
-          <div className="w-10 h-10 rounded-xl bg-grad-primary shadow-[0_6px_20px_rgba(168,85,247,.45)] flex items-center justify-center text-white animate-shimmer"
+          <div className="w-10 h-10 rounded-xl bg-grad-primary shadow-[0_6px_20px_rgba(37,99,235,.45)] flex items-center justify-center text-white animate-shimmer"
                style={{ backgroundSize: '200% 200%' }}>
             <Calendar size={20} strokeWidth={2.4} />
           </div>
@@ -119,7 +119,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
                 className={clsx(
                   'group w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition mt-3',
                   isOnAdminPage
-                    ? 'bg-gradient-to-r from-brand-violet/20 via-brand-pink/10 to-transparent text-white shadow-[inset_0_0_0_1px_rgba(168,85,247,.2)]'
+                    ? 'bg-gradient-to-r from-brand-violet/20 via-brand-pink/10 to-transparent text-white shadow-[inset_0_0_0_1px_rgba(37,99,235,.25)]'
                     : 'text-white/65 hover:bg-white/5 hover:text-white/95'
                 )}
               >
@@ -185,14 +185,14 @@ function NavItem({ to, icon: Icon, label, indented = false, onNav }: {
         'group relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition',
         indented && 'text-[12.5px] py-2',
         isActive
-          ? 'bg-gradient-to-r from-brand-indigo/25 via-brand-violet/15 to-brand-pink/10 text-white shadow-[inset_0_0_0_1px_rgba(168,85,247,.25)]'
+          ? 'bg-gradient-to-r from-brand-indigo/25 via-brand-violet/15 to-brand-pink/10 text-white shadow-[inset_0_0_0_1px_rgba(37,99,235,.3)]'
           : 'text-white/55 hover:bg-white/5 hover:text-white/90'
       )}
     >
       {({ isActive }) => (
         <>
           {isActive && !indented && (
-            <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r bg-grad-primary shadow-[0_0_14px_rgba(168,85,247,.7)]" />
+            <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r bg-grad-primary shadow-[0_0_14px_rgba(37,99,235,.7)]" />
           )}
           <Icon size={indented ? 14 : 16} className={isActive ? 'text-brand-violet/90' : ''} />
           {label}

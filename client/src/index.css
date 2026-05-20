@@ -5,10 +5,10 @@
 @layer base {
   body {
     @apply font-sans text-ink antialiased;
-    background: #FAF8FF;
+    background: #F8FAFC;
     background-image:
-      radial-gradient(ellipse at 0% 0%, rgba(168, 85, 247, 0.05) 0%, transparent 50%),
-      radial-gradient(ellipse at 100% 100%, rgba(236, 72, 153, 0.04) 0%, transparent 50%);
+      radial-gradient(ellipse at 0% 0%, rgba(37, 99, 235, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 100% 100%, rgba(8, 145, 178, 0.04) 0%, transparent 50%);
     background-attachment: fixed;
   }
 
@@ -29,7 +29,7 @@
            disabled:opacity-50 disabled:pointer-events-none;
   }
   .btn-primary {
-    @apply text-white border-transparent shadow-glow bg-grad-primary hover:border-transparent hover:shadow-[0_12px_30px_rgba(99,102,241,.45)];
+    @apply text-white border-transparent shadow-glow bg-grad-primary hover:border-transparent hover:shadow-[0_12px_30px_rgba(37,99,235,.45)];
     background-size: 200% 200%;
   }
   .btn-success {
@@ -72,7 +72,7 @@
   }
 
   .grad-text {
-    background: linear-gradient(135deg, #6366F1 0%, #A855F7 50%, #EC4899 100%);
+    background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 50%, #0891B2 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -89,8 +89,8 @@
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, .2); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, .35); }
+::-webkit-scrollbar-thumb { background: rgba(37, 99, 235, .2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(37, 99, 235, .35); }
 
 /* Background animated blobs */
 .bg-blobs {
@@ -104,12 +104,12 @@
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
-  opacity: .15;
+  opacity: .12;
   animation: floatBlob 24s ease-in-out infinite;
 }
-.bg-blob.b1 { width: 420px; height: 420px; background: #A855F7; top: -120px; left: -100px; }
-.bg-blob.b2 { width: 380px; height: 380px; background: #EC4899; bottom: -100px; right: -80px; animation-direction: reverse; animation-duration: 28s; }
-.bg-blob.b3 { width: 320px; height: 320px; background: #6366F1; top: 50%; left: 55%; opacity: .1; animation-duration: 32s; }
+.bg-blob.b1 { width: 420px; height: 420px; background: #2563EB; top: -120px; left: -100px; }
+.bg-blob.b2 { width: 380px; height: 380px; background: #0891B2; bottom: -100px; right: -80px; animation-direction: reverse; animation-duration: 28s; }
+.bg-blob.b3 { width: 320px; height: 320px; background: #1E3A8A; top: 50%; left: 55%; opacity: .08; animation-duration: 32s; }
 
 @keyframes floatBlob {
   0%, 100% { transform: translate(0,0) scale(1); }
