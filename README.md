@@ -29,8 +29,8 @@ SAP danışmanlık firması için geliştirilmiş, modern ve eğlenceli bir **ak
 
 ### 📊 Raporlama & Excel
 - Müşteri/yüklenici/dönem bazında raporlar
-- **Excel'e aktarım**: hem detay hem özet sayfaları
-- Fatura hesaplama + KDV + iskonto
+- **Excel'e aktarım**: hem detay hem özet sayfaları (fatura tutarları + iskonto bilgisi dahil)
+- Faturalama dış sistemde yapılır — bu uygulama aktivite & rapor odaklı
 
 ### 🎨 Modern UX
 - Vibrant gradient palette (indigo → mor → pembe)

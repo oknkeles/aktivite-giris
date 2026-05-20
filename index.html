@@ -672,10 +672,6 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
       <span class="nbadge" id="badge-musteriler">0</span>
     </button>
     <div class="sb-section admin-only">Finans</div>
-    <button class="nb admin-only" onclick="showPage('fatura')">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      Fatura Oluştur
-    </button>
     <button class="nb admin-only" onclick="showPage('rapor')">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       Raporlar
@@ -822,49 +818,6 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
       <div class="card">
         <div class="card-hd"><span class="clabel">Müşteri Listesi</span></div>
         <div id="customer-list"><div class="empty"><div class="empty-icon">👤</div><div class="empty-text">Henüz eklenmedi</div></div></div>
-      </div>
-    </div>
-
-    <!-- FATURA -->
-    <div class="page" id="page-fatura">
-      <div class="card">
-        <div class="card-hd"><span class="clabel">Fatura Bilgileri</span></div>
-        <div class="fg c2">
-          <div class="field"><label>Müşteri</label><select id="inv-cus" onchange="loadInvEntries()"><option value="">— Seçin —</option></select></div>
-          <div class="field"><label>Fatura no</label><input type="text" id="inv-no" placeholder="2024-001"></div>
-          <div class="field"><label>Başlangıç tarihi</label><input type="date" id="inv-from" onchange="loadInvEntries()"></div>
-          <div class="field"><label>Bitiş tarihi</label><input type="date" id="inv-to" onchange="loadInvEntries()"></div>
-          <div class="field"><label>Fatura tarihi</label><input type="date" id="inv-date"></div>
-          <div class="field"><label>KDV (%)</label><input type="number" id="inv-vat" value="20" min="0" max="100"></div>
-        </div>
-        <div class="field"><label>Not</label><textarea id="inv-note" placeholder="Ödeme vadesi, banka bilgileri..."></textarea></div>
-      </div>
-      <div class="card">
-        <div class="card-hd">
-          <span class="clabel">Aktivite Seçimi</span>
-          <div style="display:flex;gap:6px;">
-            <button class="btn btn-sm no-print" onclick="selectAllInv(true)">Tümünü seç</button>
-            <button class="btn btn-sm no-print" onclick="selectAllInv(false)">Kaldır</button>
-          </div>
-        </div>
-        <div id="inv-entries"><div class="empty"><div class="empty-text">Müşteri ve tarih aralığı seçin</div></div></div>
-      </div>
-      <div style="margin-bottom:16px;" class="no-print">
-        <button class="btn btn-primary" onclick="calcInvoice()">Faturayı Hesapla →</button>
-      </div>
-      <div class="card" id="inv-result" style="display:none;">
-        <div class="card-hd">
-          <span class="clabel">Fatura Özeti</span>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-sm btn-primary no-print" onclick="window.print()">🖨 Yazdır / PDF</button>
-            <button class="excel-btn btn-sm no-print" onclick="exportInvoiceExcel()">
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              Excel
-            </button>
-            <button class="btn btn-sm no-print" onclick="document.getElementById('inv-result').style.display='none'">Kapat</button>
-          </div>
-        </div>
-        <div id="inv-result-content"></div>
       </div>
     </div>
 
@@ -1142,9 +1095,9 @@ function showErr(id,msg){const el=document.getElementById(id);el.textContent=msg
 // ════════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════════
-const PAGE_TITLES={timesheet:'Timesheet',entries:'Tüm Aktiviteler',aktiviteler:'Aktivite Türleri',yukleniciler:'Yükleniciler',musteriler:'Müşteriler',fatura:'Fatura Oluştur',rapor:'Raporlar',kullanicilar:'Kullanıcılar'};
+const PAGE_TITLES={timesheet:'Timesheet',entries:'Tüm Aktiviteler',aktiviteler:'Aktivite Türleri',yukleniciler:'Yükleniciler',musteriler:'Müşteriler',rapor:'Raporlar',kullanicilar:'Kullanıcılar'};
 function showPage(name){
-  if((name==='fatura'||name==='rapor'||name==='kullanicilar')&&!isAdmin()){alert('Bu sayfaya erişim yetkiniz yok.');return;}
+  if((name==='rapor'||name==='kullanicilar')&&!isAdmin()){alert('Bu sayfaya erişim yetkiniz yok.');return;}
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
@@ -1153,7 +1106,6 @@ function showPage(name){
   if(name==='timesheet') renderCalendar();
   if(name==='entries') { populateEntryFilters(); renderEntries(); }
   if(name==='musteriler') { refreshCusCon(); refreshNewRates(); }
-  if(name==='fatura') { refreshInvCus(); }
   if(name==='rapor') { refreshRepFilters(); }
   if(name==='kullanicilar') renderUsers();
   updateFab();
@@ -1829,120 +1781,6 @@ function renderU(){
 }
 
 // ════════════════════════════════════════════════
-// INVOICE
-// ════════════════════════════════════════════════
-function refreshInvCus(){
-  document.getElementById('inv-cus').innerHTML='<option value="">— Seçin —</option>'+CUSTS.map(c=>`<option value="${c.id}">${esc(c.name)} (${esc(c.conName)})</option>`).join('');
-}
-function loadInvEntries(){
-  const cusId=parseInt(document.getElementById('inv-cus').value);
-  const from=document.getElementById('inv-from').value;
-  const to=document.getElementById('inv-to').value;
-  const el=document.getElementById('inv-entries');
-  document.getElementById('inv-result').style.display='none';
-  if(!cusId||!from||!to){el.innerHTML='<div class="empty"><div class="empty-text">Müşteri ve tarih aralığı seçin</div></div>';return;}
-  const list=ENTRIES.filter(e=>e.cusId===cusId&&e.date>=from&&e.date<=to).sort((a,b)=>a.date.localeCompare(b.date));
-  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-text">Bu aralıkta kayıt yok</div></div>';return;}
-  const cust=CUSTS.find(c=>c.id===cusId);
-  const con=CONS.find(c=>c.id===cust?.conId);
-  const disc=con?(con.discount||0):0;
-  el.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--paper3);">
-    <span class="badge b-indigo">${esc(cust?.name||'')}</span>
-    <span class="badge b-sky">${esc(cust?.conName||'')}</span>
-    ${disc>0?`<span class="badge b-amber">%${disc} iskonto</span>`:''}
-  </div>`+
-  `<div class="trow thead" style="grid-template-columns:24px 85px 1fr 115px 105px 115px;">
-    <span></span><span>Tarih</span><span>Aktivite</span><span>Miktar</span><span style="text-align:right">Brüt</span><span style="text-align:right">Net${disc>0?' (-'+disc+'%)':''}</span>
-  </div>`+
-  list.map(e=>{
-    const act=ACTS.find(a=>a.id===e.actId);
-    const gross=grossAmount(e); const net=netAmount(e);
-    const d=new Date(e.date);
-    return `<div class="trow" style="grid-template-columns:24px 85px 1fr 115px 105px 115px;">
-      <input type="checkbox" id="inv-chk-${e.id}" checked style="width:14px;accent-color:var(--indigo);">
-      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink3);">${d.getDate()} ${MONTHS[d.getMonth()].substring(0,3)}</span>
-      <span>${act?esc(act.name):'?'} ${e.note?`<span style="color:var(--ink3);font-size:11px;">· ${esc(e.note)}</span>`:''}</span>
-      <span><span class="tag">${daysLabel(e.qty,act?.unit||'gün')}</span></span>
-      <span style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink2);">${fmt(gross)} ₺</span>
-      <span style="text-align:right;font-family:'JetBrains Mono',monospace;color:var(--emerald);font-weight:600;">${fmt(disc>0?net:gross)} ₺</span>
-    </div>`;
-  }).join('');
-}
-function selectAllInv(val){
-  const cusId=parseInt(document.getElementById('inv-cus').value);
-  const from=document.getElementById('inv-from').value;
-  const to=document.getElementById('inv-to').value;
-  ENTRIES.filter(e=>e.cusId===cusId&&e.date>=from&&e.date<=to).forEach(e=>{
-    const chk=document.getElementById('inv-chk-'+e.id);if(chk)chk.checked=val;
-  });
-}
-
-// Store last invoice data for Excel export
-let lastInvoiceData = null;
-
-function calcInvoice(){
-  const cusId=parseInt(document.getElementById('inv-cus').value);
-  const from=document.getElementById('inv-from').value;
-  const to=document.getElementById('inv-to').value;
-  if(!cusId||!from||!to){alert('Müşteri ve tarih aralığı seçin.');return;}
-  const cust=CUSTS.find(c=>c.id===cusId);
-  const con=CONS.find(c=>c.id===cust?.conId);
-  const disc=con?(con.discount||0):0;
-  const list=ENTRIES.filter(e=>e.cusId===cusId&&e.date>=from&&e.date<=to).filter(e=>{const chk=document.getElementById('inv-chk-'+e.id);return chk&&chk.checked;});
-  if(!list.length){alert('Seçili kayıt yok.');return;}
-  const vatPct=parseFloat(document.getElementById('inv-vat').value)||0;
-  const invNo=v('inv-no')||'—';
-  const invDate=document.getElementById('inv-date').value?new Date(document.getElementById('inv-date').value).toLocaleDateString('tr-TR'):'—';
-  const note=v('inv-note');
-  const groups={};
-  list.forEach(e=>{
-    if(!groups[e.actId])groups[e.actId]={actId:e.actId,totalDays:0,gross:0,net:0};
-    const act=ACTS.find(a=>a.id===e.actId);
-    groups[e.actId].totalDays+=qtyToDays(e.qty,act?.unit||'gün');
-    groups[e.actId].gross+=grossAmount(e);
-    groups[e.actId].net+=netAmount(e);
-  });
-  const rows=Object.values(groups);
-  const totalGross=rows.reduce((s,r)=>s+r.gross,0);
-  const totalNet=rows.reduce((s,r)=>s+r.net,0);
-  const vat=totalNet*vatPct/100;
-  const total=totalNet+vat;
-  const fromD=new Date(from).toLocaleDateString('tr-TR');
-  const toD=new Date(to).toLocaleDateString('tr-TR');
-
-  lastInvoiceData={cust,con,disc,rows,totalGross,totalNet,vat,vatPct,total,invNo,invDate,fromD,toD,note,list};
-
-  document.getElementById('inv-result-content').innerHTML=`
-    <div class="metrics m${disc>0?'4':'3'}" style="margin-bottom:18px;">
-      ${disc>0?`<div class="metric m-amber"><div class="metric-lbl">Brüt tutar</div><div class="metric-val">${fmt(totalGross)} ₺</div></div>`:''}
-      <div class="metric m-emerald"><div class="metric-lbl">${disc>0?'Net (iskonto sonrası)':'Ara toplam'}</div><div class="metric-val emerald">${fmt(totalNet)} ₺</div></div>
-      <div class="metric"><div class="metric-lbl">KDV (%${vatPct})</div><div class="metric-val">${fmt(vat)} ₺</div></div>
-      <div class="metric m-indigo"><div class="metric-lbl">Toplam tutar</div><div class="metric-val indigo">${fmt(total)} ₺</div></div>
-    </div>
-    <div style="font-size:12px;color:var(--ink2);margin-bottom:16px;display:flex;gap:16px;flex-wrap:wrap;padding:12px 14px;background:var(--paper);border-radius:var(--rsm);">
-      <span><strong>No:</strong> ${esc(invNo)}</span><span><strong>Tarih:</strong> ${invDate}</span>
-      <span><strong>Müşteri:</strong> ${esc(cust?.name||'')}</span>
-      <span><strong>Yüklenici:</strong> ${esc(cust?.conName||'')}${disc>0?' · %'+disc+' iskonto':''}</span>
-      <span><strong>Dönem:</strong> ${fromD} – ${toD}</span>
-    </div>
-    ${rows.map(r=>{const act=ACTS.find(a=>a.id===r.actId);return `<div class="inv-line-row">
-      <span>${act?esc(act.name):'?'} <span style="color:var(--ink3);font-size:12px;">(${fmtDays(r.totalDays)} gün)</span></span>
-      <span style="display:flex;gap:14px;align-items:center;">
-        ${disc>0?`<span class="mono" style="font-size:12px;color:var(--ink3);text-decoration:line-through;">${fmt(r.gross)} ₺</span>`:''}
-        <span class="mono" style="font-weight:600;">${fmt(r.net)} ₺</span>
-      </span>
-    </div>`;}).join('')}
-    <div class="inv-sub-row"><span>Brüt toplam</span><span class="mono">${fmt(totalGross)} ₺</span></div>
-    ${disc>0?`<div class="inv-sub-row" style="color:var(--amber);"><span>İskonto (-%${disc})</span><span class="mono">-${fmt(totalGross-totalNet)} ₺</span></div>`:''}
-    <div class="inv-sub-row"><span>KDV matrahı (net)</span><span class="mono">${fmt(totalNet)} ₺</span></div>
-    <div class="inv-sub-row"><span>KDV (%${vatPct})</span><span class="mono">${fmt(vat)} ₺</span></div>
-    <div class="inv-total-row"><span>TOPLAM TUTAR</span><span class="mono">${fmt(total)} ₺</span></div>
-    ${note?`<div style="margin-top:12px;padding:12px 14px;background:var(--paper);border-radius:var(--rsm);font-size:13px;color:var(--ink2);border-left:3px solid var(--indigo);"><strong>Not:</strong> ${esc(note)}</div>`:''}`;
-  document.getElementById('inv-result').style.display='block';
-  document.getElementById('inv-result').scrollIntoView({behavior:'smooth',block:'start'});
-}
-
-// ════════════════════════════════════════════════
 // REPORTS
 // ════════════════════════════════════════════════
 let lastReportData = null;
@@ -2221,40 +2059,6 @@ function exportReportExcel(){
   XLSX.writeFile(wb,filename);
 }
 
-function exportInvoiceExcel(){
-  if(!lastInvoiceData){alert('Önce faturayı hesaplayın.');return;}
-  const {cust,con,disc,rows,totalGross,totalNet,vat,vatPct,total,invNo,invDate,fromD,toD,note}=lastInvoiceData;
-  const wb=XLSX.utils.book_new();
-
-  const sheetRows=[
-    ['FATURA'],[''],
-    ['Fatura No',invNo],['Fatura Tarihi',invDate],
-    ['Müşteri',cust?.name||''],['Yüklenici',cust?.conName||''],
-    ['Dönem',`${fromD} – ${toD}`],
-    ['İskonto',disc>0?`%${disc}`:'Yok'],
-    [''],
-    ['Aktivite','Gün','Brüt (₺)','İskonto (₺)','Net (₺)']
-  ];
-  rows.forEach(r=>{
-    const act=ACTS.find(a=>a.id===r.actId);
-    sheetRows.push([act?.name||'?',+r.totalDays.toFixed(2),+r.gross.toFixed(2),+( r.gross-r.net).toFixed(2),+r.net.toFixed(2)]);
-  });
-  sheetRows.push(['','','','','']);
-  sheetRows.push(['Brüt Toplam','','',+totalGross.toFixed(2),'']);
-  if(disc>0) sheetRows.push([`İskonto (-%${disc})`,'','',-+(totalGross-totalNet).toFixed(2),'']);
-  sheetRows.push(['Net (KDV Matrahı)','','','',+totalNet.toFixed(2)]);
-  sheetRows.push([`KDV (%${vatPct})`,'','','',+vat.toFixed(2)]);
-  sheetRows.push(['TOPLAM TUTAR','','','',+total.toFixed(2)]);
-  if(note){ sheetRows.push([''],['Not',note]); }
-
-  const ws=XLSX.utils.aoa_to_sheet(sheetRows);
-  ws['!cols']=[{wch:28},{wch:10},{wch:14},{wch:14},{wch:14}];
-  XLSX.utils.book_append_sheet(wb,ws,'Fatura');
-
-  const filename=`fatura_${invNo.replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-  XLSX.writeFile(wb,filename);
-}
-
 // ════════════════════════════════════════════════
 // UTILS
 // ════════════════════════════════════════════════
@@ -2318,7 +2122,6 @@ document.querySelectorAll('.overlay').forEach(m=>modalObserver.observe(m,{attrib
 function initApp(){
   updateBadges();
   renderA();renderC();renderU();renderUsers();
-  document.getElementById('inv-date').value=new Date().toISOString().split('T')[0];
   renderCalendar();
   updateFab();
 }
