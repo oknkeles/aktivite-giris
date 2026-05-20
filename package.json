@@ -11,11 +11,15 @@
     "install:all": "npm install && npm --workspace=server install && npm --workspace=client install",
     "db:push": "npm --workspace=server run db:push",
     "db:seed": "npm --workspace=server run db:seed",
+    "db:migrate": "cd server && npx prisma migrate deploy",
     "dev:server": "npm --workspace=server run dev",
     "dev:client": "npm --workspace=client run dev",
     "dev": "concurrently -n SERVER,CLIENT -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",
-    "build": "npm --workspace=client run build",
-    "start": "npm --workspace=server start"
+    "build:client": "npm --workspace=client run build",
+    "build:server": "npm --workspace=server run build",
+    "build": "npm run build:client && npm run build:server && cd server && npx prisma generate",
+    "postinstall": "cd server && npx prisma generate || true",
+    "start": "cd server && (npx prisma migrate deploy || npx prisma db push --accept-data-loss) && node dist/index.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

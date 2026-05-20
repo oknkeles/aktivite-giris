@@ -134,6 +134,17 @@ aktivite-giris/
 | `npm run dev:client` | Sadece UI |
 | `npm run build` | Production build |
 
+## 🚀 Üretim Dağıtımı
+
+Şirket geneline yaymak için → **[DEPLOYMENT.md](./DEPLOYMENT.md)**
+
+Özet:
+1. **Database:** Neon Postgres (ücretsiz başlar)
+2. **Hosting:** Railway ($5/ay, GitHub'dan otomatik deploy)
+3. **Domain & SSL:** otomatik
+
+İlk yayın için tahmini süre: **30-45 dakika**, ilk 3 ay tamamen ücretsiz.
+
 ## 📄 Lisans
 
 MIT — keyfini çıkar 🚀
