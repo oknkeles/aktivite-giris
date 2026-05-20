@@ -1020,41 +1020,50 @@ if(!CONS.length){
 }
 if(!CUSTS.length){
   const _all=r=>({1:r,2:r,3:r,4:r});
-  const _lvl=(j,m,s,e)=>({1:j,2:m,3:s,4:e});
-  const _saldo=(id,name,rates)=>({id,name,conId:1,conName:'SALDO',contact:'',phone:'',rates});
+  const _saldo=(id,name)=>({id,name,conId:1,conName:'SALDO',contact:'',phone:'',rates:_all(20000)});
   CUSTS=[
-    _saldo(101,'Eti',_all(19000)),
-    _saldo(102,'Şenpiliç',_all(19000)),
-    _saldo(103,'Eminevim',_all(19500)),
-    _saldo(104,'Beyçelik',_all(22000)),
-    _saldo(105,'Gesbey',_all(22000)),
-    _saldo(106,'Neutec',_all(18000)),
-    _saldo(107,'Coşkunöz',_lvl(0,18500,21000,22000)),
-    _saldo(108,'Grebo Destek',_lvl(15000,18500,21500,0)),
-    _saldo(109,'Simcoe',_all(440)), // CAD - lütfen TL karşılığını güncelleyin
-    _saldo(110,'Roma Plastik',_all(21600)),
-    _saldo(111,'Beymen',_all(0)),
-    _saldo(112,'Aktek Bilişim',_all(19500)),
-    _saldo(113,'Multinet',_lvl(12000,15250,17500,19500)),
-    _saldo(114,'Oedaş',_lvl(6080,10640,15200,18240)),
-    _saldo(115,'Oepsaş',_lvl(6080,10640,15200,18240)),
-    _saldo(116,'EY Bireysel Çalışmalar',_all(0)),
-    _saldo(117,'Biofarma',_all(18000)),
-    _saldo(118,'Dalgakıran',_all(21000)),
-    _saldo(119,'Bordrill EC + ECP Destek',_all(16000)),
-    _saldo(120,'Erdemir BrownField S4HANA Günlük Destek',_all(0)),
-    _saldo(121,'Tüprag',_all(0)),
-    _saldo(122,'E&Y Tüprag SF',_all(450)), // USD - lütfen TL karşılığını güncelleyin
-    _saldo(123,'Karaca',_all(0)),
-    _saldo(124,'S4CON',_all(0)),
-    _saldo(125,'Oypa',_all(15000)),
-    _saldo(126,'Ototrim',_all(20000)),
+    _saldo(101,'Eti'),
+    _saldo(102,'Şenpiliç'),
+    _saldo(103,'Eminevim'),
+    _saldo(104,'Beyçelik'),
+    _saldo(105,'Gesbey'),
+    _saldo(106,'Neutec'),
+    _saldo(107,'Coşkunöz'),
+    _saldo(108,'Grebo Destek'),
+    _saldo(109,'Simcoe'),
+    _saldo(110,'Roma Plastik'),
+    _saldo(111,'Beymen'),
+    _saldo(112,'Aktek Bilişim'),
+    _saldo(113,'Multinet'),
+    _saldo(114,'Oedaş'),
+    _saldo(115,'Oepsaş'),
+    _saldo(116,'EY Bireysel Çalışmalar'),
+    _saldo(117,'Biofarma'),
+    _saldo(118,'Dalgakıran'),
+    _saldo(119,'Bordrill EC + ECP Destek'),
+    _saldo(120,'Erdemir BrownField S4HANA Günlük Destek'),
+    _saldo(121,'Tüprag'),
+    _saldo(122,'E&Y Tüprag SF'),
+    _saldo(123,'Karaca'),
+    _saldo(124,'S4CON'),
+    _saldo(125,'Oypa'),
+    _saldo(126,'Ototrim'),
     // TDEV — kendi müşterimiz, iskonto yok
-    {id:201,name:'THY',conId:2,conName:'TDEV',contact:'',phone:'',rates:_all(16017.75)},
+    {id:201,name:'THY',conId:2,conName:'TDEV',contact:'',phone:'',rates:_all(20000)},
     // FIKS — alt müşterisi Kosifler, %10 iskonto
-    {id:301,name:'Kosifler',conId:3,conName:'FIKS',contact:'',phone:'',rates:_all(0)}
+    {id:301,name:'Kosifler',conId:3,conName:'FIKS',contact:'',phone:'',rates:_all(20000)}
   ];
   save('fys-custs',CUSTS);
+}
+
+// ── TEST SİSTEMİ: tüm rate'leri 20.000 ₺'ye sabitle (bir kerelik migration) ──
+const _FLAT_VERSION='flat20k-2026-05';
+if(localStorage.getItem('fys-rate-flat')!==_FLAT_VERSION){
+  CUSTS.forEach(c=>{
+    if(c.rates) Object.keys(c.rates).forEach(k=>{c.rates[k]=20000;});
+  });
+  save('fys-custs',CUSTS);
+  localStorage.setItem('fys-rate-flat',_FLAT_VERSION);
 }
 
 // ════════════════════════════════════════════════
