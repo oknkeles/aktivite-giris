@@ -31,24 +31,8 @@ router.post('/login', async (req, res) => {
   });
 });
 
-const registerSchema = z.object({
-  username: z.string().min(2).max(40),
-  fullname: z.string().min(2).max(80),
-  password: z.string().min(4).max(100),
-});
-
-router.post('/register', async (req, res) => {
-  const parsed = registerSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
-  const { username, fullname, password } = parsed.data;
-  const exists = await prisma.user.findUnique({ where: { username: username.toLowerCase() } });
-  if (exists) return res.status(409).json({ error: 'Bu kullanıcı adı zaten alınmış.' });
-  const passwordHash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({
-    data: { username: username.toLowerCase(), fullname, passwordHash, role: 'user' },
-  });
-  res.json({ ok: true, user: { id: user.id, username: user.username, fullname, role: user.role } });
-});
+// NOT: Self-register endpoint kaldırıldı — kullanıcılar sadece admin tarafından
+// /api/users üzerinden oluşturulabilir. Bu, kontrolsüz hesap açılmasını engeller.
 
 router.get('/me', authRequired, async (req: AuthRequest, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user!.id } });

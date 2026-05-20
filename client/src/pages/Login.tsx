@@ -1,19 +1,15 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Calendar, ArrowRight } from 'lucide-react';
+import { Calendar, ArrowRight, Lock } from 'lucide-react';
 import { useAuth } from '../store/auth';
-import { useToast } from '../components/Toast';
-import Modal from '../components/Modal';
 
 export default function Login() {
-  const { user, login, register } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
-  const toast = useToast();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
 
   if (user) return <Navigate to="/timesheet" replace />;
 
@@ -68,7 +64,7 @@ export default function Login() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full bg-white/[.06] border border-white/10 rounded-xl px-3.5 py-3 text-white outline-none focus:border-brand-indigo focus:bg-brand-indigo/10 transition placeholder-white/20"
-              placeholder="admin"
+              placeholder="kullanici_adi"
               autoComplete="username"
             />
           </div>
@@ -95,58 +91,11 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="text-center text-xs text-white/30 mt-5">
-          Yeni kullanıcı?{' '}
-          <button onClick={() => setShowRegister(true)} className="text-white/60 border-b border-white/20 hover:text-white">
-            Hesap oluştur
-          </button>
+        <div className="flex items-center justify-center gap-1.5 text-[11px] text-white/30 mt-5">
+          <Lock size={11} />
+          Hesabınız yoksa yöneticinizle iletişime geçin.
         </div>
       </div>
-
-      <RegisterModal open={showRegister} onClose={() => setShowRegister(false)} />
     </div>
-  );
-}
-
-function RegisterModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { register } = useAuth();
-  const toast = useToast();
-  const [u, setU] = useState('');
-  const [f, setF] = useState('');
-  const [p, setP] = useState('');
-  const [err, setErr] = useState('');
-
-  async function submit() {
-    setErr('');
-    if (!u || !f || !p) return setErr('Tüm alanlar zorunlu.');
-    try {
-      await register(u, f, p);
-      toast.show('Hesap oluşturuldu, giriş yapabilirsiniz.');
-      onClose();
-    } catch (e: any) {
-      setErr(e.message || 'Hata');
-    }
-  }
-
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Hesap Oluştur"
-      size="sm"
-      footer={
-        <>
-          <button className="btn" onClick={onClose}>İptal</button>
-          <button className="btn btn-primary" onClick={submit}>Oluştur</button>
-        </>
-      }
-    >
-      <div className="space-y-3">
-        {err && <div className="bg-brand-rose/10 border border-brand-rose/30 text-brand-rose text-xs px-3 py-2 rounded-lg">{err}</div>}
-        <div><label className="label">Kullanıcı adı</label><input className="input" value={u} onChange={(e) => setU(e.target.value)} /></div>
-        <div><label className="label">Ad soyad</label><input className="input" value={f} onChange={(e) => setF(e.target.value)} /></div>
-        <div><label className="label">Şifre</label><input className="input" type="password" value={p} onChange={(e) => setP(e.target.value)} /></div>
-      </div>
-    </Modal>
   );
 }

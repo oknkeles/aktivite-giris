@@ -6,7 +6,6 @@ interface AuthState {
   token: string | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, fullname: string, password: string) => Promise<void>;
   logout: () => void;
   initFromStorage: () => Promise<void>;
 }
@@ -20,10 +19,6 @@ export const useAuth = create<AuthState>((set) => ({
     const data = await api.post<{ token: string; user: User }>('/auth/login', { username, password });
     localStorage.setItem('aktivite_token', data.token);
     set({ user: data.user, token: data.token, loading: false });
-  },
-
-  register: async (username, fullname, password) => {
-    await api.post('/auth/register', { username, fullname, password });
   },
 
   logout: () => {
