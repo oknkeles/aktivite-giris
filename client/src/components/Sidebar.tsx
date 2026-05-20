@@ -1,36 +1,41 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Calendar, List, CheckSquare, Users, UserCog, BarChart3, LogOut, Trash2, Menu, X
+  Calendar, List, CheckSquare, Users, UserCog, BarChart3, LogOut, Menu, X,
+  ShieldCheck, ChevronDown, Briefcase
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { useAuth, isAdmin } from '../store/auth';
 
-const navItems = (admin: boolean) => [
-  { section: 'Giriş', items: [
-    { to: '/timesheet', icon: Calendar, label: 'Timesheet' },
-    { to: '/entries', icon: List, label: 'Tüm Aktiviteler' },
-  ]},
-  { section: 'Tanımlar', items: [
-    { to: '/activities', icon: CheckSquare, label: 'Aktivite Türleri' },
-    { to: '/contractors', icon: Users, label: 'Yükleniciler' },
-    { to: '/customers', icon: UserCog, label: 'Müşteriler' },
-  ]},
-  ...(admin ? [
-    { section: 'Finans', items: [
-      { to: '/reports', icon: BarChart3, label: 'Raporlar' },
-    ]},
-    { section: 'Sistem', items: [
-      { to: '/users', icon: Users, label: 'Kullanıcılar' },
-    ]},
-  ] : []),
+const ENTRY_ITEMS = [
+  { to: '/timesheet', icon: Calendar, label: 'Timesheet' },
+  { to: '/entries', icon: List, label: 'Tüm Aktiviteler' },
+];
+
+const ADMIN_ITEMS = [
+  { to: '/activities', icon: CheckSquare, label: 'Aktivite Türleri' },
+  { to: '/contractors', icon: Briefcase, label: 'Yükleniciler' },
+  { to: '/customers', icon: UserCog, label: 'Müşteriler' },
+  { to: '/users', icon: Users, label: 'Kullanıcılar' },
+];
+
+const FINANCE_ITEMS = [
+  { to: '/reports', icon: BarChart3, label: 'Raporlar' },
 ];
 
 export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMobileOpen: (b: boolean) => void }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const loc = useLocation();
   const admin = isAdmin(user);
-  const sections = navItems(admin);
+
+  // Auto-open admin panel if currently on an admin route
+  const isOnAdminPage = ADMIN_ITEMS.some(i => i.to === loc.pathname);
+  const [adminOpen, setAdminOpen] = useState(isOnAdminPage);
+
+  useEffect(() => {
+    if (isOnAdminPage) setAdminOpen(true);
+  }, [isOnAdminPage]);
 
   function doLogout() {
     logout();
@@ -39,7 +44,6 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
 
   return (
     <>
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-ink/50 backdrop-blur-sm z-40"
@@ -97,40 +101,64 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {sections.map((s) => (
-            <div key={s.section} className="mt-2 first:mt-0">
-              <div className="text-[9.5px] font-bold tracking-[.12em] text-white/30 uppercase px-3 pt-3 pb-1">
-                {s.section}
+          {/* Giriş section */}
+          <div>
+            <div className="text-[9.5px] font-bold tracking-[.12em] text-white/30 uppercase px-3 pt-3 pb-1">
+              Giriş
+            </div>
+            {ENTRY_ITEMS.map((it) => (
+              <NavItem key={it.to} {...it} onNav={() => setMobileOpen(false)} />
+            ))}
+          </div>
+
+          {/* Admin Paneli — collapsible (admin only) */}
+          {admin && (
+            <div className="mt-2">
+              <button
+                onClick={() => setAdminOpen(o => !o)}
+                className={clsx(
+                  'group w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition mt-3',
+                  isOnAdminPage
+                    ? 'bg-gradient-to-r from-brand-violet/20 via-brand-pink/10 to-transparent text-white shadow-[inset_0_0_0_1px_rgba(168,85,247,.2)]'
+                    : 'text-white/65 hover:bg-white/5 hover:text-white/95'
+                )}
+              >
+                <ShieldCheck size={16} className={isOnAdminPage ? 'text-brand-violet/90' : ''} />
+                <span className="flex-1 text-left">Admin Paneli</span>
+                <ChevronDown
+                  size={14}
+                  className={clsx('transition-transform text-white/40', adminOpen && 'rotate-180')}
+                />
+              </button>
+              <div className={clsx(
+                'grid transition-[grid-template-rows] duration-300 ease-out',
+                adminOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+              )}>
+                <div className="overflow-hidden">
+                  <div className="pl-3 mt-1 space-y-0.5 border-l border-white/10 ml-4">
+                    {ADMIN_ITEMS.map((it) => (
+                      <NavItem key={it.to} {...it} indented onNav={() => setMobileOpen(false)} />
+                    ))}
+                  </div>
+                </div>
               </div>
-              {s.items.map((it) => (
-                <NavLink
-                  key={it.to}
-                  to={it.to}
-                  onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) => clsx(
-                    'group relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition',
-                    isActive
-                      ? 'bg-gradient-to-r from-brand-indigo/25 via-brand-violet/15 to-brand-pink/10 text-white shadow-[inset_0_0_0_1px_rgba(168,85,247,.25)]'
-                      : 'text-white/55 hover:bg-white/5 hover:text-white/90'
-                  )}
-                >
-                  {({ isActive }) => (
-                    <>
-                      {isActive && (
-                        <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r bg-grad-primary shadow-[0_0_14px_rgba(168,85,247,.7)]" />
-                      )}
-                      <it.icon size={16} className={isActive ? 'text-brand-violet/90' : ''} />
-                      {it.label}
-                    </>
-                  )}
-                </NavLink>
+            </div>
+          )}
+
+          {/* Finans section (admin only) */}
+          {admin && (
+            <div className="mt-2">
+              <div className="text-[9.5px] font-bold tracking-[.12em] text-white/30 uppercase px-3 pt-3 pb-1">
+                Finans
+              </div>
+              {FINANCE_ITEMS.map((it) => (
+                <NavItem key={it.to} {...it} onNav={() => setMobileOpen(false)} />
               ))}
             </div>
-          ))}
+          )}
         </nav>
       </aside>
 
-      {/* Mobile burger button */}
       <button
         className="lg:hidden fixed top-3 left-3 z-30 w-10 h-10 rounded-xl bg-white border border-paper-3 shadow-md flex items-center justify-center text-ink-2"
         onClick={() => setMobileOpen(true)}
@@ -139,5 +167,37 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
         <Menu size={18} />
       </button>
     </>
+  );
+}
+
+function NavItem({ to, icon: Icon, label, indented = false, onNav }: {
+  to: string;
+  icon: typeof Calendar;
+  label: string;
+  indented?: boolean;
+  onNav: () => void;
+}) {
+  return (
+    <NavLink
+      to={to}
+      onClick={onNav}
+      className={({ isActive }) => clsx(
+        'group relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition',
+        indented && 'text-[12.5px] py-2',
+        isActive
+          ? 'bg-gradient-to-r from-brand-indigo/25 via-brand-violet/15 to-brand-pink/10 text-white shadow-[inset_0_0_0_1px_rgba(168,85,247,.25)]'
+          : 'text-white/55 hover:bg-white/5 hover:text-white/90'
+      )}
+    >
+      {({ isActive }) => (
+        <>
+          {isActive && !indented && (
+            <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r bg-grad-primary shadow-[0_0_14px_rgba(168,85,247,.7)]" />
+          )}
+          <Icon size={indented ? 14 : 16} className={isActive ? 'text-brand-violet/90' : ''} />
+          {label}
+        </>
+      )}
+    </NavLink>
   );
 }

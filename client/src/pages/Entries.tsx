@@ -3,20 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileDown, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { api, type Entry, type Customer } from '../api/client';
-import { useAuth, isAdmin } from '../store/auth';
 import { useToast } from '../components/Toast';
-import { fmtHours, fmtMoney, qtyToHours, MONTHS } from '../lib/format';
+import { fmtHours, qtyToHours, MONTHS } from '../lib/format';
 
 function entryHours(e: Entry) { return qtyToHours(e.qty, e.activity.unit); }
-function entryNet(e: Entry) {
-  const rate = e.customer.rates.find(r => r.activityId === e.activityId)?.rate || 0;
-  const gross = (entryHours(e) / 8) * rate;
-  return gross * (1 - (e.customer.contractor.discount || 0) / 100);
-}
 
 export default function Entries() {
-  const { user } = useAuth();
-  const admin = isAdmin(user);
   const toast = useToast();
   const qc = useQueryClient();
 
@@ -55,13 +47,13 @@ export default function Entries() {
 
   function exportExcel() {
     if (!filtered.length) return toast.show('Aktarılacak kayıt yok', 'error');
-    const headers = ['Tarih', 'Müşteri', 'Aktivite', 'Süre (Saat)', 'Not', 'Giren'];
-    if (admin) headers.push('Net Tutar (₺)');
-    const rows: any[][] = [headers];
+    // Aktivite listesi sadece saat bilgisini içerir — tutarlar Raporlar export'unda
+    const rows: any[][] = [['Tarih', 'Müşteri', 'Yüklenici', 'Aktivite', 'Süre (Saat)', 'Not', 'Giren']];
     filtered.forEach((e) => {
-      const r = [e.date, e.customer.name, e.activity.name, +entryHours(e).toFixed(2), e.note || '', e.user.fullname];
-      if (admin) r.push(+entryNet(e).toFixed(2));
-      rows.push(r);
+      rows.push([
+        e.date, e.customer.name, e.customer.contractor.name,
+        e.activity.name, +entryHours(e).toFixed(2), e.note || '', e.user.fullname
+      ]);
     });
     const ws = XLSX.utils.aoa_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -106,7 +98,6 @@ export default function Entries() {
                   <th className="text-left py-3">Müşteri</th>
                   <th className="text-left py-3">Aktivite / Not</th>
                   <th className="text-right py-3">Saat</th>
-                  {admin && <th className="text-right py-3">Net Tutar</th>}
                   <th className="text-right py-3">Giren</th>
                   <th className="px-5 sm:px-6 py-3"></th>
                 </tr>
@@ -125,9 +116,6 @@ export default function Entries() {
                         {e.note && <div className="text-[11px] text-ink-3 mt-0.5">{e.note}</div>}
                       </td>
                       <td className="py-3 text-right"><span className="tag font-bold">{fmtHours(entryHours(e))}</span></td>
-                      {admin && (
-                        <td className="py-3 text-right font-mono font-bold grad-text-mint">{fmtMoney(entryNet(e))} ₺</td>
-                      )}
                       <td className="py-3 text-right text-[11px] text-ink-3">{e.user.fullname}</td>
                       <td className="px-5 sm:px-6 py-3 text-right">
                         <button onClick={() => delMut.mutate(e.id)} className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg transition">
