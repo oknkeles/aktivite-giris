@@ -1,5 +1,16 @@
 .DS_Store
-*.log
 node_modules/
+dist/
+build/
+*.log
+.env
+.env.local
 .vscode/
 .idea/
+*.db
+*.db-journal
+server/prisma/dev.db
+server/prisma/dev.db-journal
+
+client/tsconfig.tsbuildinfo
+client/.tsbuildinfo

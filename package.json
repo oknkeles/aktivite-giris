@@ -1,0 +1,23 @@
+{
+  "name": "aktivite-giris",
+  "version": "5.0.0",
+  "private": true,
+  "description": "SAP danışmanlık aktivite takip & raporlama — React + Express + SQLite",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm --workspace=server install && npm --workspace=client install",
+    "db:push": "npm --workspace=server run db:push",
+    "db:seed": "npm --workspace=server run db:seed",
+    "dev:server": "npm --workspace=server run dev",
+    "dev:client": "npm --workspace=client run dev",
+    "dev": "concurrently -n SERVER,CLIENT -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "build": "npm --workspace=client run build",
+    "start": "npm --workspace=server start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

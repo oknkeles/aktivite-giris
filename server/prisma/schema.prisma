@@ -1,0 +1,84 @@
+// Prisma schema — Aktivite Giriş Sistemi
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  fullname     String
+  passwordHash String
+  role         String   @default("user") // admin | user
+  createdAt    DateTime @default(now())
+
+  entries Entry[]
+}
+
+model Activity {
+  id    Int    @id @default(autoincrement())
+  name  String
+  unit  String // saat | gün
+  desc  String?
+
+  rates   CustomerRate[]
+  entries Entry[]
+}
+
+model Contractor {
+  id       Int     @id @default(autoincrement())
+  name     String
+  contact  String?
+  phone    String?
+  email    String?
+  address  String?
+  discount Float   @default(0)
+
+  customers Customer[]
+}
+
+model Customer {
+  id           Int     @id @default(autoincrement())
+  name         String
+  contractorId Int
+  contact      String?
+  phone        String?
+
+  contractor Contractor     @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  rates      CustomerRate[]
+  entries    Entry[]
+}
+
+model CustomerRate {
+  id         Int   @id @default(autoincrement())
+  customerId Int
+  activityId Int
+  rate       Float
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, activityId])
+}
+
+model Entry {
+  id         Int      @id @default(autoincrement())
+  date       String   // YYYY-MM-DD
+  qty        Float
+  note       String?
+  customerId Int
+  activityId Int
+  userId     Int
+  createdAt  DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+  @@index([customerId])
+}
