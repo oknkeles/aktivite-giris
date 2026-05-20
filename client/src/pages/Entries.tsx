@@ -48,11 +48,12 @@ export default function Entries() {
   function exportExcel() {
     if (!filtered.length) return toast.show('Aktarılacak kayıt yok', 'error');
     // Aktivite listesi sadece saat bilgisini içerir — tutarlar Raporlar export'unda
-    const rows: any[][] = [['Tarih', 'Müşteri', 'Yüklenici', 'Aktivite', 'Süre (Saat)', 'Not', 'Giren']];
+    const rows: any[][] = [['Tarih', 'Müşteri', 'Yüklenici', 'Aktivite', 'Talep ID', 'Süre (Saat)', 'Not', 'Giren']];
     filtered.forEach((e) => {
       rows.push([
         e.date, e.customer.name, e.customer.contractor.name,
-        e.activity.name, +entryHours(e).toFixed(2), e.note || '', e.user.fullname
+        e.activity.name, e.ticketId || '', +entryHours(e).toFixed(2),
+        e.note || '', e.user.fullname
       ]);
     });
     const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -91,12 +92,14 @@ export default function Entries() {
           </div>
         ) : (
           <div className="overflow-x-auto -mx-5 sm:-mx-6">
-            <table className="w-full text-sm min-w-[700px]">
+            <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="text-[10px] font-extrabold uppercase tracking-wider text-ink-3 border-b-2 border-paper-3">
                   <th className="text-left px-5 sm:px-6 py-3">Tarih</th>
                   <th className="text-left py-3">Müşteri</th>
-                  <th className="text-left py-3">Aktivite / Not</th>
+                  <th className="text-left py-3">Aktivite</th>
+                  <th className="text-left py-3">Talep ID</th>
+                  <th className="text-left py-3">Açıklama</th>
                   <th className="text-right py-3">Saat</th>
                   <th className="text-right py-3">Giren</th>
                   <th className="px-5 sm:px-6 py-3"></th>
@@ -111,9 +114,18 @@ export default function Entries() {
                         {d.getDate()} {MONTHS[d.getMonth()].substring(0, 3)} {d.getFullYear()}
                       </td>
                       <td className="py-3 font-semibold">{e.customer.name}</td>
-                      <td className="py-3 text-ink-2">
-                        {e.activity.name}
-                        {e.note && <div className="text-[11px] text-ink-3 mt-0.5">{e.note}</div>}
+                      <td className="py-3 text-ink-2">{e.activity.name}</td>
+                      <td className="py-3">
+                        {e.ticketId ? (
+                          <span className="badge bg-brand-violet/15 text-brand-violet font-mono !text-[10.5px]">
+                            🎫 {e.ticketId}
+                          </span>
+                        ) : <span className="text-ink-4 text-[11px]">—</span>}
+                      </td>
+                      <td className="py-3 text-[11.5px] text-ink-3 max-w-[280px]">
+                        {e.note ? (
+                          <span className="line-clamp-2 whitespace-pre-wrap" title={e.note}>{e.note}</span>
+                        ) : <span className="text-ink-4">—</span>}
                       </td>
                       <td className="py-3 text-right"><span className="tag font-bold">{fmtHours(entryHours(e))}</span></td>
                       <td className="py-3 text-right text-[11px] text-ink-3">{e.user.fullname}</td>

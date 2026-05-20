@@ -33,7 +33,8 @@ const createSchema = z.object({
   qty: z.number().positive(),
   customerId: z.number().int(),
   activityId: z.number().int(),
-  note: z.string().optional().nullable(),
+  ticketId: z.string().max(80).optional().nullable(),
+  note: z.string().max(2000).optional().nullable(),
 });
 
 router.post('/', async (req: AuthRequest, res) => {
@@ -55,7 +56,8 @@ const bulkSchema = z.object({
   qty: z.number().positive(),
   customerId: z.number().int(),
   activityId: z.number().int(),
-  note: z.string().optional().nullable(),
+  ticketId: z.string().max(80).optional().nullable(),
+  note: z.string().max(2000).optional().nullable(),
 });
 
 router.post('/bulk', async (req: AuthRequest, res) => {

@@ -41,6 +41,7 @@ router.get('/', async (req, res) => {
       unit: e.activity.unit,
       hours,
       days,
+      ticketId: e.ticketId,
       note: e.note,
       customerId: e.customer.id,
       customerName: e.customer.name,

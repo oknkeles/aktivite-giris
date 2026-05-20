@@ -52,13 +52,18 @@ export default function Reports() {
     const wb = XLSX.utils.book_new();
 
     // Sheet 1: Detay
-    const detail: any[][] = [['Tarih', 'Yüklenici', 'Müşteri', 'Aktivite', 'Saat', 'Gün', 'Brüt (₺)', 'İskonto (%)', 'Net (₺)']];
+    const detail: any[][] = [['Tarih', 'Yüklenici', 'Müşteri', 'Aktivite', 'Talep ID', 'Açıklama', 'Saat', 'Gün', 'Brüt (₺)', 'İskonto (%)', 'Net (₺)']];
     report.entries.forEach(e => {
-      detail.push([e.date, e.contractorName, e.customerName, e.activityName, +e.hours.toFixed(2), +e.days.toFixed(2), +e.gross.toFixed(2), e.discount, +e.net.toFixed(2)]);
+      detail.push([
+        e.date, e.contractorName, e.customerName, e.activityName,
+        e.ticketId || '', e.note || '',
+        +e.hours.toFixed(2), +e.days.toFixed(2),
+        +e.gross.toFixed(2), e.discount, +e.net.toFixed(2),
+      ]);
     });
-    detail.push(['', '', '', 'TOPLAM', +report.totalHours.toFixed(2), +(report.totalHours / 8).toFixed(2), +report.totalGross.toFixed(2), '', +report.totalNet.toFixed(2)]);
+    detail.push(['', '', '', 'TOPLAM', '', '', +report.totalHours.toFixed(2), +(report.totalHours / 8).toFixed(2), +report.totalGross.toFixed(2), '', +report.totalNet.toFixed(2)]);
     const ws1 = XLSX.utils.aoa_to_sheet(detail);
-    ws1['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 22 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }];
+    ws1['!cols'] = [{ wch: 12 }, { wch: 18 }, { wch: 20 }, { wch: 18 }, { wch: 14 }, { wch: 36 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
     XLSX.utils.book_append_sheet(wb, ws1, 'Detay');
 
     // Sheet 2: Grup özet

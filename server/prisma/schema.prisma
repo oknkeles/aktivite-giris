@@ -69,6 +69,7 @@ model Entry {
   id         Int      @id @default(autoincrement())
   date       String   // YYYY-MM-DD
   qty        Float
+  ticketId   String?  // Müşteri talep/ticket ID (örn. JIRA-1234, ZBT-5678)
   note       String?
   customerId Int
   activityId Int

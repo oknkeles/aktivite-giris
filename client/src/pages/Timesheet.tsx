@@ -468,15 +468,16 @@ function DayModal({ date, onClose, entries, customers, activities }: {
   const [cusId, setCusId] = useState<number | ''>('');
   const [actId, setActId] = useState<number | ''>('');
   const [qty, setQty] = useState('');
+  const [ticketId, setTicketId] = useState('');
   const [note, setNote] = useState('');
   const toast = useToast();
   const qc = useQueryClient();
 
   const addMut = useMutation({
-    mutationFn: () => api.post('/entries', { date, qty: parseFloat(qty), customerId: cusId, activityId: actId, note }),
+    mutationFn: () => api.post('/entries', { date, qty: parseFloat(qty), customerId: cusId, activityId: actId, ticketId: ticketId || null, note: note || null }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['entries'] });
-      setQty(''); setNote(''); setCusId(''); setActId('');
+      setQty(''); setTicketId(''); setNote(''); setCusId(''); setActId('');
       const prevHours = entries.reduce((s, e) => s + entryHours(e), 0);
       const act = activities.find((a) => a.id === actId);
       const newH = prevHours + (act?.unit === 'saat' ? parseFloat(qty) : parseFloat(qty) * 8);
@@ -524,15 +525,21 @@ function DayModal({ date, onClose, entries, customers, activities }: {
           <div className="clabel mb-2.5">Bu Güne Ait Kayıtlar</div>
           <div className="space-y-2">
             {entries.map((e) => (
-              <div key={e.id} className="flex items-center gap-2.5 p-2.5 bg-paper-2 rounded-xl">
+              <div key={e.id} className="flex items-start gap-2.5 p-3 bg-paper-2 rounded-xl">
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate">
-                    {e.customer.name} <span className="text-ink-3 font-normal">— {e.activity.name}</span>
+                  <div className="text-sm font-semibold flex flex-wrap items-center gap-1.5">
+                    {e.customer.name}
+                    <span className="text-ink-3 font-normal">— {e.activity.name}</span>
+                    {e.ticketId && (
+                      <span className="badge bg-brand-violet/15 text-brand-violet font-mono !text-[10px]">
+                        🎫 {e.ticketId}
+                      </span>
+                    )}
                   </div>
-                  {e.note && <div className="text-[11px] text-ink-3 truncate mt-0.5">{e.note}</div>}
+                  {e.note && <div className="text-[11.5px] text-ink-3 mt-1 whitespace-pre-wrap leading-relaxed">{e.note}</div>}
                 </div>
-                <span className="tag font-bold">{fmtHours(entryHours(e))}</span>
-                <button onClick={() => delMut.mutate(e.id)} className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg">
+                <span className="tag font-bold flex-shrink-0">{fmtHours(entryHours(e))}</span>
+                <button onClick={() => delMut.mutate(e.id)} className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg flex-shrink-0">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -559,15 +566,37 @@ function DayModal({ date, onClose, entries, customers, activities }: {
           </select>
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-3 mb-3">
         <div>
           <label className="label">Süre (Saat)</label>
           <input className="input font-mono" type="number" step="0.25" min="0" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="0.00" />
         </div>
         <div>
-          <label className="label">Açıklama / Not</label>
-          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Proje modülü, yapılan iş..." />
+          <label className="label flex items-center gap-1.5">
+            🎫 Talep ID
+            <span className="text-[10px] font-normal text-ink-3">(isteğe bağlı)</span>
+          </label>
+          <input
+            className="input font-mono"
+            value={ticketId}
+            onChange={(e) => setTicketId(e.target.value)}
+            placeholder="ör. JIRA-1234, ZBT-5678, TICKET-9012..."
+          />
         </div>
+      </div>
+      <div className="mb-2">
+        <label className="label flex items-center gap-1.5">
+          📝 Açıklama / Talep Detayı
+          <span className="text-[10px] font-normal text-ink-3">(isteğe bağlı)</span>
+        </label>
+        <textarea
+          className="input min-h-[120px] resize-y leading-relaxed"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Proje modülü, yapılan iş, çözülen problem, talep detayları..."
+          rows={5}
+        />
+        <div className="text-[10.5px] text-ink-3 mt-1.5 text-right">{note.length} karakter</div>
       </div>
     </Modal>
   );
@@ -584,12 +613,20 @@ function BulkModal({ dates, onClose, customers, activities, onDone }: {
   const [cusId, setCusId] = useState<number | ''>('');
   const [actId, setActId] = useState<number | ''>('');
   const [qty, setQty] = useState('');
+  const [ticketId, setTicketId] = useState('');
   const [note, setNote] = useState('');
   const toast = useToast();
   const qc = useQueryClient();
 
   const bulkMut = useMutation({
-    mutationFn: () => api.post('/entries/bulk', { dates, qty: parseFloat(qty), customerId: cusId, activityId: actId, note }),
+    mutationFn: () => api.post('/entries/bulk', {
+      dates,
+      qty: parseFloat(qty),
+      customerId: cusId,
+      activityId: actId,
+      ticketId: ticketId || null,
+      note: note || null,
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['entries'] });
       confettiBurst();
@@ -649,15 +686,37 @@ function BulkModal({ dates, onClose, customers, activities, onDone }: {
           </select>
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-3 mb-3">
         <div>
           <label className="label">Günlük Süre (Saat)</label>
           <input className="input font-mono" type="number" step="0.25" min="0" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="8" />
         </div>
         <div>
-          <label className="label">Açıklama / Not</label>
-          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Proje modülü..." />
+          <label className="label flex items-center gap-1.5">
+            🎫 Talep ID
+            <span className="text-[10px] font-normal text-ink-3">(isteğe bağlı · tüm günlere aynı uygulanır)</span>
+          </label>
+          <input
+            className="input font-mono"
+            value={ticketId}
+            onChange={(e) => setTicketId(e.target.value)}
+            placeholder="ör. JIRA-1234"
+          />
         </div>
+      </div>
+      <div>
+        <label className="label flex items-center gap-1.5">
+          📝 Açıklama / Talep Detayı
+          <span className="text-[10px] font-normal text-ink-3">(isteğe bağlı)</span>
+        </label>
+        <textarea
+          className="input min-h-[120px] resize-y leading-relaxed"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Proje modülü, yapılan iş, çözülen problem, talep detayları..."
+          rows={5}
+        />
+        <div className="text-[10.5px] text-ink-3 mt-1.5 text-right">{note.length} karakter</div>
       </div>
     </Modal>
   );

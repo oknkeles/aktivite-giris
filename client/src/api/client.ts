@@ -86,6 +86,7 @@ export interface Entry {
   id: number;
   date: string;
   qty: number;
+  ticketId?: string | null;
   note?: string | null;
   customerId: number;
   activityId: number;
@@ -103,6 +104,7 @@ export interface ReportData {
     unit: string;
     hours: number;
     days: number;
+    ticketId: string | null;
     note: string | null;
     customerId: number;
     customerName: string;
