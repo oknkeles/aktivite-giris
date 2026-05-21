@@ -6,9 +6,11 @@ import { authRequired, type AuthRequest } from '../middleware/auth.js';
 const router = Router();
 router.use(authRequired);
 
-router.get('/', async (req, res) => {
+router.get('/', async (req: AuthRequest, res) => {
   const { from, to, customerId, contractorId } = req.query as Record<string, string | undefined>;
-  const where: any = {};
+  // Her kullanıcı sadece kendi kayıtlarını görür (admin dahil).
+  // Tüm kayıtları görmek için /api/reports admin endpoint'i kullanılır.
+  const where: any = { userId: req.user!.id };
   if (from || to) {
     where.date = {};
     if (from) where.date.gte = from;
