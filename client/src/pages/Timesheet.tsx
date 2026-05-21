@@ -134,14 +134,12 @@ export default function Timesheet() {
   });
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[1fr_240px] 2xl:grid-cols-[1fr_270px] gap-5 animate-fade-in">
-      {/* LEFT: Calendar */}
+    <div className="animate-fade-in">
       <div className="min-w-0">
         {/* Header — macOS Calendar style */}
         <div className="flex flex-wrap items-center gap-2 mb-5 px-1">
-          <h1 className="text-3xl sm:text-[34px] font-bold tracking-tight flex-1 min-w-[200px] leading-tight">
+          <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight flex-1 min-w-[180px] leading-tight">
             {MONTHS[calMonth]} <span className="text-ink-4 font-medium">{calYear}</span>
-            <span className="ml-3 text-[10px] font-mono font-normal text-brand-emerald align-top">v5.1-fresh</span>
           </h1>
           <button
             className={clsx(
@@ -166,11 +164,12 @@ export default function Timesheet() {
           </button>
         </div>
 
-        {/* Summary metrics — flat, subdued */}
-        <div className="grid grid-cols-3 gap-3 mb-5">
+        {/* Summary metrics + last entry — flat, subdued */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           <MetricCard label="Bu Ay" value={fmtHours(monthHours)} variant="indigo" />
           <MetricCard label="Aktif Gün" value={activeDays.toString()} variant="neutral" />
           <MetricCard label="Toplam Gün" value={totalDays.toFixed(1)} variant="emerald" />
+          <LastEntryCard entries={entries} />
         </div>
 
         {/* Selection bar */}
@@ -287,9 +286,6 @@ export default function Timesheet() {
         </div>
       </div>
 
-      {/* RIGHT: Side panel (visible on xl+) */}
-      <SidePanel entries={entries} />
-
       {/* Day Modal */}
       {activeDate && (
         <DayModal
@@ -329,52 +325,44 @@ function MetricCard({ label, value, variant }: { label: string; value: string; v
   );
 }
 
-function SidePanel({ entries }: { entries: Entry[] }) {
-  // Recent 8 entries (compact list)
-  const recent = useMemo(
-    () => [...entries].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8),
+function LastEntryCard({ entries }: { entries: Entry[] }) {
+  // Last single entry by date
+  const last = useMemo(
+    () => [...entries].sort((a, b) => b.date.localeCompare(a.date))[0],
     [entries]
   );
 
   return (
-    <aside className="hidden xl:flex flex-col gap-4 min-w-0">
-      <div className="bg-white border border-paper-3 rounded-xl p-4 flex flex-col min-h-0">
-        <div className="text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider mb-3">
-          Son Kayıtlar
-        </div>
-        {recent.length === 0 ? (
-          <div className="text-xs text-ink-3 py-6 text-center">Henüz kayıt yok</div>
-        ) : (
-          <div className="space-y-2.5 overflow-y-auto">
-            {recent.map((e) => {
-              const d = new Date(e.date + 'T00:00:00');
-              return (
-                <div
-                  key={e.id}
-                  className="flex items-center gap-2.5 pb-2.5 border-b border-paper-2 last:border-b-0 last:pb-0"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex flex-col items-center justify-center flex-shrink-0 leading-none">
-                    <span className="text-[8.5px] font-semibold text-ink-3 uppercase">
-                      {MONTHS[d.getMonth()].substring(0, 3)}
-                    </span>
-                    <span className="text-[12px] font-bold">{d.getDate()}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11.5px] font-semibold truncate text-ink">
-                      {e.customer.name}
-                    </div>
-                    <div className="text-[10.5px] text-ink-3 truncate">{e.activity.name}</div>
-                  </div>
-                  <div className="text-[10.5px] font-mono font-semibold text-brand-indigo flex-shrink-0">
-                    {fmtHours(entryHours(e))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+    <div className="bg-white border border-paper-3 rounded-xl p-4 transition-colors hover:border-paper-4 flex flex-col">
+      <div className="text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider mb-1.5">
+        Son Kayıt
       </div>
-    </aside>
+      {!last ? (
+        <div className="text-sm text-ink-4 flex-1 flex items-center">Henüz yok</div>
+      ) : (
+        <div className="flex items-center gap-2 flex-1">
+          <div className="w-9 h-9 rounded-lg bg-paper-2 text-ink-2 flex flex-col items-center justify-center flex-shrink-0 leading-none">
+            <span className="text-[8.5px] font-semibold text-ink-3 uppercase">
+              {MONTHS[new Date(last.date + 'T00:00:00').getMonth()].substring(0, 3)}
+            </span>
+            <span className="text-[13px] font-bold">
+              {new Date(last.date + 'T00:00:00').getDate()}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[12.5px] font-bold truncate text-ink leading-tight">
+              {last.customer.name}
+            </div>
+            <div className="text-[10.5px] text-ink-3 truncate leading-tight">
+              {last.activity.name}
+            </div>
+          </div>
+          <div className="text-[12px] font-mono font-bold text-brand-indigo flex-shrink-0">
+            {fmtHours(entryHours(last))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
