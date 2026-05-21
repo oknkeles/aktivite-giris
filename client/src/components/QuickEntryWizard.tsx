@@ -218,10 +218,15 @@ export default function QuickEntryWizard({
     () => fuzzy(customers, search, (c) => c.name).slice(0, 6),
     [customers, search]
   );
-  const activitySuggestions = useMemo(
-    () => fuzzy(activities, search, (a) => a.name).slice(0, 6),
-    [activities, search]
-  );
+  const activitySuggestions = useMemo(() => {
+    const list = fuzzy(activities, search, (a) => a.name).slice(0, 6);
+    // Arama yokken kullanıcının varsayılan aktivitesini en üste taşı
+    if (!search.trim() && me?.defaultActivityId) {
+      const def = list.find((a) => a.id === me.defaultActivityId);
+      if (def) return [def, ...list.filter((a) => a.id !== def.id)];
+    }
+    return list;
+  }, [activities, search, me?.defaultActivityId]);
   const parsedDate = step === 'date' ? parseDate(search, lastDate) : null;
   const parsedQty = step === 'qty' ? parseQty(search) : null;
 
@@ -269,9 +274,26 @@ export default function QuickEntryWizard({
   }
 
   function commitCustomer(c: Customer) {
-    setDraft((d) => ({ ...d, customerId: c.id, customerName: c.name }));
-    // Varsayılan aktivite atanmışsa direkt tarihe geç (kullanıcı isterse "Geri" ile değiştirir)
-    setStep(draft.activityId ? 'date' : 'activity');
+    // Kullanıcının default aktivitesi varsa burada da garantile (useEffect race fix)
+    const defAct = me?.defaultActivityId
+      ? activities.find((a) => a.id === me.defaultActivityId)
+      : null;
+
+    setDraft((d) => ({
+      ...d,
+      customerId: c.id,
+      customerName: c.name,
+      // Önceki save'den kalmadıysa ama default varsa şimdi ekle
+      ...(d.activityId
+        ? {}
+        : defAct
+        ? { activityId: defAct.id, activityName: defAct.name, activityUnit: defAct.unit }
+        : {}),
+    }));
+
+    // Aktivite (önceden veya default'tan) varsa direkt tarihe geç
+    const hasActivity = !!draft.activityId || !!defAct;
+    setStep(hasActivity ? 'date' : 'activity');
   }
   function commitActivity(a: Activity) {
     setDraft((d) => ({ ...d, activityId: a.id, activityName: a.name, activityUnit: a.unit }));
