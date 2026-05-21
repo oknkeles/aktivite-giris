@@ -26,11 +26,18 @@ export interface RecentEntry {
   note: string | null;
 }
 
+export interface ConversationTurn {
+  role: 'user' | 'bot';
+  body: string;
+}
+
 export interface ParseContext {
   customers: { id: number; name: string }[];
   activities: { id: number; name: string; unit: string }[];
   recentEntries: RecentEntry[];
   today: string;
+  /** Son birkaç turun konuşma geçmişi (multi-turn diyalog için). En eski → en yeni sırada. */
+  conversation?: ConversationTurn[];
 }
 
 export type ParsedAction =
@@ -124,6 +131,8 @@ KURALLAR:
 5. Saat: "8 saat" → 8, "yarım gün" → 4, "tam gün" → 8.
 6. Eşleşme belirsizse veya birden fazla aday varsa → status:"needs_clarification" + kısa Türkçe soru.
 7. "Sil" komutunda eğer son kayıtlarda eşleşme yoksa → clarification iste.
+8. **KONUŞMA TARİHÇESİ KRİTİK:** Daha önceki turlarında soru sorduysan ve kullanıcı şimdi cevap veriyorsa, eski mesajla yeni cevabı BİRLEŞTİRİP tamamlanmış aksiyonu çıkar.
+   Örnek: önceki tur "28.5 5 saat" + senin sorun "hangi müşteri ve aktivite?" + yeni cevap "Aktek Expert Test" = action:create, date:2026-05-28, qty:5, customerId:[Aktek], activityId:[Expert], note:"Test"
 
 ÖRNEKLER:
 - "bugün 8 saat Aktek FIORI dashboard" → action:create
@@ -207,6 +216,12 @@ export async function parseWhatsAppMessage(
     'gemini-1.5-flash-8b',
   ];
 
+  // Konuşma geçmişini Gemini formatına çevir (en eski → en yeni)
+  const history = (ctx.conversation || []).map((t) => ({
+    role: t.role === 'user' ? 'user' : 'model',
+    parts: [{ text: t.body }],
+  }));
+
   let json: any = null;
   let lastErr: any = null;
   for (const modelName of modelPriority) {
@@ -220,9 +235,10 @@ export async function parseWhatsAppMessage(
         },
         systemInstruction: buildSystemPrompt(ctx),
       });
-      const result = await model.generateContent(text);
+      const chat = model.startChat({ history });
+      const result = await chat.sendMessage(text);
       json = JSON.parse(result.response.text());
-      console.log(`✓ LLM parse OK with ${modelName}, action=${json.action}`);
+      console.log(`✓ LLM parse OK with ${modelName}, action=${json.action}, history=${history.length}`);
       break;
     } catch (err: any) {
       lastErr = err;

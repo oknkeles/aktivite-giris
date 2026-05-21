@@ -5,7 +5,11 @@ import { Router } from 'express';
 import express from 'express';
 import twilio from 'twilio';
 import { prisma } from '../db.js';
-import { parseWhatsAppMessage, type RecentEntry } from '../services/llm.js';
+import {
+  parseWhatsAppMessage,
+  type RecentEntry,
+  type ConversationTurn,
+} from '../services/llm.js';
 
 const router = Router();
 router.use(express.urlencoded({ extended: false }));
@@ -17,13 +21,19 @@ const whatsAppFrom = process.env.TWILIO_WHATSAPP_FROM;
 const twilioClient =
   accountSid && authToken ? twilio(accountSid, authToken) : null;
 
-async function sendWhatsApp(to: string, body: string) {
+async function sendWhatsApp(to: string, body: string, userId?: number) {
   if (!twilioClient || !whatsAppFrom) {
     console.warn('Twilio yapılandırılmamış, mesaj gönderilemedi:', body);
     return;
   }
   try {
     await twilioClient.messages.create({ from: whatsAppFrom, to, body });
+    // Bot cevabını da konuşma geçmişine kaydet (multi-turn için)
+    if (userId) {
+      await prisma.whatsAppMessage.create({
+        data: { userId, role: 'bot', body },
+      });
+    }
   } catch (err: any) {
     console.error('Twilio send error:', err.message);
   }
@@ -76,6 +86,11 @@ router.post('/webhook', async (req, res) => {
       return;
     }
 
+    // Inbound mesajı geçmişe ekle (multi-turn için)
+    await prisma.whatsAppMessage.create({
+      data: { userId: user.id, role: 'user', body },
+    });
+
     // Hızlı komutlar
     const lower = body.toLowerCase();
 
@@ -96,7 +111,8 @@ router.post('/webhook', async (req, res) => {
           `• "bugün" — bugünkü kayıtlar\n` +
           `• "son" — son 5 kaydım\n` +
           `• "bu hafta" / "geçen ay"\n\n` +
-          `Yardım için *yardım* yaz.`
+          `Yardım için *yardım* yaz.`,
+        user.id
       );
       return;
     }
@@ -108,7 +124,7 @@ router.post('/webhook', async (req, res) => {
         include: { customer: true, activity: true },
       });
       if (!entries.length) {
-        await sendWhatsApp(from, '📭 Bugüne kayıt yok.');
+        await sendWhatsApp(from, '📭 Bugüne kayıt yok.', user.id);
         return;
       }
       const lines = entries.map(fmtEntry);
@@ -118,7 +134,8 @@ router.post('/webhook', async (req, res) => {
       );
       await sendWhatsApp(
         from,
-        `📅 Bugün:\n${lines.join('\n')}\n\nToplam: ${total}s`
+        `📅 Bugün:\n${lines.join('\n')}\n\nToplam: ${total}s`,
+        user.id
       );
       return;
     }
@@ -131,16 +148,16 @@ router.post('/webhook', async (req, res) => {
         take: 5,
       });
       if (!recent.length) {
-        await sendWhatsApp(from, '📭 Hiç kayıt yok.');
+        await sendWhatsApp(from, '📭 Hiç kayıt yok.', user.id);
         return;
       }
       const lines = recent.map(fmtEntry);
-      await sendWhatsApp(from, `🕒 Son kayıtlar:\n${lines.join('\n')}`);
+      await sendWhatsApp(from, `🕒 Son kayıtlar:\n${lines.join('\n')}`, user.id);
       return;
     }
 
-    // Doğal dil parse için context hazırla
-    const [customers, activities, recentRaw] = await Promise.all([
+    // Doğal dil parse için context hazırla — recent entries + konuşma geçmişi
+    const [customers, activities, recentRaw, historyRaw] = await Promise.all([
       prisma.customer.findMany({ select: { id: true, name: true } }),
       prisma.activity.findMany({
         select: { id: true, name: true, unit: true },
@@ -151,7 +168,24 @@ router.post('/webhook', async (req, res) => {
         orderBy: [{ date: 'desc' }, { id: 'desc' }],
         take: 30,
       }),
+      // Son 15 dakikadaki konuşma — multi-turn diyalog için, ŞU ANKİ inbound HARİÇ
+      prisma.whatsAppMessage.findMany({
+        where: {
+          userId: user.id,
+          createdAt: { gte: new Date(Date.now() - 15 * 60 * 1000) },
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 10,
+      }),
     ]);
+
+    // Şimdi gelen mesajı history'den çıkar (zaten az önce kaydettik; LLM'e ayrı geçeceğiz)
+    const conversation: ConversationTurn[] = historyRaw
+      .slice(0, -1) // son eleman = az önce kaydettiğimiz inbound, onu prompt'a ayrı geçiyoruz
+      .map((m) => ({
+        role: m.role as 'user' | 'bot',
+        body: m.body,
+      }));
 
     const recentEntries: RecentEntry[] = recentRaw.map((e) => ({
       id: e.id,
@@ -171,12 +205,14 @@ router.post('/webhook', async (req, res) => {
       activities,
       recentEntries,
       today: todayStr(),
+      conversation,
     });
 
     if (!parsed.ok || !parsed.result) {
       await sendWhatsApp(
         from,
-        `❓ ${parsed.clarification || 'Mesajı anlayamadım.'}`
+        `❓ ${parsed.clarification || 'Mesajı anlayamadım.'}`,
+        user.id
       );
       return;
     }
@@ -201,7 +237,8 @@ router.post('/webhook', async (req, res) => {
       await sendWhatsApp(
         from,
         `✅ Eklendi:\n${fmtEntry(created)}` +
-          (created.note ? `\n📝 ${created.note}` : '')
+          (created.note ? `\n📝 ${created.note}` : ''),
+        user.id
       );
       return;
     }
@@ -212,11 +249,11 @@ router.post('/webhook', async (req, res) => {
         where: { id: r.entryId },
       });
       if (!existing) {
-        await sendWhatsApp(from, '❌ Kayıt bulunamadı.');
+        await sendWhatsApp(from, '❌ Kayıt bulunamadı.', user.id);
         return;
       }
       if (existing.userId !== user.id) {
-        await sendWhatsApp(from, '⚠️ Bu kayıt sana ait değil.');
+        await sendWhatsApp(from, '⚠️ Bu kayıt sana ait değil.', user.id);
         return;
       }
 
@@ -243,7 +280,8 @@ router.post('/webhook', async (req, res) => {
       await sendWhatsApp(
         from,
         `✏️ Güncellendi (${changes}):\n${fmtEntry(updated)}` +
-          (updated.note ? `\n📝 ${updated.note}` : '')
+          (updated.note ? `\n📝 ${updated.note}` : ''),
+        user.id
       );
       return;
     }
@@ -255,18 +293,19 @@ router.post('/webhook', async (req, res) => {
         include: { customer: true, activity: true },
       });
       if (!existing) {
-        await sendWhatsApp(from, '❌ Kayıt bulunamadı.');
+        await sendWhatsApp(from, '❌ Kayıt bulunamadı.', user.id);
         return;
       }
       if (existing.userId !== user.id) {
-        await sendWhatsApp(from, '⚠️ Bu kayıt sana ait değil.');
+        await sendWhatsApp(from, '⚠️ Bu kayıt sana ait değil.', user.id);
         return;
       }
 
       await prisma.entry.delete({ where: { id: r.entryId } });
       await sendWhatsApp(
         from,
-        `🗑️ Silindi:\n${fmtEntry(existing)}`
+        `🗑️ Silindi:\n${fmtEntry(existing)}`,
+        user.id
       );
       return;
     }
@@ -289,7 +328,7 @@ router.post('/webhook', async (req, res) => {
       });
 
       if (!list.length) {
-        await sendWhatsApp(from, '📭 Bu kritere göre kayıt yok.');
+        await sendWhatsApp(from, '📭 Bu kritere göre kayıt yok.', user.id);
         return;
       }
 
@@ -300,7 +339,8 @@ router.post('/webhook', async (req, res) => {
       );
       await sendWhatsApp(
         from,
-        `📊 ${list.length} kayıt:\n${lines.join('\n')}\n\nToplam: ${total}s`
+        `📊 ${list.length} kayıt:\n${lines.join('\n')}\n\nToplam: ${total}s`,
+        user.id
       );
       return;
     }

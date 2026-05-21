@@ -17,7 +17,8 @@ model User {
   phone        String?  @unique // E.164 format (+905551234567) — WhatsApp bot için
   createdAt    DateTime @default(now())
 
-  entries Entry[]
+  entries     Entry[]
+  wpMessages  WhatsAppMessage[]
 }
 
 model Activity {
@@ -85,6 +86,20 @@ model Entry {
   @@index([customerId])
   @@index([userId])
   @@index([userId, date])
+}
+
+// WhatsApp konuşma tarihçesi — LLM'in çok-turlu diyalog yapabilmesi için
+// son birkaç mesajı bağlam olarak kullanır. Eski kayıtlar periyodik temizlenir.
+model WhatsAppMessage {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  role      String   // 'user' | 'bot'
+  body      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 // Önemli aksiyonların izi — kim ne zaman ne yaptı.

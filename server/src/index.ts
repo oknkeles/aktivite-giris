@@ -93,4 +93,21 @@ if (isProd) {
     }
   }, KEEP_WARM_INTERVAL);
   console.log('🔥 DB keep-warm pinger aktif (3 dk aralık)');
+
+  // WhatsApp konuşma geçmişi temizleme — 24 saatten eski mesajları sil.
+  // (Multi-turn için 15 dk yetiyor, ama hata ayıklama için 24h tutuyoruz.)
+  const CLEANUP_INTERVAL = 6 * 60 * 60 * 1000; // 6 saatte bir
+  setInterval(async () => {
+    try {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const deleted = await prisma.whatsAppMessage.deleteMany({
+        where: { createdAt: { lt: cutoff } },
+      });
+      if (deleted.count > 0) {
+        console.log(`🧹 ${deleted.count} eski WhatsApp mesajı temizlendi`);
+      }
+    } catch (err: any) {
+      console.warn('Cleanup failed:', err.message);
+    }
+  }, CLEANUP_INTERVAL);
 }
