@@ -210,14 +210,12 @@ export async function parseWhatsAppMessage(
   }
 
   // Gemini model fallback zinciri — ilki 429 verirse sıradakine geçer.
-  // -001 suffix'li versiyonlar farklı quota havuzunda olduğu için dahil.
+  // Hesabımızda çalıştığı doğrulanan modeller (404 alanlar listeden çıkarıldı).
   const modelPriority = [
-    'gemini-2.0-flash-001',
-    'gemini-1.5-flash-002',
-    'gemini-2.5-flash',
-    'gemini-1.5-flash',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite',
+    'gemini-2.5-flash',      // birincil — kalite + hız dengesi
+    'gemini-2.0-flash',      // hızlı yedek
+    'gemini-1.5-flash',      // stabil eski yedek
+    'gemini-2.5-flash-lite', // en ucuz son çare
   ];
 
   // Konuşma geçmişini Gemini formatına çevir (en eski → en yeni)
