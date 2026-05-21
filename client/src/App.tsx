@@ -13,8 +13,19 @@ import Reports from './pages/Reports';
 import Users from './pages/Users';
 import AuditLog from './pages/AuditLog';
 
+// React Query cache stratejisi:
+// - staleTime 5 dk: bu süre içinde aynı query yeniden fetch edilmez (cache'ten döner)
+// - gcTime 30 dk: cache 30 dk RAM'de tutulur (sayfalar arası geçişte hızlı)
+// - refetchOnWindowFocus kapalı: tab'a dönünce gereksiz refetch yok
+// Logout'ta qc.clear() ile temizleniyor → kullanıcı izolasyonu korunuyor.
 const qc = new QueryClient({
-  defaultOptions: { queries: { refetchOnWindowFocus: false, staleTime: 30_000 } },
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+    },
+  },
 });
 
 function Protected({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {

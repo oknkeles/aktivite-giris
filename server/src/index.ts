@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { prisma } from './db.js';
 import authRouter from './routes/auth.js';
 import activitiesRouter from './routes/activities.js';
 import contractorsRouter from './routes/contractors.js';
@@ -47,12 +48,24 @@ app.use('/api/audit', auditRouter);
 
 // In production: serve the built React client from server/dist
 if (isProd) {
-  // After build, structure is server/dist/index.js → client built to client/dist
-  // We expect both directories to exist in the same project layout on the host
   const clientDist = path.resolve(__dirname, '../../client/dist');
-  app.use(express.static(clientDist));
-  // SPA fallback — anything not /api/* serves index.html
+
+  // Hash'li bundle dosyaları (index-XXXX.js, .css) — 1 yıl agresif cache.
+  // Vite filename'lere content-hash gömüyor, içerik değişirse isim değişiyor.
+  app.use(
+    '/assets',
+    express.static(path.join(clientDist, 'assets'), {
+      maxAge: '1y',
+      immutable: true,
+    })
+  );
+  // Diğer statik dosyalar (favicon vs.) — normal cache.
+  app.use(express.static(clientDist, { maxAge: '1h' }));
+
+  // SPA fallback — /api/ olmayan her şey index.html'i serve eder.
+  // index.html'i cache'leme, hep son sürüm.
   app.get(/^\/(?!api).*/, (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.join(clientDist, 'index.html'));
   });
 }
@@ -66,3 +79,18 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 API running on 0.0.0.0:${PORT} (${isProd ? 'production' : 'development'})`);
 });
+
+// Neon free tier 5 dk idle sonra DB compute'unu uyutuyor → ilk istek 2-5 sn
+// gecikme yaşıyor. Her 3 dk'da bir hafif bir SELECT atarak DB'yi sıcak tutuyoruz.
+// Production'da yararlı; development'ta gereksiz log oluşturmasın diye yok.
+if (isProd) {
+  const KEEP_WARM_INTERVAL = 3 * 60 * 1000; // 3 dakika
+  setInterval(async () => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+    } catch (err: any) {
+      console.warn('Keep-warm ping failed:', err.message);
+    }
+  }, KEEP_WARM_INTERVAL);
+  console.log('🔥 DB keep-warm pinger aktif (3 dk aralık)');
+}

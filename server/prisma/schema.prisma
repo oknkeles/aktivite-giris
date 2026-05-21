@@ -83,6 +83,8 @@ model Entry {
 
   @@index([date])
   @@index([customerId])
+  @@index([userId])
+  @@index([userId, date])
 }
 
 // Önemli aksiyonların izi — kim ne zaman ne yaptı.

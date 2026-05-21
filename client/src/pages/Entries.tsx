@@ -21,7 +21,7 @@ export default function Entries() {
   const [userFilter, setUserFilter] = useState<string>('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
-  const { data: entries = [] } = useQuery({
+  const { data: entries = [], isLoading: entriesLoading, isFetching: entriesFetching } = useQuery({
     queryKey: ['entries-all', userFilter],
     queryFn: () => {
       const qs = userFilter ? `?userId=${encodeURIComponent(userFilter)}` : '';
@@ -82,7 +82,12 @@ export default function Entries() {
     <div className="space-y-4 animate-fade-in">
       <div className="card">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-          <span className="clabel">Aktivite Kayıtları</span>
+          <div className="flex items-center gap-2">
+            <span className="clabel">Aktivite Kayıtları</span>
+            {entriesFetching && !entriesLoading && (
+              <span className="text-[10px] text-ink-3 animate-pulse">yükleniyor…</span>
+            )}
+          </div>
           <div className="flex flex-wrap gap-2">
             {admin && (
               <select
@@ -117,7 +122,13 @@ export default function Entries() {
           </div>
         </div>
 
-        {filtered.length === 0 ? (
+        {entriesLoading ? (
+          <div className="space-y-2 py-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-12 bg-paper-2 rounded-lg animate-pulse" style={{ opacity: 1 - i * 0.12 }} />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-ink-3">
             <div className="text-4xl mb-3 animate-pulse-slow">📄</div>
             <div className="text-sm">Kayıt bulunamadı</div>
