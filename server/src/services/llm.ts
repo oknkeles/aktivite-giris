@@ -209,11 +209,15 @@ export async function parseWhatsAppMessage(
     };
   }
 
+  // Gemini model fallback zinciri — ilki 429 verirse sıradakine geçer.
+  // -001 suffix'li versiyonlar farklı quota havuzunda olduğu için dahil.
   const modelPriority = [
-    'gemini-1.5-flash',
+    'gemini-2.0-flash-001',
+    'gemini-1.5-flash-002',
     'gemini-2.5-flash',
+    'gemini-1.5-flash',
     'gemini-2.0-flash',
-    'gemini-1.5-flash-8b',
+    'gemini-2.5-flash-lite',
   ];
 
   // Konuşma geçmişini Gemini formatına çevir (en eski → en yeni)
@@ -242,16 +246,23 @@ export async function parseWhatsAppMessage(
       break;
     } catch (err: any) {
       lastErr = err;
-      const is429 =
-        err?.status === 429 || /429|quota|rate/i.test(err?.message || '');
-      if (!is429) {
-        console.error('LLM error (non-quota):', err);
-        return {
-          ok: false,
-          clarification: 'Mesajı anlayamadım, daha açık yazar mısın?',
-        };
+      const msg = err?.message || '';
+      const is429 = err?.status === 429 || /429|quota|rate.?limit/i.test(msg);
+      const is404 = err?.status === 404 || /404|not found/i.test(msg);
+      if (is429) {
+        console.warn(`⚠ ${modelName} quota exceeded, trying next...`);
+        continue;
       }
-      console.warn(`⚠ ${modelName} quota exceeded, trying next...`);
+      if (is404) {
+        console.warn(`⚠ ${modelName} model bulunamadı, atlanıyor...`);
+        continue;
+      }
+      // Diğer hatalarda fallback yapma — gerçek bir problem var
+      console.error('LLM error (non-quota/non-404):', err);
+      return {
+        ok: false,
+        clarification: 'Mesajı anlayamadım, daha açık yazar mısın?',
+      };
     }
   }
 
