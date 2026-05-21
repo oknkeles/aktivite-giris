@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, CheckSquare, Sparkles, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckSquare, Sparkles, Trash2, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import { api, type Entry, type Customer, type Activity } from '../api/client';
 import { useAuth } from '../store/auth';
@@ -389,14 +389,30 @@ function DayModal({ date, onClose, entries, customers, activities }: {
   const [qty, setQty] = useState('');
   const [ticketId, setTicketId] = useState('');
   const [note, setNote] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const toast = useToast();
   const qc = useQueryClient();
+
+  function resetForm() {
+    setQty(''); setTicketId(''); setNote(''); setCusId(''); setActId('');
+    setEditingId(null);
+  }
+
+  function startEdit(e: Entry) {
+    setEditingId(e.id);
+    setCusId(e.customerId);
+    setActId(e.activityId);
+    setQty(String(e.qty));
+    setTicketId(e.ticketId || '');
+    setNote(e.note || '');
+  }
 
   const addMut = useMutation({
     mutationFn: () => api.post('/entries', { date, qty: parseFloat(qty), customerId: cusId, activityId: actId, ticketId: ticketId || null, note: note || null }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['entries'] });
-      setQty(''); setTicketId(''); setNote(''); setCusId(''); setActId('');
+      resetForm();
       const prevHours = entries.reduce((s, e) => s + entryHours(e), 0);
       const act = activities.find((a) => a.id === actId);
       const newH = prevHours + (act?.unit === 'saat' ? parseFloat(qty) : parseFloat(qty) * 8);
@@ -408,16 +424,38 @@ function DayModal({ date, onClose, entries, customers, activities }: {
     onError: (e: any) => toast.show(e.message || 'Hata', 'error'),
   });
 
+  const updateMut = useMutation({
+    mutationFn: () => api.put(`/entries/${editingId}`, {
+      qty: parseFloat(qty),
+      customerId: cusId,
+      activityId: actId,
+      ticketId: ticketId || null,
+      note: note || null,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['entries'] });
+      resetForm();
+      toast.show('✓ Kayıt güncellendi');
+    },
+    onError: (e: any) => toast.show(e.message || 'Hata', 'error'),
+  });
+
   const delMut = useMutation({
     mutationFn: (id: number) => api.delete(`/entries/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['entries'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['entries'] });
+      setConfirmDeleteId(null);
+      toast.show('Kayıt silindi');
+    },
+    onError: (e: any) => toast.show(e.message || 'Hata', 'error'),
   });
 
   function save() {
     if (!cusId) return toast.show('Müşteri seçin', 'error');
     if (!actId) return toast.show('Aktivite seçin', 'error');
     if (!qty || parseFloat(qty) <= 0) return toast.show('Geçerli süre girin', 'error');
-    addMut.mutate();
+    if (editingId) updateMut.mutate();
+    else addMut.mutate();
   }
 
   return (
@@ -434,8 +472,13 @@ function DayModal({ date, onClose, entries, customers, activities }: {
       }
       footer={
         <>
+          {editingId && (
+            <button className="btn" onClick={resetForm}>Düzenlemeyi İptal</button>
+          )}
           <button className="btn" onClick={onClose}>Kapat</button>
-          <button className="btn btn-primary" onClick={save}>Kaydet</button>
+          <button className="btn btn-primary" onClick={save}>
+            {editingId ? 'Güncelle' : 'Kaydet'}
+          </button>
         </>
       }
     >
@@ -443,32 +486,78 @@ function DayModal({ date, onClose, entries, customers, activities }: {
         <div className="mb-5">
           <div className="clabel mb-2.5">Bu Güne Ait Kayıtlar</div>
           <div className="space-y-2">
-            {entries.map((e) => (
-              <div key={e.id} className="flex items-start gap-2.5 p-3 bg-paper-2 rounded-xl">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold flex flex-wrap items-center gap-1.5">
-                    {e.customer.name}
-                    <span className="text-ink-3 font-normal">— {e.activity.name}</span>
-                    {e.ticketId && (
-                      <span className="badge bg-brand-violet/15 text-brand-violet font-mono !text-[10px]">
-                        🎫 {e.ticketId}
-                      </span>
-                    )}
+            {entries.map((e) => {
+              const isEditing = editingId === e.id;
+              const isConfirmingDelete = confirmDeleteId === e.id;
+              return (
+                <div
+                  key={e.id}
+                  className={clsx(
+                    'flex items-start gap-2.5 p-3 rounded-xl transition-colors',
+                    isEditing ? 'bg-brand-indigo/10 ring-1 ring-brand-indigo/30 ring-inset' : 'bg-paper-2'
+                  )}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold flex flex-wrap items-center gap-1.5">
+                      {e.customer.name}
+                      <span className="text-ink-3 font-normal">— {e.activity.name}</span>
+                      {e.ticketId && (
+                        <span className="badge bg-brand-violet/15 text-brand-violet font-mono !text-[10px]">
+                          🎫 {e.ticketId}
+                        </span>
+                      )}
+                      {isEditing && (
+                        <span className="badge bg-brand-indigo/15 text-brand-indigo !text-[10px]">
+                          Düzenleniyor
+                        </span>
+                      )}
+                    </div>
+                    {e.note && <div className="text-[11.5px] text-ink-3 mt-1 whitespace-pre-wrap leading-relaxed">{e.note}</div>}
                   </div>
-                  {e.note && <div className="text-[11.5px] text-ink-3 mt-1 whitespace-pre-wrap leading-relaxed">{e.note}</div>}
+                  <span className="tag font-bold flex-shrink-0">{fmtHours(entryHours(e))}</span>
+
+                  {isConfirmingDelete ? (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => delMut.mutate(e.id)}
+                        className="text-[11px] font-bold bg-brand-rose text-white px-2.5 py-1 rounded-lg hover:bg-brand-rose/90"
+                      >
+                        Sil
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="text-[11px] font-semibold text-ink-2 px-2 py-1 rounded-lg hover:bg-paper-3"
+                      >
+                        Vazgeç
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => startEdit(e)}
+                        className="text-brand-indigo hover:bg-brand-indigo/10 p-1.5 rounded-lg flex-shrink-0"
+                        title="Düzenle"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(e.id)}
+                        className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg flex-shrink-0"
+                        title="Sil"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  )}
                 </div>
-                <span className="tag font-bold flex-shrink-0">{fmtHours(entryHours(e))}</span>
-                <button onClick={() => delMut.mutate(e.id)} className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg flex-shrink-0">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <hr className="my-5 border-paper-3" />
         </div>
       )}
 
-      <div className="clabel mb-3">Yeni Kayıt Ekle</div>
+      <div className="clabel mb-3">{editingId ? 'Kaydı Düzenle' : 'Yeni Kayıt Ekle'}</div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div>
           <label className="label">Müşteri / Proje</label>

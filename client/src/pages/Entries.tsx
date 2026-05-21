@@ -14,6 +14,7 @@ export default function Entries() {
 
   const [cusFilter, setCusFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const { data: entries = [] } = useQuery({
     queryKey: ['entries-all'],
@@ -28,8 +29,10 @@ export default function Entries() {
     mutationFn: (id: number) => api.delete(`/entries/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['entries-all'] });
+      setConfirmDeleteId(null);
       toast.show('Kayıt silindi');
     },
+    onError: (e: any) => toast.show(e.message || 'Hata', 'error'),
   });
 
   const filtered = useMemo(() => {
@@ -130,9 +133,30 @@ export default function Entries() {
                       <td className="py-3 text-right"><span className="tag font-bold">{fmtHours(entryHours(e))}</span></td>
                       <td className="py-3 text-right text-[11px] text-ink-3">{e.user.fullname}</td>
                       <td className="px-5 sm:px-6 py-3 text-right">
-                        <button onClick={() => delMut.mutate(e.id)} className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg transition">
-                          <Trash2 size={14} />
-                        </button>
+                        {confirmDeleteId === e.id ? (
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              onClick={() => delMut.mutate(e.id)}
+                              className="text-[11px] font-bold bg-brand-rose text-white px-2.5 py-1 rounded-lg hover:bg-brand-rose/90"
+                            >
+                              Sil
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="text-[11px] font-semibold text-ink-2 px-2 py-1 rounded-lg hover:bg-paper-2"
+                            >
+                              Vazgeç
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteId(e.id)}
+                            className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg transition"
+                            title="Sil"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );

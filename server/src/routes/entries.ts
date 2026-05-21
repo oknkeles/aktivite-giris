@@ -74,6 +74,37 @@ router.post('/bulk', async (req: AuthRequest, res) => {
   res.json({ created: created.length });
 });
 
+const updateSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  qty: z.number().positive().optional(),
+  customerId: z.number().int().optional(),
+  activityId: z.number().int().optional(),
+  ticketId: z.string().max(80).optional().nullable(),
+  note: z.string().max(2000).optional().nullable(),
+});
+
+router.put('/:id', async (req: AuthRequest, res) => {
+  const id = Number(req.params.id);
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid' });
+  const entry = await prisma.entry.findUnique({ where: { id } });
+  if (!entry) return res.status(404).json({ error: 'Not found' });
+  // Sadece sahibi veya admin güncelleyebilir
+  if (req.user!.role !== 'admin' && entry.userId !== req.user!.id) {
+    return res.status(403).json({ error: 'Yetkiniz yok' });
+  }
+  const updated = await prisma.entry.update({
+    where: { id },
+    data: parsed.data,
+    include: {
+      customer: { include: { contractor: true } },
+      activity: true,
+      user: { select: { id: true, username: true, fullname: true } },
+    },
+  });
+  res.json(updated);
+});
+
 router.delete('/:id', async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   const entry = await prisma.entry.findUnique({ where: { id } });
