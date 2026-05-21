@@ -141,6 +141,7 @@ export default function Timesheet() {
         <div className="flex flex-wrap items-center gap-2 mb-5 px-1">
           <h1 className="text-3xl sm:text-[34px] font-bold tracking-tight flex-1 min-w-[200px] leading-tight">
             {MONTHS[calMonth]} <span className="text-ink-4 font-medium">{calYear}</span>
+            <span className="ml-3 text-[10px] font-mono font-normal text-brand-emerald align-top">v5.1-fresh</span>
           </h1>
           <button
             className={clsx(
