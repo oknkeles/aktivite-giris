@@ -6,6 +6,7 @@ import {
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { useAuth, isAdmin } from '../store/auth';
+import { useQueryClient } from '@tanstack/react-query';
 
 const ENTRY_ITEMS = [
   { to: '/timesheet', icon: Calendar, label: 'Timesheet' },
@@ -28,6 +29,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
   const navigate = useNavigate();
   const loc = useLocation();
   const admin = isAdmin(user);
+  const qc = useQueryClient();
 
   // Auto-open admin panel if currently on an admin route
   const isOnAdminPage = ADMIN_ITEMS.some(i => i.to === loc.pathname);
@@ -38,6 +40,8 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
   }, [isOnAdminPage]);
 
   function doLogout() {
+    // Kullanıcı verilerini bellekten temizle — bir sonraki kullanıcı eski kayıtları görmesin
+    qc.clear();
     logout();
     navigate('/login');
   }
