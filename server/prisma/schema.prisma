@@ -14,6 +14,7 @@ model User {
   fullname     String
   passwordHash String
   role         String   @default("user") // admin | user
+  phone        String?  @unique // E.164 format (+905551234567) — WhatsApp bot için
   createdAt    DateTime @default(now())
 
   entries Entry[]

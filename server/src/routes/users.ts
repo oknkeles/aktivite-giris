@@ -7,10 +7,13 @@ import { authRequired, adminRequired, type AuthRequest } from '../middleware/aut
 const router = Router();
 router.use(authRequired, adminRequired);
 
+// E.164 format: + ile başlar, 8-15 rakam (örn. +905551234567)
+const phoneRegex = /^\+[1-9]\d{7,14}$/;
+
 router.get('/', async (_req, res) => {
   const list = await prisma.user.findMany({
     orderBy: { id: 'asc' },
-    select: { id: true, username: true, fullname: true, role: true, createdAt: true },
+    select: { id: true, username: true, fullname: true, role: true, phone: true, createdAt: true },
   });
   res.json(list);
 });
@@ -20,20 +23,59 @@ const createSchema = z.object({
   fullname: z.string().min(2),
   password: z.string().min(4),
   role: z.enum(['admin', 'user']).default('user'),
+  phone: z.string().regex(phoneRegex).optional().nullable(),
 });
 
 router.post('/', async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'Invalid' });
-  const { username, fullname, password, role } = parsed.data;
+  if (!parsed.success) return res.status(400).json({ error: 'Geçersiz veri (telefon E.164 formatında olmalı, örn. +905551234567)' });
+  const { username, fullname, password, role, phone } = parsed.data;
   const exists = await prisma.user.findUnique({ where: { username: username.toLowerCase() } });
   if (exists) return res.status(409).json({ error: 'Bu kullanıcı adı alınmış.' });
+  if (phone) {
+    const phoneExists = await prisma.user.findUnique({ where: { phone } });
+    if (phoneExists) return res.status(409).json({ error: 'Bu telefon başka bir kullanıcıda kayıtlı.' });
+  }
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
-    data: { username: username.toLowerCase(), fullname, passwordHash, role },
-    select: { id: true, username: true, fullname: true, role: true, createdAt: true },
+    data: { username: username.toLowerCase(), fullname, passwordHash, role, phone: phone || null },
+    select: { id: true, username: true, fullname: true, role: true, phone: true, createdAt: true },
   });
   res.json(user);
+});
+
+const updateSchema = z.object({
+  fullname: z.string().min(2).optional(),
+  role: z.enum(['admin', 'user']).optional(),
+  phone: z.string().regex(phoneRegex).optional().nullable(),
+  password: z.string().min(4).optional(),
+});
+
+router.put('/:id', async (req: AuthRequest, res) => {
+  const id = Number(req.params.id);
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Geçersiz veri (telefon E.164 formatında olmalı)' });
+  const { fullname, role, phone, password } = parsed.data;
+
+  if (phone) {
+    const phoneExists = await prisma.user.findFirst({
+      where: { phone, NOT: { id } },
+    });
+    if (phoneExists) return res.status(409).json({ error: 'Bu telefon başka bir kullanıcıda kayıtlı.' });
+  }
+
+  const data: any = {};
+  if (fullname !== undefined) data.fullname = fullname;
+  if (role !== undefined) data.role = role;
+  if (phone !== undefined) data.phone = phone;
+  if (password) data.passwordHash = await bcrypt.hash(password, 10);
+
+  const updated = await prisma.user.update({
+    where: { id },
+    data,
+    select: { id: true, username: true, fullname: true, role: true, phone: true, createdAt: true },
+  });
+  res.json(updated);
 });
 
 router.delete('/:id', async (req: AuthRequest, res) => {

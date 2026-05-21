@@ -10,6 +10,7 @@ import customersRouter from './routes/customers.js';
 import entriesRouter from './routes/entries.js';
 import usersRouter from './routes/users.js';
 import reportsRouter from './routes/reports.js';
+import whatsappRouter from './routes/whatsapp.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isProd = process.env.NODE_ENV === 'production';
@@ -36,6 +37,7 @@ app.use('/api/customers', customersRouter);
 app.use('/api/entries', entriesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/whatsapp', whatsappRouter);
 
 // In production: serve the built React client from server/dist
 if (isProd) {
