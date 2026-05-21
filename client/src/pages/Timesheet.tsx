@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, CheckSquare, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckSquare, Sparkles, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import { api, type Entry, type Customer, type Activity } from '../api/client';
 import { useAuth } from '../store/auth';
@@ -71,7 +71,7 @@ export default function Timesheet() {
   // Month metrics — sadece saat ve gün (tutar bilgisi yok, Raporlar sayfasına bakın)
   const monthHours = entries.reduce((s, e) => s + entryHours(e), 0);
   const activeDays = new Set(entries.map((e) => e.date)).size;
-  const avgPerDay = activeDays > 0 ? monthHours / activeDays : 0;
+  const totalDays = monthHours / 8;
 
   const goPrev = () => { if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); } else setCalMonth(calMonth - 1); };
   const goNext = () => { if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); } else setCalMonth(calMonth + 1); };
@@ -134,7 +134,7 @@ export default function Timesheet() {
   });
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] 2xl:grid-cols-[1fr_380px] gap-5 animate-fade-in">
+    <div className="grid grid-cols-1 xl:grid-cols-[1fr_240px] 2xl:grid-cols-[1fr_270px] gap-5 animate-fade-in">
       {/* LEFT: Calendar */}
       <div className="min-w-0">
         {/* Header — macOS Calendar style */}
@@ -169,7 +169,7 @@ export default function Timesheet() {
         <div className="grid grid-cols-3 gap-3 mb-5">
           <MetricCard label="Bu Ay" value={fmtHours(monthHours)} variant="indigo" />
           <MetricCard label="Aktif Gün" value={activeDays.toString()} variant="neutral" />
-          <MetricCard label="Gün Ort." value={fmtHours(avgPerDay)} variant="emerald" />
+          <MetricCard label="Toplam Gün" value={totalDays.toFixed(1)} variant="emerald" />
         </div>
 
         {/* Selection bar */}
@@ -287,10 +287,7 @@ export default function Timesheet() {
       </div>
 
       {/* RIGHT: Side panel (visible on xl+) */}
-      <SidePanel
-        entries={entries}
-        onAddToday={() => setActiveDate(dateStr(today))}
-      />
+      <SidePanel entries={entries} />
 
       {/* Day Modal */}
       {activeDate && (
@@ -331,111 +328,48 @@ function MetricCard({ label, value, variant }: { label: string; value: string; v
   );
 }
 
-function SidePanel({ entries, onAddToday }: { entries: Entry[]; onAddToday: () => void }) {
-  // Top customers this month by hours (NO amount info)
-  const byCustomer = useMemo(() => {
-    const map: Record<string, { name: string; hours: number; count: number }> = {};
-    entries.forEach((e) => {
-      const k = e.customer.name;
-      if (!map[k]) map[k] = { name: k, hours: 0, count: 0 };
-      map[k].hours += entryHours(e);
-      map[k].count += 1;
-    });
-    return Object.values(map).sort((a, b) => b.hours - a.hours).slice(0, 8);
-  }, [entries]);
-
-  // Top activity types by hours
-  const byActivity = useMemo(() => {
-    const map: Record<string, { name: string; hours: number }> = {};
-    entries.forEach((e) => {
-      const k = e.activity.name;
-      if (!map[k]) map[k] = { name: k, hours: 0 };
-      map[k].hours += entryHours(e);
-    });
-    return Object.values(map).sort((a, b) => b.hours - a.hours);
-  }, [entries]);
-
-  // Recent 6 entries (no amounts)
-  const recent = useMemo(() => [...entries].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6), [entries]);
+function SidePanel({ entries }: { entries: Entry[] }) {
+  // Recent 8 entries (compact list)
+  const recent = useMemo(
+    () => [...entries].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8),
+    [entries]
+  );
 
   return (
     <aside className="hidden xl:flex flex-col gap-4 min-w-0">
-      <button
-        onClick={onAddToday}
-        className="bg-grad-primary text-white rounded-2xl p-4 font-bold flex items-center justify-center gap-2 shadow-glow hover:shadow-[0_12px_30px_rgba(37,99,235,.45)] hover:-translate-y-0.5 transition-all"
-        style={{ backgroundSize: '200% 200%' }}
-      >
-        <Plus size={18} /> Bugüne Hızlı Kayıt
-      </button>
-
-      <div className="card">
-        <div className="clabel mb-3">🏆 En Çok Çalışılan Müşteriler</div>
-        {byCustomer.length === 0 ? (
-          <div className="text-xs text-ink-3 py-4 text-center">Henüz kayıt yok</div>
-        ) : (
-          <div className="space-y-2">
-            {byCustomer.map((c) => {
-              const max = byCustomer[0].hours || 1;
-              const pct = (c.hours / max) * 100;
-              return (
-                <div key={c.name} className="text-xs">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold truncate">{c.name}</span>
-                    <span className="font-mono font-bold text-brand-violet">{fmtHours(c.hours)}</span>
-                  </div>
-                  <div className="h-1.5 bg-paper-2 rounded-full overflow-hidden">
-                    <div className="h-full bg-grad-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {byActivity.length > 0 && (
-        <div className="card">
-          <div className="clabel mb-3">📊 Seviye Dağılımı</div>
-          <div className="space-y-2">
-            {byActivity.map((a) => {
-              const total = byActivity.reduce((s, x) => s + x.hours, 0) || 1;
-              const pct = (a.hours / total) * 100;
-              return (
-                <div key={a.name} className="text-xs">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold">{a.name}</span>
-                    <span className="font-mono font-bold text-brand-emerald">{pct.toFixed(0)}%</span>
-                  </div>
-                  <div className="h-1.5 bg-paper-2 rounded-full overflow-hidden">
-                    <div className="h-full bg-grad-mint rounded-full transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      <div className="bg-white border border-paper-3 rounded-xl p-4 flex flex-col min-h-0">
+        <div className="text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider mb-3">
+          Son Kayıtlar
         </div>
-      )}
-
-      <div className="card flex-1 min-h-0 flex flex-col">
-        <div className="clabel mb-3">🕒 Son Kayıtlar</div>
         {recent.length === 0 ? (
-          <div className="text-xs text-ink-3 py-4 text-center">Henüz kayıt yok</div>
+          <div className="text-xs text-ink-3 py-6 text-center">Henüz kayıt yok</div>
         ) : (
-          <div className="space-y-3 overflow-y-auto">
-            {recent.map((e) => (
-              <div key={e.id} className="flex items-start gap-2 pb-3 border-b border-paper-3 last:border-b-0 last:pb-0">
-                <div className="w-10 h-10 rounded-xl bg-grad-primary text-white flex items-center justify-center font-extrabold text-xs flex-shrink-0">
-                  {new Date(e.date + 'T00:00:00').getDate()}
+          <div className="space-y-2.5 overflow-y-auto">
+            {recent.map((e) => {
+              const d = new Date(e.date + 'T00:00:00');
+              return (
+                <div
+                  key={e.id}
+                  className="flex items-center gap-2.5 pb-2.5 border-b border-paper-2 last:border-b-0 last:pb-0"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex flex-col items-center justify-center flex-shrink-0 leading-none">
+                    <span className="text-[8.5px] font-semibold text-ink-3 uppercase">
+                      {MONTHS[d.getMonth()].substring(0, 3)}
+                    </span>
+                    <span className="text-[12px] font-bold">{d.getDate()}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[11.5px] font-semibold truncate text-ink">
+                      {e.customer.name}
+                    </div>
+                    <div className="text-[10.5px] text-ink-3 truncate">{e.activity.name}</div>
+                  </div>
+                  <div className="text-[10.5px] font-mono font-semibold text-brand-indigo flex-shrink-0">
+                    {fmtHours(entryHours(e))}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold truncate">{e.customer.name}</div>
-                  <div className="text-[11px] text-ink-3 truncate">{e.activity.name}</div>
-                </div>
-                <div className="text-[11px] font-mono font-bold text-brand-violet flex-shrink-0">
-                  {fmtHours(entryHours(e))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
