@@ -369,294 +369,172 @@ export default function QuickEntryWizard({
 
   if (!open) return null;
 
-  const stepIdx = STEPS.findIndex((s) => s.key === step);
-  const StepIcon = STEPS[stepIdx].icon;
+  const stepLabel: Record<Step, string> = {
+    customer: 'Müşteri',
+    activity: 'Aktivite',
+    date: 'Tarih',
+    qty: 'Süre (saat)',
+    note: 'Açıklama',
+  };
+
+  const placeholder: Record<Step, string> = {
+    customer: 'Müşteri ara...',
+    activity: 'Aktivite ara...',
+    date: 'bugün · 29.5 · +1',
+    qty: '8 · 0.5 · yarım',
+    note: 'Açıklama (Tab ile geç)',
+  };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-ink/60 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-6 animate-fade-in"
-         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-grad-primary text-white px-5 sm:px-6 py-3.5 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            <Zap size={20} className="text-white" />
-            <div>
-              <div className="font-extrabold text-base leading-tight">Hızlı Kayıt</div>
-              <div className="text-[11px] text-white/75">
-                {savedCount > 0 ? `${savedCount} kayıt eklendi` : 'Tak tak tak girer'}
-              </div>
-            </div>
+    <div
+      className="fixed inset-0 z-[100] bg-ink/60 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-6 animate-fade-in"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden">
+        {/* Compact header — sadece ikon + sayaç + kapat */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-paper-3">
+          <div className="flex items-center gap-2 text-ink-2">
+            <Zap size={15} className="text-brand-indigo" />
+            <span className="text-[12.5px] font-bold">Hızlı Kayıt</span>
+            {savedCount > 0 && (
+              <span className="text-[10.5px] font-mono text-ink-3">· {savedCount}</span>
+            )}
           </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10">
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Stepper */}
-        <div className="px-5 sm:px-6 py-3 border-b border-paper-3 bg-paper-2/40 flex-shrink-0">
-          <div className="flex items-center gap-1.5">
-            {STEPS.map((s, i) => {
-              const done = i < stepIdx;
-              const active = i === stepIdx;
-              return (
-                <div key={s.key} className="flex items-center gap-1.5 flex-1 min-w-0">
-                  <div className={clsx(
-                    'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0',
-                    done && 'bg-brand-emerald text-white',
-                    active && 'bg-brand-indigo text-white ring-2 ring-brand-indigo/20',
-                    !done && !active && 'bg-paper-3 text-ink-3'
-                  )}>
-                    {done ? <Check size={11} /> : i + 1}
-                  </div>
-                  <div className={clsx(
-                    'text-[10.5px] font-semibold truncate',
-                    active ? 'text-brand-indigo' : done ? 'text-brand-emerald' : 'text-ink-3'
-                  )}>
-                    {s.label}
-                  </div>
-                  {i < STEPS.length - 1 && (
-                    <div className={clsx('h-px flex-1', done ? 'bg-brand-emerald' : 'bg-paper-3')} />
-                  )}
-                </div>
-              );
-            })}
+          <div className="flex items-center gap-1">
+            {savedHistory.length > 0 && (
+              <button
+                onClick={() => delMut.mutate(savedHistory[0].id)}
+                className="text-[11px] text-ink-3 hover:text-brand-rose px-2 py-1 rounded-md hover:bg-paper-2"
+                title="Son kaydı geri al"
+              >
+                ↶
+              </button>
+            )}
+            <button
+              onClick={() => { setDraft({}); setSearch(''); setStep('customer'); }}
+              className="text-ink-3 hover:text-ink-2 p-1 rounded-md hover:bg-paper-2"
+              title="Sıfırla"
+            >
+              <RotateCcw size={13} />
+            </button>
+            <button onClick={onClose} className="text-ink-3 hover:text-ink p-1 rounded-md hover:bg-paper-2">
+              <X size={15} />
+            </button>
           </div>
         </div>
 
-        {/* Main */}
-        <div className="px-5 sm:px-6 py-5 flex-1 overflow-y-auto">
-          {/* Draft özet (üstte) */}
-          {(draft.customerName || draft.activityName || draft.date || draft.qty) && (
-            <div className="flex flex-wrap gap-1.5 mb-4 text-[11px]">
-              {draft.customerName && (
-                <span className="badge bg-brand-indigo/10 text-brand-indigo">
-                  🏢 {draft.customerName}
-                </span>
-              )}
-              {draft.activityName && (
-                <span className="badge bg-brand-violet/10 text-brand-violet">
-                  ✨ {draft.activityName}
-                </span>
-              )}
-              {draft.date && (
-                <span className="badge bg-brand-cyan/10 text-brand-cyan">
-                  📅 {fmtPrettyDate(draft.date)}
-                </span>
-              )}
-              {draft.qty !== undefined && (
-                <span className="badge bg-brand-emerald/10 text-brand-emerald">
-                  ⏱ {draft.qty}s
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Step başlığı */}
-          <div className="flex items-center gap-2 mb-3">
-            <StepIcon size={18} className="text-brand-indigo" />
-            <div className="font-bold text-lg">{STEPS[stepIdx].label}</div>
+        {/* Draft chips — sadece dolular */}
+        {(draft.customerName || draft.activityName || draft.date || draft.qty !== undefined) && (
+          <div className="px-4 pt-3 flex flex-wrap gap-1 text-[11px]">
+            {draft.customerName && (
+              <span className="badge bg-brand-indigo/10 text-brand-indigo">{draft.customerName}</span>
+            )}
+            {draft.activityName && (
+              <span className="badge bg-brand-amber/15 text-brand-amber">✨ {draft.activityName}</span>
+            )}
+            {draft.date && (
+              <span className="badge bg-brand-cyan/10 text-brand-cyan">{fmtPrettyDate(draft.date)}</span>
+            )}
+            {draft.qty !== undefined && (
+              <span className="badge bg-brand-emerald/10 text-brand-emerald">{draft.qty}s</span>
+            )}
           </div>
+        )}
 
-          {/* Input */}
+        {/* Input alanı */}
+        <div className="px-4 pt-3 pb-2">
+          <label className="block text-[10.5px] font-bold text-ink-3 uppercase tracking-wider mb-1.5">
+            {stepLabel[step]}
+          </label>
           <input
             ref={inputRef}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setHighlightIdx(0); setError(''); }}
             onKeyDown={handleKeyDown}
-            placeholder={
-              step === 'customer' ? 'Müşteri ara... (örn: aktek)' :
-              step === 'activity' ? 'Aktivite ara... (örn: expert)' :
-              step === 'date' ? 'bugün · dün · 29.5 · +1 · 1 mayıs · 29' :
-              step === 'qty' ? '8 · 0.5 · yarım · tam' :
-              'Açıklama (JIRA-123 ile başlarsan otomatik talep ID olur) — geçmek için Tab'
-            }
-            className="input text-base !py-3"
+            placeholder={placeholder[step]}
+            className="w-full px-3 py-2.5 rounded-xl border-2 border-paper-3 bg-white text-[15px] text-ink outline-none focus:border-brand-indigo focus:ring-4 focus:ring-brand-indigo/10 transition-all"
             autoFocus
           />
+          {error && <div className="text-[11px] text-brand-rose mt-1.5 px-1">{error}</div>}
 
-          {error && (
-            <div className="text-xs text-brand-rose mt-2 px-1">{error}</div>
-          )}
-
-          {/* Suggestions */}
-          {step === 'customer' && (
-            <div className="mt-3 space-y-1">
-              {customerSuggestions.length === 0 ? (
-                <div className="text-xs text-ink-3 py-3 text-center">Eşleşme yok. Önce müşteri ekle.</div>
-              ) : customerSuggestions.map((c, i) => (
-                <button
-                  key={c.id}
-                  onClick={() => commitCustomer(c)}
-                  onMouseEnter={() => setHighlightIdx(i)}
-                  className={clsx(
-                    'w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between transition',
-                    i === highlightIdx ? 'bg-brand-indigo/10 text-brand-indigo' : 'hover:bg-paper-2'
-                  )}
-                >
-                  <div>
-                    <div className="font-semibold">{c.name}</div>
-                    {c.contractor && <div className="text-[10.5px] text-ink-3">{c.contractor.name}</div>}
-                  </div>
-                  {i === highlightIdx && <ChevronRight size={14} />}
-                </button>
-              ))}
+          {/* Date/Qty preview — varsa kompakt */}
+          {step === 'date' && parsedDate && (
+            <div className="mt-2 text-[11.5px] text-brand-indigo font-semibold px-1">
+              → {fmtPrettyDate(parsedDate)}
             </div>
           )}
-
-          {step === 'activity' && (
-            <div className="mt-3 space-y-1">
-              {activitySuggestions.length === 0 ? (
-                <div className="text-xs text-ink-3 py-3 text-center">Eşleşme yok</div>
-              ) : activitySuggestions.map((a, i) => (
-                <button
-                  key={a.id}
-                  onClick={() => commitActivity(a)}
-                  onMouseEnter={() => setHighlightIdx(i)}
-                  className={clsx(
-                    'w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between transition',
-                    i === highlightIdx ? 'bg-brand-indigo/10 text-brand-indigo' : 'hover:bg-paper-2'
-                  )}
-                >
-                  <div className="font-semibold flex items-center gap-2">
-                    {a.name}
-                    <span className="text-[10px] text-ink-3 font-normal">({a.unit})</span>
-                  </div>
-                  {i === highlightIdx && <ChevronRight size={14} />}
-                </button>
-              ))}
+          {step === 'qty' && parsedQty !== null && (
+            <div className="mt-2 text-[11.5px] text-brand-emerald font-semibold px-1">
+              → {parsedQty} saat
             </div>
           )}
-
-          {step === 'date' && (
-            <div className="mt-3 space-y-2">
-              <div className="text-[11px] text-ink-3 px-1">
-                💡 İpuçları: <code>bugün</code> · <code>dün</code> · <code>+1</code> (son tarihten +1 gün) · <code>29.5</code> · <code>1 mayıs</code> · <code>15</code> (bu ayın 15'i)
+          {step === 'note' && search.trim() && (() => {
+            const ex = extractTicket(search);
+            if (!ex.ticketId) return null;
+            return (
+              <div className="mt-2 text-[11.5px] text-ink-3 px-1">
+                Talep: <code className="font-bold text-brand-violet">{ex.ticketId}</code>
+                {ex.note && <span className="text-ink-3"> · {ex.note}</span>}
               </div>
-              {parsedDate && (
-                <div className="bg-brand-indigo/10 border border-brand-indigo/30 rounded-lg px-3 py-2 text-sm font-semibold text-brand-indigo flex items-center justify-between">
-                  <span>→ {fmtPrettyDate(parsedDate)}</span>
-                  <span className="text-[11px] font-normal text-ink-3">Enter ile devam</span>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {['bugün', 'dün', '+1', '-1'].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => { setSearch(s); }}
-                    className="px-2.5 py-1 rounded-lg bg-paper-2 hover:bg-paper-3 text-xs font-semibold"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {step === 'qty' && (
-            <div className="mt-3 space-y-2">
-              <div className="text-[11px] text-ink-3 px-1">
-                💡 <code>8</code> · <code>0.5</code> · <code>yarım</code> (=4) · <code>tam</code> (=8)
-              </div>
-              {parsedQty !== null && (
-                <div className="bg-brand-emerald/10 border border-brand-emerald/30 rounded-lg px-3 py-2 text-sm font-semibold text-brand-emerald flex items-center justify-between">
-                  <span>→ {parsedQty} saat</span>
-                  <span className="text-[11px] font-normal text-ink-3">Enter ile devam</span>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {['2', '4', '6', '8'].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setSearch(s)}
-                    className="px-3 py-1.5 rounded-lg bg-paper-2 hover:bg-paper-3 text-xs font-bold font-mono"
-                  >
-                    {s} saat
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {step === 'note' && (
-            <div className="mt-3 space-y-2">
-              <div className="text-[11px] text-ink-3 px-1">
-                💡 İsteğe bağlı. Tab veya boş Enter ile geç. JIRA-123 ile başlarsa talep ID olarak ayrılır.
-              </div>
-              {search.trim() && (() => {
-                const ex = extractTicket(search);
-                return (
-                  <div className="bg-paper-2 rounded-lg px-3 py-2 text-xs space-y-1">
-                    {ex.ticketId && (
-                      <div><span className="text-ink-3">Talep ID:</span> <code className="font-bold text-brand-violet">{ex.ticketId}</code></div>
-                    )}
-                    {ex.note && (
-                      <div><span className="text-ink-3">Açıklama:</span> {ex.note}</div>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-          )}
+            );
+          })()}
         </div>
 
-        {/* Footer */}
-        <div className="px-5 sm:px-6 py-3 border-t border-paper-3 bg-paper-2/40 flex items-center justify-between gap-2 flex-shrink-0">
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={goBack}
-              disabled={stepIdx === 0}
-              className="btn btn-sm disabled:opacity-30"
-              title="Shift+Tab"
-            >
-              <ChevronLeft size={13} /> Geri
-            </button>
-            <button
-              onClick={() => { setDraft({}); setSearch(''); setStep('customer'); }}
-              className="btn btn-sm btn-ghost"
-              title="Sıfırla"
-            >
-              <RotateCcw size={12} />
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {savedHistory.length > 0 && (
-              <button
-                onClick={() => delMut.mutate(savedHistory[0].id)}
-                className="text-[11px] text-ink-3 hover:text-brand-rose"
-                title="Son eklenen kaydı geri al"
-              >
-                ↶ Geri al
-              </button>
-            )}
-            {step === 'note' ? (
-              <button
-                onClick={() => commitNote(false)}
-                className="btn btn-primary btn-sm"
-                disabled={addMut.isPending}
-              >
-                <Check size={13} /> Kaydet & Yeni Giriş
-              </button>
+        {/* Customer/Activity suggestions */}
+        {(step === 'customer' || step === 'activity') && (
+          <div className="px-2 pb-2 max-h-[260px] overflow-y-auto">
+            {(step === 'customer' ? customerSuggestions : activitySuggestions).length === 0 ? (
+              <div className="text-[11px] text-ink-3 px-3 py-2">Eşleşme yok</div>
             ) : (
-              <span className="text-[10.5px] text-ink-3 italic">
-                Enter ile devam · Esc ile çık
-              </span>
+              (step === 'customer' ? customerSuggestions : activitySuggestions).map((item: any, i) => (
+                <button
+                  key={item.id}
+                  onClick={() => step === 'customer' ? commitCustomer(item) : commitActivity(item)}
+                  onMouseEnter={() => setHighlightIdx(i)}
+                  className={clsx(
+                    'w-full text-left px-3 py-1.5 rounded-md text-[13.5px] flex items-center justify-between transition',
+                    i === highlightIdx ? 'bg-brand-indigo/10 text-brand-indigo' : 'hover:bg-paper-2 text-ink'
+                  )}
+                >
+                  <span className="font-medium">{item.name}</span>
+                  {step === 'activity' && (
+                    <span className="text-[10px] text-ink-3 font-normal ml-2">({item.unit})</span>
+                  )}
+                </button>
+              ))
             )}
           </div>
+        )}
+
+        {/* Footer — minimal hint */}
+        <div className="px-4 py-2 border-t border-paper-3 flex items-center justify-between text-[10.5px] text-ink-3">
+          <div className="flex items-center gap-2">
+            <span className="font-mono">↵</span> devam
+            <span className="text-ink-4">·</span>
+            <span className="font-mono">⇧↹</span> geri
+            <span className="text-ink-4">·</span>
+            <span className="font-mono">esc</span> çık
+          </div>
+          {step === 'note' && (
+            <button
+              onClick={() => commitNote(false)}
+              disabled={addMut.isPending}
+              className="text-[11px] font-bold text-brand-indigo hover:underline"
+            >
+              {addMut.isPending ? 'Kaydediliyor...' : 'Kaydet ↵'}
+            </button>
+          )}
         </div>
 
-        {/* Son eklenenler */}
+        {/* Bu oturum geçmişi — minimal */}
         {savedHistory.length > 0 && (
-          <div className="px-5 sm:px-6 py-2 border-t border-paper-3 bg-paper-2/20 max-h-24 overflow-y-auto flex-shrink-0">
-            <div className="text-[10px] font-bold text-ink-3 uppercase tracking-wider mb-1">Bu oturumda eklenen ({savedHistory.length})</div>
-            <div className="space-y-0.5">
-              {savedHistory.map((h, i) => (
-                <div key={i} className="text-[11px] text-ink-2 flex items-center gap-1.5">
-                  <Check size={10} className="text-brand-emerald flex-shrink-0" />
-                  <span className="truncate">{h.summary}</span>
-                </div>
-              ))}
-            </div>
+          <div className="px-4 py-2 border-t border-paper-3 bg-paper-2/30 max-h-[88px] overflow-y-auto">
+            {savedHistory.slice(0, 4).map((h, i) => (
+              <div key={i} className="text-[11px] text-ink-2 flex items-center gap-1.5 leading-relaxed">
+                <Check size={9} className="text-brand-emerald flex-shrink-0" />
+                <span className="truncate">{h.summary}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>
