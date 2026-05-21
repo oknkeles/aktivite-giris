@@ -48,6 +48,7 @@ export interface User {
   fullname: string;
   role: 'admin' | 'user';
   phone?: string | null;
+  defaultActivityId?: number | null;
 }
 
 export interface Activity {

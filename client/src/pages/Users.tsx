@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, Phone } from 'lucide-react';
+import { Plus, Trash2, Pencil, Phone, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
-import { api } from '../api/client';
+import { api, type Activity } from '../api/client';
 import { useAuth } from '../store/auth';
 import { useToast } from '../components/Toast';
 
@@ -12,6 +12,8 @@ interface UserRow {
   fullname: string;
   role: string;
   phone?: string | null;
+  defaultActivityId?: number | null;
+  defaultActivity?: { id: number; name: string; unit: string } | null;
   createdAt: string;
 }
 
@@ -19,22 +21,36 @@ export default function Users() {
   const { user: me } = useAuth();
   const qc = useQueryClient();
   const toast = useToast();
-  const [form, setForm] = useState({ username: '', fullname: '', password: '', role: 'user', phone: '' });
+  const [form, setForm] = useState({
+    username: '', fullname: '', password: '', role: 'user',
+    phone: '', defaultActivityId: '' as string,
+  });
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ fullname: '', role: 'user', phone: '', password: '' });
+  const [editForm, setEditForm] = useState({
+    fullname: '', role: 'user', phone: '', password: '',
+    defaultActivityId: '' as string,
+  });
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => api.get<UserRow[]>('/users') });
+  const { data: activities = [] } = useQuery({
+    queryKey: ['activities'],
+    queryFn: () => api.get<Activity[]>('/activities'),
+  });
 
   const addMut = useMutation({
     mutationFn: () =>
       api.post('/users', {
-        ...form,
+        username: form.username,
+        fullname: form.fullname,
+        password: form.password,
+        role: form.role,
         phone: form.phone.trim() || null,
+        defaultActivityId: form.defaultActivityId ? Number(form.defaultActivityId) : null,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] });
-      setForm({ username: '', fullname: '', password: '', role: 'user', phone: '' });
+      setForm({ username: '', fullname: '', password: '', role: 'user', phone: '', defaultActivityId: '' });
       toast.show('Kullanıcı eklendi');
     },
     onError: (e: any) => toast.show(e.message, 'error'),
@@ -46,10 +62,14 @@ export default function Users() {
         fullname: editForm.fullname,
         role: editForm.role,
         phone: editForm.phone.trim() || null,
+        defaultActivityId: editForm.defaultActivityId
+          ? Number(editForm.defaultActivityId)
+          : null,
         ...(editForm.password ? { password: editForm.password } : {}),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] });
+      qc.invalidateQueries({ queryKey: ['auth-me'] }); // me cache de invalidate
       setEditingId(null);
       toast.show('Güncellendi');
     },
@@ -73,6 +93,7 @@ export default function Users() {
       role: u.role,
       phone: u.phone || '',
       password: '',
+      defaultActivityId: u.defaultActivityId ? String(u.defaultActivityId) : '',
     });
   }
 
@@ -105,6 +126,18 @@ export default function Users() {
               placeholder="+905551234567"
             />
             <div className="text-[10.5px] text-ink-3 mt-1">E.164 formatı: ülke kodu ile, boşluksuz (örn. +905551234567)</div>
+          </div>
+          <div>
+            <label className="label flex items-center gap-1.5">
+              <Sparkles size={12} /> Varsayılan Aktivite
+              <span className="text-[10px] font-normal text-ink-3">(yeni kayıtlarda otomatik seçilir)</span>
+            </label>
+            <select className="input" value={form.defaultActivityId} onChange={(e) => setForm({ ...form, defaultActivityId: e.target.value })}>
+              <option value="">— Seçilmedi —</option>
+              {activities.map((a) => (
+                <option key={a.id} value={a.id}>{a.name} ({a.unit})</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="label">Rol</label>
@@ -155,6 +188,17 @@ export default function Users() {
                       <label className="label">Yeni Şifre <span className="text-[10px] text-ink-3 font-normal">(boş bırak değiştirme)</span></label>
                       <input className="input" type="password" value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} />
                     </div>
+                    <div className="sm:col-span-2">
+                      <label className="label flex items-center gap-1.5">
+                        <Sparkles size={12} /> Varsayılan Aktivite
+                      </label>
+                      <select className="input" value={editForm.defaultActivityId} onChange={(e) => setEditForm({ ...editForm, defaultActivityId: e.target.value })}>
+                        <option value="">— Seçilmedi —</option>
+                        {activities.map((a) => (
+                          <option key={a.id} value={a.id}>{a.name} ({a.unit})</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="flex gap-2 pt-2">
                     <button className="btn btn-primary" disabled={updateMut.isPending} onClick={() => updateMut.mutate()}>Kaydet</button>
@@ -180,6 +224,11 @@ export default function Users() {
                     {u.phone && (
                       <span className="badge bg-brand-cyan/15 text-brand-cyan font-mono !text-[10px] flex items-center gap-0.5">
                         <Phone size={9} /> {u.phone}
+                      </span>
+                    )}
+                    {u.defaultActivity && (
+                      <span className="badge bg-brand-violet/15 text-brand-violet !text-[10px] flex items-center gap-0.5">
+                        <Sparkles size={9} /> {u.defaultActivity.name}
                       </span>
                     )}
                   </div>

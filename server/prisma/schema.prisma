@@ -15,10 +15,12 @@ model User {
   passwordHash String
   role         String   @default("user") // admin | user
   phone        String?  @unique // E.164 format (+905551234567) — WhatsApp bot için
+  defaultActivityId Int? // Yeni kayıt eklerken varsayılan olarak seçilir (Expert vb.)
   createdAt    DateTime @default(now())
 
-  entries     Entry[]
-  wpMessages  WhatsAppMessage[]
+  entries         Entry[]
+  wpMessages      WhatsAppMessage[]
+  defaultActivity Activity? @relation(fields: [defaultActivityId], references: [id], onDelete: SetNull)
 }
 
 model Activity {
@@ -27,8 +29,9 @@ model Activity {
   unit  String // saat | gün
   desc  String?
 
-  rates   CustomerRate[]
-  entries Entry[]
+  rates           CustomerRate[]
+  entries         Entry[]
+  defaultForUsers User[]
 }
 
 model Contractor {

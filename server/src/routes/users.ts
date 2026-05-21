@@ -14,7 +14,11 @@ const phoneRegex = /^\+[1-9]\d{7,14}$/;
 router.get('/', async (_req, res) => {
   const list = await prisma.user.findMany({
     orderBy: { id: 'asc' },
-    select: { id: true, username: true, fullname: true, role: true, phone: true, createdAt: true },
+    select: {
+      id: true, username: true, fullname: true, role: true,
+      phone: true, defaultActivityId: true, createdAt: true,
+      defaultActivity: { select: { id: true, name: true, unit: true } },
+    },
   });
   res.json(list);
 });
@@ -25,6 +29,7 @@ const createSchema = z.object({
   password: z.string().min(4),
   role: z.enum(['admin', 'user']).default('user'),
   phone: z.string().regex(phoneRegex).optional().nullable(),
+  defaultActivityId: z.number().int().optional().nullable(),
 });
 
 router.post('/', async (req: AuthRequest, res) => {
@@ -39,8 +44,18 @@ router.post('/', async (req: AuthRequest, res) => {
   }
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
-    data: { username: username.toLowerCase(), fullname, passwordHash, role, phone: phone || null },
-    select: { id: true, username: true, fullname: true, role: true, phone: true, createdAt: true },
+    data: {
+      username: username.toLowerCase(),
+      fullname,
+      passwordHash,
+      role,
+      phone: phone || null,
+      defaultActivityId: parsed.data.defaultActivityId || null,
+    },
+    select: {
+      id: true, username: true, fullname: true, role: true,
+      phone: true, defaultActivityId: true, createdAt: true,
+    },
   });
   await audit({
     action: 'create',
@@ -59,6 +74,7 @@ const updateSchema = z.object({
   role: z.enum(['admin', 'user']).optional(),
   phone: z.string().regex(phoneRegex).optional().nullable(),
   password: z.string().min(4).optional(),
+  defaultActivityId: z.number().int().optional().nullable(),
 });
 
 router.put('/:id', async (req: AuthRequest, res) => {
@@ -78,12 +94,17 @@ router.put('/:id', async (req: AuthRequest, res) => {
   if (fullname !== undefined) data.fullname = fullname;
   if (role !== undefined) data.role = role;
   if (phone !== undefined) data.phone = phone;
+  if (parsed.data.defaultActivityId !== undefined)
+    data.defaultActivityId = parsed.data.defaultActivityId;
   if (password) data.passwordHash = await bcrypt.hash(password, 10);
 
   const updated = await prisma.user.update({
     where: { id },
     data,
-    select: { id: true, username: true, fullname: true, role: true, phone: true, createdAt: true },
+    select: {
+      id: true, username: true, fullname: true, role: true,
+      phone: true, defaultActivityId: true, createdAt: true,
+    },
   });
   const changed = Object.keys(data).join(', ');
   await audit({

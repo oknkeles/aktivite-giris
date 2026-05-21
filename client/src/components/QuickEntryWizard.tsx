@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { api, type Customer, type Activity } from '../api/client';
+import { useAuth } from '../store/auth';
 import { useToast, confettiBurst } from './Toast';
 import { dateStr, MONTHS, DAYS_LONG } from '../lib/format';
 
@@ -150,6 +151,7 @@ export default function QuickEntryWizard({
   const toast = useToast();
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
+  const me = useAuth((s) => s.user);
 
   const [step, setStep] = useState<Step>('customer');
   const [draft, setDraft] = useState<Draft>({});
@@ -223,6 +225,17 @@ export default function QuickEntryWizard({
   const parsedDate = step === 'date' ? parseDate(search, lastDate) : null;
   const parsedQty = step === 'qty' ? parseQty(search) : null;
 
+  // Açılışta kullanıcının varsayılan aktivitesini draft'a kur
+  useEffect(() => {
+    if (!open) return;
+    if (draft.activityId) return; // zaten var (önceki save'den kalmış)
+    if (!me?.defaultActivityId || activities.length === 0) return;
+    const def = activities.find((a) => a.id === me.defaultActivityId);
+    if (def) {
+      setDraft((d) => ({ ...d, activityId: def.id, activityName: def.name, activityUnit: def.unit }));
+    }
+  }, [open, me?.defaultActivityId, activities, draft.activityId]);
+
   // Focus management
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 30);
@@ -257,7 +270,8 @@ export default function QuickEntryWizard({
 
   function commitCustomer(c: Customer) {
     setDraft((d) => ({ ...d, customerId: c.id, customerName: c.name }));
-    setStep('activity');
+    // Varsayılan aktivite atanmışsa direkt tarihe geç (kullanıcı isterse "Geri" ile değiştirir)
+    setStep(draft.activityId ? 'date' : 'activity');
   }
   function commitActivity(a: Activity) {
     setDraft((d) => ({ ...d, activityId: a.id, activityName: a.name, activityUnit: a.unit }));

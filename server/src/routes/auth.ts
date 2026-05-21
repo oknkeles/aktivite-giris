@@ -68,6 +68,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       username: user.username,
       fullname: user.fullname,
       role: user.role,
+      defaultActivityId: user.defaultActivityId,
     },
   });
 });
@@ -83,6 +84,7 @@ router.get('/me', authRequired, async (req: AuthRequest, res) => {
     username: user.username,
     fullname: user.fullname,
     role: user.role,
+    defaultActivityId: user.defaultActivityId,
   });
 });
 

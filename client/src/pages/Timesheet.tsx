@@ -384,8 +384,10 @@ function DayModal({ date, onClose, entries, customers, activities }: {
   activities: Activity[];
 }) {
   const d = new Date(date + 'T00:00:00');
+  const { user: me } = useAuth();
+  const defaultAct = me?.defaultActivityId || '';
   const [cusId, setCusId] = useState<number | ''>('');
-  const [actId, setActId] = useState<number | ''>('');
+  const [actId, setActId] = useState<number | ''>(defaultAct);
   const [qty, setQty] = useState('');
   const [ticketId, setTicketId] = useState('');
   const [note, setNote] = useState('');
@@ -395,7 +397,7 @@ function DayModal({ date, onClose, entries, customers, activities }: {
   const qc = useQueryClient();
 
   function resetForm() {
-    setQty(''); setTicketId(''); setNote(''); setCusId(''); setActId('');
+    setQty(''); setTicketId(''); setNote(''); setCusId(''); setActId(defaultAct);
     setEditingId(null);
   }
 
@@ -618,8 +620,9 @@ function BulkModal({ dates, onClose, customers, activities, onDone }: {
   activities: Activity[];
   onDone: () => void;
 }) {
+  const { user: me } = useAuth();
   const [cusId, setCusId] = useState<number | ''>('');
-  const [actId, setActId] = useState<number | ''>('');
+  const [actId, setActId] = useState<number | ''>(me?.defaultActivityId || '');
   const [qty, setQty] = useState('');
   const [ticketId, setTicketId] = useState('');
   const [note, setNote] = useState('');
