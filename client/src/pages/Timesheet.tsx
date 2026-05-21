@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, CheckSquare, Sparkles, Trash2 } from 'lucide
 import clsx from 'clsx';
 import { api, type Entry, type Customer, type Activity } from '../api/client';
 import { useAuth } from '../store/auth';
+import { useHeader } from '../store/header';
 import { useToast, confettiBurst } from '../components/Toast';
 import Modal from '../components/Modal';
 import { MONTHS, DAYS_SHORT, DAYS_LONG, dateStr, qtyToHours, fmtHours } from '../lib/format';
@@ -133,37 +134,45 @@ export default function Timesheet() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['entries'] }),
   });
 
+  // Layout topbar'a ay/yıl + nav butonlarını inject et
+  const setExtras = useHeader((s) => s.setExtras);
+  useEffect(() => {
+    setExtras(
+      <>
+        <span className="text-ink-4 font-normal hidden sm:inline">·</span>
+        <span className="text-sm sm:text-base font-bold tracking-tight">
+          {MONTHS[calMonth]} <span className="text-ink-4 font-medium">{calYear}</span>
+        </span>
+        <div className="flex-1" />
+        <button
+          className={clsx(
+            'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition',
+            multiMode
+              ? 'bg-brand-indigo text-white'
+              : 'bg-paper-2 text-ink-2 hover:bg-paper-3'
+          )}
+          onClick={toggleMulti}
+        >
+          <CheckSquare size={13} />
+          <span className="hidden sm:inline">Çoklu Seçim</span>
+        </button>
+        <button className="px-2.5 py-1.5 rounded-lg bg-paper-2 text-ink-2 text-xs font-semibold hover:bg-paper-3 transition" onClick={goToday}>
+          Bugün
+        </button>
+        <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goPrev}>
+          <ChevronLeft size={15} />
+        </button>
+        <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goNext}>
+          <ChevronRight size={15} />
+        </button>
+      </>
+    );
+    return () => setExtras(null);
+  }, [calMonth, calYear, multiMode, setExtras]);
+
   return (
     <div className="animate-fade-in">
       <div className="min-w-0">
-        {/* Header — macOS Calendar style */}
-        <div className="flex flex-wrap items-center gap-2 mb-5 px-1">
-          <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight flex-1 min-w-[180px] leading-tight">
-            {MONTHS[calMonth]} <span className="text-ink-4 font-medium">{calYear}</span>
-          </h1>
-          <button
-            className={clsx(
-              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition',
-              multiMode
-                ? 'bg-brand-indigo text-white'
-                : 'bg-paper-2 text-ink-2 hover:bg-paper-3'
-            )}
-            onClick={toggleMulti}
-          >
-            <CheckSquare size={13} />
-            Çoklu Seçim
-          </button>
-          <button className="px-3 py-1.5 rounded-lg bg-paper-2 text-ink-2 text-xs font-semibold hover:bg-paper-3 transition" onClick={goToday}>
-            Bugün
-          </button>
-          <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goPrev}>
-            <ChevronLeft size={15} />
-          </button>
-          <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goNext}>
-            <ChevronRight size={15} />
-          </button>
-        </div>
-
         {/* Summary metrics + last entry — flat, subdued */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           <MetricCard label="Bu Ay" value={fmtHours(monthHours)} variant="indigo" />
