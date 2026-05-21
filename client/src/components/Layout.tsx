@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { Zap } from 'lucide-react';
 import Sidebar from './Sidebar';
 import { ToastHost } from './Toast';
 import { useHeader } from '../store/header';
+import QuickEntryWizard from './QuickEntryWizard';
 
 const TITLES: Record<string, string> = {
   '/timesheet': 'Timesheet',
@@ -17,9 +19,22 @@ const TITLES: Record<string, string> = {
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const loc = useLocation();
   const title = TITLES[loc.pathname] || 'Aktivite Giriş';
   const extras = useHeader((s) => s.extras);
+
+  // Cmd+K / Ctrl+K → Hızlı kayıt
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setQuickOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -48,6 +63,21 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Floating Quick Entry button — Cmd+K kısayolu da var */}
+      <button
+        onClick={() => setQuickOpen(true)}
+        title="Hızlı Kayıt (⌘K)"
+        className="fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-grad-primary text-white shadow-glow hover:shadow-[0_12px_30px_rgba(37,99,235,.45)] hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center group"
+        style={{ backgroundSize: '200% 200%' }}
+      >
+        <Zap size={22} strokeWidth={2.5} />
+        <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 whitespace-nowrap bg-ink text-white text-[11px] font-semibold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none">
+          Hızlı Kayıt · ⌘K
+        </span>
+      </button>
+
+      <QuickEntryWizard open={quickOpen} onClose={() => setQuickOpen(false)} />
 
       <ToastHost />
     </div>

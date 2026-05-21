@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
-import { authRequired, adminRequired } from '../middleware/auth.js';
+import { authRequired, adminRequired, type AuthRequest } from '../middleware/auth.js';
+import { streamPdfReport, type ReportEntry } from '../services/pdf-report.js';
 
 const router = Router();
 router.use(authRequired, adminRequired);
@@ -61,6 +62,76 @@ router.get('/', async (req, res) => {
   const totalHours = data.reduce((s, e) => s + e.hours, 0);
 
   res.json({ entries: data, totalGross, totalNet, totalHours, count: data.length });
+});
+
+// PDF Rapor — bir müşteri + aylık özet
+router.get('/pdf', async (req: AuthRequest, res) => {
+  const { customerId, from, to, period } = req.query as Record<string, string | undefined>;
+
+  if (!customerId) return res.status(400).json({ error: 'customerId zorunlu' });
+  if (!from || !to) return res.status(400).json({ error: 'from ve to zorunlu (YYYY-MM-DD)' });
+
+  const customer = await prisma.customer.findUnique({
+    where: { id: Number(customerId) },
+    include: { contractor: true, rates: true },
+  });
+  if (!customer) return res.status(404).json({ error: 'Müşteri bulunamadı' });
+
+  const entries = await prisma.entry.findMany({
+    where: {
+      customerId: Number(customerId),
+      date: { gte: from, lte: to },
+    },
+    include: {
+      activity: true,
+      user: { select: { fullname: true } },
+    },
+    orderBy: { date: 'asc' },
+  });
+
+  const reportEntries: ReportEntry[] = entries.map((e) => {
+    const rate = customer.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
+    const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
+    const days = hours / 8;
+    const gross = days * rate;
+    const disc = customer.contractor.discount || 0;
+    const net = gross * (1 - disc / 100);
+    return {
+      date: e.date,
+      customerName: customer.name,
+      contractorName: customer.contractor.name,
+      activityName: e.activity.name,
+      ticketId: e.ticketId,
+      note: e.note,
+      hours,
+      days,
+      dayRate: rate,
+      gross,
+      net,
+      userName: e.user.fullname,
+    };
+  });
+
+  const totalHours = reportEntries.reduce((s, e) => s + e.hours, 0);
+  const totalGross = reportEntries.reduce((s, e) => s + e.gross, 0);
+  const totalNet = reportEntries.reduce((s, e) => s + e.net, 0);
+
+  streamPdfReport(
+    {
+      title: `${customer.name} · ${period || 'Rapor'}`,
+      customerName: customer.name,
+      contractorName: customer.contractor.name,
+      periodLabel: period || `${from} → ${to}`,
+      entries: reportEntries,
+      totalHours,
+      totalGross,
+      totalNet,
+      discount: customer.contractor.discount || 0,
+      generatedAt: new Date(),
+      generatedBy: req.user?.username,
+    },
+    res
+  );
 });
 
 export default router;

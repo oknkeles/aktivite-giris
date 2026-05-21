@@ -13,6 +13,7 @@ import usersRouter from './routes/users.js';
 import reportsRouter from './routes/reports.js';
 import whatsappRouter from './routes/whatsapp.js';
 import auditRouter from './routes/audit.js';
+import { startReminderCron } from './services/reminders.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isProd = process.env.NODE_ENV === 'production';
@@ -93,6 +94,9 @@ if (isProd) {
     }
   }, KEEP_WARM_INTERVAL);
   console.log('🔥 DB keep-warm pinger aktif (3 dk aralık)');
+
+  // Smart Reminders — her gün 18:00 (TR) WhatsApp hatırlatıcı
+  startReminderCron();
 
   // WhatsApp konuşma geçmişi temizleme — 24 saatten eski mesajları sil.
   // (Multi-turn için 15 dk yetiyor, ama hata ayıklama için 24h tutuyoruz.)

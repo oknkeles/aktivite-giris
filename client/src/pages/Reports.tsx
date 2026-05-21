@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileDown, BarChart3 } from 'lucide-react';
+import { FileDown, BarChart3, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { api, type ReportData, type Customer, type Contractor } from '../api/client';
 import { useToast } from '../components/Toast';
@@ -40,12 +40,50 @@ export default function Reports() {
   report?.entries.forEach((e) => {
     const ck = e.contractorName;
     if (!grouped[ck]) grouped[ck] = { name: ck, disc: e.discount, customers: {}, totalGross: 0, totalNet: 0, totalHours: 0 };
-    const cu = grouped[ck].customers[e.customerName] = grouped[ck].customers[e.customerName] || { name: e.customerName, acts: {}, gross: 0, net: 0, hours: 0 };
+    const cu = grouped[ck].customers[e.customerName] = grouped[ck].customers[e.customerName] || { name: e.customerName, id: e.customerId, acts: {}, gross: 0, net: 0, hours: 0 };
     const ag = cu.acts[e.activityName] = cu.acts[e.activityName] || { name: e.activityName, hours: 0, days: 0, gross: 0, net: 0 };
     ag.hours += e.hours; ag.days += e.days; ag.gross += e.gross; ag.net += e.net;
     cu.gross += e.gross; cu.net += e.net; cu.hours += e.hours;
     grouped[ck].totalGross += e.gross; grouped[ck].totalNet += e.net; grouped[ck].totalHours += e.hours;
   });
+
+  function downloadPdf(customerId: number, customerName: string) {
+    const token = localStorage.getItem('aktivite_token') || '';
+    const params = new URLSearchParams();
+    params.set('customerId', String(customerId));
+    params.set('from', from);
+    params.set('to', to);
+    // Period etiketi (örn. "Mayıs 2026")
+    const d = new Date(from + 'T00:00:00');
+    const monthNames = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+    params.set('period', `${monthNames[d.getMonth()]} ${d.getFullYear()}`);
+
+    // PDF stream — auth header ile fetch, blob → indir
+    const apiBase = ((): string => {
+      // api.ts'teki gibi: dev'de Vite proxy, prod'da same-origin
+      return '/api';
+    })();
+
+    fetch(`${apiBase}/reports/pdf?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('PDF üretilemedi');
+        return res.blob();
+      })
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `rapor_${customerName.replace(/\s+/g, '_')}_${from}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.show(`📄 PDF indirildi: ${customerName}`);
+      })
+      .catch((err) => toast.show(err.message || 'PDF hatası', 'error'));
+  }
 
   function exportExcel() {
     if (!report?.entries.length) return toast.show('Rapor boş', 'error');
@@ -148,6 +186,13 @@ export default function Reports() {
                     <div className="flex items-center gap-3">
                       <span className="text-xs font-mono text-ink-3">{fmtHours(cu.hours)}</span>
                       <span className="font-mono font-bold text-brand-emerald">{fmtMoney(cu.net)} ₺</span>
+                      <button
+                        onClick={() => downloadPdf(cu.id, cu.name)}
+                        className="text-brand-indigo hover:bg-brand-indigo/10 p-1.5 rounded-lg transition flex items-center gap-1 text-[11px] font-semibold"
+                        title={`${cu.name} için PDF rapor`}
+                      >
+                        <FileText size={12} /> PDF
+                      </button>
                     </div>
                   </div>
                   {Object.values(cu.acts).map((ag: any) => (
