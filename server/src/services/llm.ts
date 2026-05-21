@@ -1,6 +1,8 @@
-// LLM service — WhatsApp mesajından structured Entry verisini çıkartır.
-// Provider: Google Gemini 2.5 Flash (ücretsiz tier yeterli)
-// Yapısı sağlayıcı-nötr — ileride GPT-mini fallback eklemek kolay.
+// LLM service — WhatsApp doğal dil mesajını analiz eder ve aksiyon önerir.
+// Desteklediği aksiyonlar: create | update | delete | list
+//
+// LLM'e kullanıcının son 30 günlük kayıtları context olarak verilir ki
+// "dünkü Aktek'i sil" gibi referansları doğru kayda eşleştirebilsin.
 
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 
@@ -11,64 +13,126 @@ if (!apiKey) {
 
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
+export interface RecentEntry {
+  id: number;
+  date: string;
+  qty: number;
+  unit: string;
+  customerId: number;
+  customerName: string;
+  activityId: number;
+  activityName: string;
+  ticketId: string | null;
+  note: string | null;
+}
+
 export interface ParseContext {
   customers: { id: number; name: string }[];
   activities: { id: number; name: string; unit: string }[];
-  /** Bugünün tarihi (Türkiye saati, YYYY-MM-DD) — "bugün", "dün" gibi
-   *  ifadeleri yorumlamak için. */
+  recentEntries: RecentEntry[];
   today: string;
 }
 
-export interface ParsedEntry {
+export type ParsedAction =
+  | {
+      action: 'create';
+      entry: {
+        date: string;
+        qty: number;
+        customerId: number;
+        activityId: number;
+        ticketId: string | null;
+        note: string | null;
+      };
+    }
+  | {
+      action: 'update';
+      entryId: number;
+      updates: {
+        date?: string;
+        qty?: number;
+        customerId?: number;
+        activityId?: number;
+        ticketId?: string | null;
+        note?: string | null;
+      };
+    }
+  | {
+      action: 'delete';
+      entryId: number;
+    }
+  | {
+      action: 'list';
+      filter?: {
+        from?: string;
+        to?: string;
+        customerId?: number;
+      };
+    };
+
+export interface ParsedResponse {
   ok: boolean;
-  /** Parse başarılıysa entry verisi. */
-  entry?: {
-    date: string; // YYYY-MM-DD
-    qty: number;
-    customerId: number;
-    activityId: number;
-    ticketId: string | null;
-    note: string | null;
-  };
-  /** Parse edilemediyse veya belirsizse: kullanıcıya gönderilecek soru. */
+  result?: ParsedAction;
   clarification?: string;
-  /** Debug için ham model çıktısı. */
   raw?: any;
 }
 
 function buildSystemPrompt(ctx: ParseContext): string {
   const customerList = ctx.customers
-    .map((c) => `- ${c.id}: ${c.name}`)
+    .map((c) => `  ${c.id}: ${c.name}`)
     .join('\n');
   const activityList = ctx.activities
-    .map((a) => `- ${a.id}: ${a.name} (${a.unit})`)
+    .map((a) => `  ${a.id}: ${a.name} (${a.unit})`)
     .join('\n');
 
-  return `Sen bir SAP danışmanlık şirketinin aktivite kayıt asistanısın. Kullanıcının Türkçe doğal dil mesajından aktivite kaydı çıkarman gerekiyor.
+  const recentList =
+    ctx.recentEntries.length > 0
+      ? ctx.recentEntries
+          .map(
+            (e) =>
+              `  #${e.id}: ${e.date} · ${e.customerName} · ${e.activityName} · ${e.qty}${e.unit === 'saat' ? 's' : 'g'}${
+                e.ticketId ? ` (${e.ticketId})` : ''
+              }${e.note ? ` — ${e.note.substring(0, 40)}` : ''}`
+          )
+          .join('\n')
+      : '  (henüz kayıt yok)';
+
+  return `Sen bir SAP danışmanlık şirketinin aktivite kayıt asistanısın. Kullanıcının Türkçe mesajından AKSİYON çıkarman gerekiyor.
 
 BUGÜN: ${ctx.today}
 
-MEVCUT MÜŞTERİLER (id: ad):
-${customerList || '(henüz yok)'}
+AKSİYON TÜRLERİ:
+- create: yeni kayıt oluştur ("bugün 8 saat Aktek...")
+- update: var olan kaydı güncelle ("dünkü Aktek'i 6 saate çevir", "şu kaydın saatini 4 yap")
+- delete: kayıt sil ("son kaydımı sil", "dünkü beymen'i sil", "#42 sil")
+- list: kayıt listele ("bu haftaki kayıtlarım", "Aktek için ne yapmışım")
 
-MEVCUT AKTİVİTE TÜRLERİ (id: ad (birim)):
-${activityList || '(henüz yok)'}
+MEVCUT MÜŞTERİLER (id: ad):
+${customerList || '  (henüz yok)'}
+
+MEVCUT AKTİVİTELER (id: ad (birim)):
+${activityList || '  (henüz yok)'}
+
+KULLANICININ SON KAYITLARI (en yenilerden):
+${recentList}
 
 KURALLAR:
 1. "bugün" = ${ctx.today}, "dün" = bir önceki gün, "geçen cuma" gibi ifadeleri doğru yorumla.
-2. Müşteri adını eşleştir — kısmi eşleşme OK ama net olmalı. Belirsizse "ambiguous" döndür.
-3. Aktivite türü adını da eşleştir; en yaygın varsayılan "Expert" veya benzer şey listede varsa onu seç.
-4. Süre saat cinsinden (örn. "8 saat" → 8, "yarım gün" → 4, "tam gün" → 8).
-5. Talep ID (JIRA-123, ZBT-456 gibi) varsa ticketId'ye yaz, yoksa null.
-6. Açıklama serbest metin — özetleyerek note'a yaz, yoksa null.
-7. Eğer müşteri veya aktivite eşleşmiyorsa veya saat belirtilmemişse "needs_clarification" döndür ve kullanıcıya kısa, net bir soru yaz.
+2. CREATE için: customerId, activityId, date, qty zorunlu.
+3. UPDATE/DELETE için: yukarıdaki son kayıtlardan eşleşeni bul, **entryId**'yi (#'siz, sadece sayı) kullan.
+4. UPDATE için "updates" objesi sadece DEĞİŞTİRİLECEK alanları içersin.
+5. Saat: "8 saat" → 8, "yarım gün" → 4, "tam gün" → 8.
+6. Eşleşme belirsizse veya birden fazla aday varsa → status:"needs_clarification" + kısa Türkçe soru.
+7. "Sil" komutunda eğer son kayıtlarda eşleşme yoksa → clarification iste.
 
 ÖRNEKLER:
-- "bugün 8 saat Aktek SAP danışmanlık FIORI dashboard" → date:bugün, qty:8, customer:Aktek, activity:SAP danışmanlık/Expert, note:FIORI dashboard
-- "dün yarım gün Beymen JIRA-123" → date:dün, qty:4, customer:Beymen, ticketId:JIRA-123
-- "8 saat" → needs_clarification: "Hangi müşteri ve aktivite için?"
+- "bugün 8 saat Aktek FIORI dashboard" → action:create
+- "dünkü Beymen'i 4 saate çevir" → action:update, entryId:[dünkü beymen'in id'si], updates:{qty:4}
+- "son kaydımı sil" → action:delete, entryId:[son kaydın id'si]
+- "bu haftaki kayıtlarım" → action:list, filter:{from:..., to:...}
+- "Aktek için yarım gün, JIRA-100" → ambiguous (hangi gün?) → needs_clarification
 
-ÇIKTI: Yalnızca JSON şeması ile cevap ver.`;
+ÇIKTI: Sadece JSON şeması.`;
 }
 
 const responseSchema = {
@@ -78,24 +142,49 @@ const responseSchema = {
       type: SchemaType.STRING,
       enum: ['ok', 'needs_clarification'],
     },
+    action: {
+      type: SchemaType.STRING,
+      enum: ['create', 'update', 'delete', 'list'],
+      nullable: true,
+    },
+    // create
     entry: {
       type: SchemaType.OBJECT,
       nullable: true,
       properties: {
-        date: { type: SchemaType.STRING, description: 'YYYY-MM-DD' },
+        date: { type: SchemaType.STRING },
         qty: { type: SchemaType.NUMBER },
         customerId: { type: SchemaType.INTEGER },
         activityId: { type: SchemaType.INTEGER },
         ticketId: { type: SchemaType.STRING, nullable: true },
         note: { type: SchemaType.STRING, nullable: true },
       },
-      required: ['date', 'qty', 'customerId', 'activityId'],
     },
-    clarification: {
-      type: SchemaType.STRING,
+    // update / delete
+    entryId: { type: SchemaType.INTEGER, nullable: true },
+    updates: {
+      type: SchemaType.OBJECT,
       nullable: true,
-      description: 'Kullanıcıya gönderilecek kısa, net Türkçe soru.',
+      properties: {
+        date: { type: SchemaType.STRING, nullable: true },
+        qty: { type: SchemaType.NUMBER, nullable: true },
+        customerId: { type: SchemaType.INTEGER, nullable: true },
+        activityId: { type: SchemaType.INTEGER, nullable: true },
+        ticketId: { type: SchemaType.STRING, nullable: true },
+        note: { type: SchemaType.STRING, nullable: true },
+      },
     },
+    // list
+    filter: {
+      type: SchemaType.OBJECT,
+      nullable: true,
+      properties: {
+        from: { type: SchemaType.STRING, nullable: true },
+        to: { type: SchemaType.STRING, nullable: true },
+        customerId: { type: SchemaType.INTEGER, nullable: true },
+      },
+    },
+    clarification: { type: SchemaType.STRING, nullable: true },
   },
   required: ['status'],
 };
@@ -103,7 +192,7 @@ const responseSchema = {
 export async function parseWhatsAppMessage(
   text: string,
   ctx: ParseContext
-): Promise<ParsedEntry> {
+): Promise<ParsedResponse> {
   if (!genAI) {
     return {
       ok: false,
@@ -111,46 +200,68 @@ export async function parseWhatsAppMessage(
     };
   }
 
-  try {
-    // Birden fazla model dene — biri quota'ya takılırsa diğerini dene.
-    // 1.5-flash genelde free tier kotasında daha rahat (1500 req/gün).
-    const modelPriority = [
-      'gemini-1.5-flash',
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash-8b',
-    ];
+  const modelPriority = [
+    'gemini-1.5-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash-8b',
+  ];
 
-    let json: any = null;
-    let lastErr: any = null;
-    for (const modelName of modelPriority) {
-      try {
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseSchema: responseSchema as any,
-            temperature: 0.2,
-          },
-          systemInstruction: buildSystemPrompt(ctx),
-        });
-        const result = await model.generateContent(text);
-        json = JSON.parse(result.response.text());
-        console.log(`✓ LLM parse OK with ${modelName}`);
-        break;
-      } catch (err: any) {
-        lastErr = err;
-        const is429 = err?.status === 429 || /429|quota|rate/i.test(err?.message || '');
-        if (!is429) throw err; // başka hata ise dene değil, dön
-        console.warn(`⚠ ${modelName} quota exceeded, trying next...`);
+  let json: any = null;
+  let lastErr: any = null;
+  for (const modelName of modelPriority) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: responseSchema as any,
+          temperature: 0.2,
+        },
+        systemInstruction: buildSystemPrompt(ctx),
+      });
+      const result = await model.generateContent(text);
+      json = JSON.parse(result.response.text());
+      console.log(`✓ LLM parse OK with ${modelName}, action=${json.action}`);
+      break;
+    } catch (err: any) {
+      lastErr = err;
+      const is429 =
+        err?.status === 429 || /429|quota|rate/i.test(err?.message || '');
+      if (!is429) {
+        console.error('LLM error (non-quota):', err);
+        return {
+          ok: false,
+          clarification: 'Mesajı anlayamadım, daha açık yazar mısın?',
+        };
       }
+      console.warn(`⚠ ${modelName} quota exceeded, trying next...`);
     }
+  }
 
-    if (!json) throw lastErr || new Error('Tüm modeller quota dolu');
+  if (!json) {
+    console.error('All Gemini models quota exhausted:', lastErr?.message);
+    return {
+      ok: false,
+      clarification:
+        '🤖 Bot şu an çok yoğun (LLM kotası doldu). Birkaç dakika sonra tekrar dene.',
+    };
+  }
 
-    if (json.status === 'ok' && json.entry) {
-      return {
-        ok: true,
+  if (json.status !== 'ok' || !json.action) {
+    return {
+      ok: false,
+      clarification: json.clarification || 'Mesajı anlayamadım.',
+      raw: json,
+    };
+  }
+
+  // Aksiyona göre cevabı şekillendir
+  if (json.action === 'create' && json.entry) {
+    return {
+      ok: true,
+      result: {
+        action: 'create',
         entry: {
           date: json.entry.date,
           qty: Number(json.entry.qty),
@@ -159,20 +270,54 @@ export async function parseWhatsAppMessage(
           ticketId: json.entry.ticketId || null,
           note: json.entry.note || null,
         },
-        raw: json,
-      };
-    }
-
-    return {
-      ok: false,
-      clarification: json.clarification || 'Mesajı anlayamadım. Lütfen daha açık yaz.',
+      },
       raw: json,
     };
-  } catch (err: any) {
-    console.error('LLM parse error:', err);
+  }
+
+  if (json.action === 'update' && json.entryId && json.updates) {
+    const u: any = {};
+    if (json.updates.date) u.date = json.updates.date;
+    if (json.updates.qty !== undefined && json.updates.qty !== null)
+      u.qty = Number(json.updates.qty);
+    if (json.updates.customerId)
+      u.customerId = Number(json.updates.customerId);
+    if (json.updates.activityId)
+      u.activityId = Number(json.updates.activityId);
+    if (json.updates.ticketId !== undefined)
+      u.ticketId = json.updates.ticketId || null;
+    if (json.updates.note !== undefined)
+      u.note = json.updates.note || null;
+
     return {
-      ok: false,
-      clarification: 'Bot şu an cevap veremiyor. Tekrar dener misin?',
+      ok: true,
+      result: { action: 'update', entryId: Number(json.entryId), updates: u },
+      raw: json,
     };
   }
+
+  if (json.action === 'delete' && json.entryId) {
+    return {
+      ok: true,
+      result: { action: 'delete', entryId: Number(json.entryId) },
+      raw: json,
+    };
+  }
+
+  if (json.action === 'list') {
+    return {
+      ok: true,
+      result: {
+        action: 'list',
+        filter: json.filter || undefined,
+      },
+      raw: json,
+    };
+  }
+
+  return {
+    ok: false,
+    clarification: json.clarification || 'Mesajı tam anlayamadım.',
+    raw: json,
+  };
 }

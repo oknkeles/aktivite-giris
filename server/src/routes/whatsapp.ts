@@ -1,25 +1,18 @@
-// WhatsApp webhook — Twilio Sandbox / Business API üzerinden gelen mesajları işler.
-// Akış:
-//   1. Twilio POST gelir (x-www-form-urlencoded): { From, Body, ... }
-//   2. From = "whatsapp:+905551234567" → numarayı normalize et, user bul
-//   3. User'ın customer/activity listesini Gemini'a context olarak gönder
-//   4. LLM parse'lar → Entry oluştur veya clarification iste
-//   5. Twilio API ile WhatsApp'a cevap yolla
+// WhatsApp webhook — Twilio'dan gelen mesajları işler.
+// Tam CRUD: create / update / delete / list
 
 import { Router } from 'express';
+import express from 'express';
 import twilio from 'twilio';
 import { prisma } from '../db.js';
-import { parseWhatsAppMessage } from '../services/llm.js';
+import { parseWhatsAppMessage, type RecentEntry } from '../services/llm.js';
 
 const router = Router();
-
-// Twilio form-urlencoded gönderdiği için body-parser eklemek lazım
-import express from 'express';
 router.use(express.urlencoded({ extended: false }));
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
-const whatsAppFrom = process.env.TWILIO_WHATSAPP_FROM; // örn. "whatsapp:+14155238886"
+const whatsAppFrom = process.env.TWILIO_WHATSAPP_FROM;
 
 const twilioClient =
   accountSid && authToken ? twilio(accountSid, authToken) : null;
@@ -30,41 +23,50 @@ async function sendWhatsApp(to: string, body: string) {
     return;
   }
   try {
-    await twilioClient.messages.create({
-      from: whatsAppFrom,
-      to,
-      body,
-    });
+    await twilioClient.messages.create({ from: whatsAppFrom, to, body });
   } catch (err: any) {
     console.error('Twilio send error:', err.message);
   }
 }
 
 function todayStr(): string {
-  // Türkiye saati (UTC+3) baz alarak bugünün tarihini al
   const now = new Date();
   const tr = new Date(now.getTime() + 3 * 60 * 60 * 1000);
   return tr.toISOString().slice(0, 10);
 }
 
 function normalizePhone(twilioFrom: string): string {
-  // "whatsapp:+905551234567" → "+905551234567"
   return twilioFrom.replace(/^whatsapp:/, '').trim();
+}
+
+function fmtEntry(e: {
+  id: number;
+  date: string;
+  qty: number;
+  customer: { name: string };
+  activity: { name: string; unit: string };
+  ticketId?: string | null;
+}): string {
+  const d = new Date(e.date + 'T00:00:00');
+  const dateLabel = `${d.getDate()}.${d.getMonth() + 1}`;
+  const unit = e.activity.unit === 'saat' ? 's' : 'g';
+  return (
+    `#${e.id} · ${dateLabel} · ${e.customer.name} · ${e.activity.name} · ${e.qty}${unit}` +
+    (e.ticketId ? ` (${e.ticketId})` : '')
+  );
 }
 
 router.post('/webhook', async (req, res) => {
   const from = String(req.body.From || '');
   const body = String(req.body.Body || '').trim();
 
-  // Twilio webhook ACK — hızlı 200 dön, async işle
+  // Twilio ACK
   res.type('text/xml').send('<Response></Response>');
 
   if (!from || !body) return;
-
   const phone = normalizePhone(from);
 
   try {
-    // 1. Telefondan user'ı bul
     const user = await prisma.user.findUnique({ where: { phone } });
     if (!user) {
       await sendWhatsApp(
@@ -74,20 +76,27 @@ router.post('/webhook', async (req, res) => {
       return;
     }
 
-    // 2. Hızlı komutlar — yardım, son kayıtlar
+    // Hızlı komutlar
     const lower = body.toLowerCase();
-    if (['yardım', 'help', '?', 'menu'].includes(lower)) {
+
+    if (['yardım', 'help', '?', 'menu', 'menü'].includes(lower)) {
       await sendWhatsApp(
         from,
         `🤖 *Aktivite Bot*\n\n` +
-          `Örnek mesajlar:\n` +
-          `• "bugün 8 saat Aktek FIORI tasarımı"\n` +
-          `• "dün yarım gün Beymen JIRA-123"\n` +
-          `• "geçen cuma 4 saat Akkök SAP support"\n\n` +
-          `Komutlar:\n` +
-          `• *bugün* — bugünkü kayıtların\n` +
-          `• *son* — son 5 kaydın\n` +
-          `• *yardım* — bu menü`
+          `*Ekle:*\n` +
+          `• "bugün 8 saat Aktek FIORI dashboard"\n` +
+          `• "dün yarım gün Beymen JIRA-123"\n\n` +
+          `*Güncelle:*\n` +
+          `• "dünkü Aktek'i 4 saate çevir"\n` +
+          `• "son kaydımın notu: x modülü"\n\n` +
+          `*Sil:*\n` +
+          `• "son kaydımı sil"\n` +
+          `• "dünkü Beymen'i sil"\n\n` +
+          `*Listele:*\n` +
+          `• "bugün" — bugünkü kayıtlar\n` +
+          `• "son" — son 5 kaydım\n` +
+          `• "bu hafta" / "geçen ay"\n\n` +
+          `Yardım için *yardım* yaz.`
       );
       return;
     }
@@ -102,14 +111,15 @@ router.post('/webhook', async (req, res) => {
         await sendWhatsApp(from, '📭 Bugüne kayıt yok.');
         return;
       }
-      const lines = entries.map(
-        (e) => `• ${e.customer.name} · ${e.activity.name} · ${e.qty}${e.activity.unit === 'saat' ? 's' : 'g'}`
-      );
+      const lines = entries.map(fmtEntry);
       const total = entries.reduce(
         (s, e) => s + (e.activity.unit === 'saat' ? e.qty : e.qty * 8),
         0
       );
-      await sendWhatsApp(from, `📅 Bugün:\n${lines.join('\n')}\n\nToplam: ${total}s`);
+      await sendWhatsApp(
+        from,
+        `📅 Bugün:\n${lines.join('\n')}\n\nToplam: ${total}s`
+      );
       return;
     }
 
@@ -117,70 +127,187 @@ router.post('/webhook', async (req, res) => {
       const recent = await prisma.entry.findMany({
         where: { userId: user.id },
         include: { customer: true, activity: true },
-        orderBy: { date: 'desc' },
+        orderBy: [{ date: 'desc' }, { id: 'desc' }],
         take: 5,
       });
       if (!recent.length) {
         await sendWhatsApp(from, '📭 Hiç kayıt yok.');
         return;
       }
-      const lines = recent.map(
-        (e) =>
-          `• ${e.date} · ${e.customer.name} · ${e.qty}${e.activity.unit === 'saat' ? 's' : 'g'}`
-      );
+      const lines = recent.map(fmtEntry);
       await sendWhatsApp(from, `🕒 Son kayıtlar:\n${lines.join('\n')}`);
       return;
     }
 
-    // 3. Doğal dil parse — LLM
-    const [customers, activities] = await Promise.all([
+    // Doğal dil parse için context hazırla
+    const [customers, activities, recentRaw] = await Promise.all([
       prisma.customer.findMany({ select: { id: true, name: true } }),
-      prisma.activity.findMany({ select: { id: true, name: true, unit: true } }),
+      prisma.activity.findMany({
+        select: { id: true, name: true, unit: true },
+      }),
+      prisma.entry.findMany({
+        where: { userId: user.id },
+        include: { customer: true, activity: true },
+        orderBy: [{ date: 'desc' }, { id: 'desc' }],
+        take: 30,
+      }),
     ]);
+
+    const recentEntries: RecentEntry[] = recentRaw.map((e) => ({
+      id: e.id,
+      date: e.date,
+      qty: e.qty,
+      unit: e.activity.unit,
+      customerId: e.customerId,
+      customerName: e.customer.name,
+      activityId: e.activityId,
+      activityName: e.activity.name,
+      ticketId: e.ticketId,
+      note: e.note,
+    }));
 
     const parsed = await parseWhatsAppMessage(body, {
       customers,
       activities,
+      recentEntries,
       today: todayStr(),
     });
 
-    if (!parsed.ok || !parsed.entry) {
-      await sendWhatsApp(from, `❓ ${parsed.clarification || 'Mesajı anlayamadım.'}`);
+    if (!parsed.ok || !parsed.result) {
+      await sendWhatsApp(
+        from,
+        `❓ ${parsed.clarification || 'Mesajı anlayamadım.'}`
+      );
       return;
     }
 
-    // 4. Entry oluştur
-    const e = parsed.entry;
-    const created = await prisma.entry.create({
-      data: {
-        date: e.date,
-        qty: e.qty,
-        customerId: e.customerId,
-        activityId: e.activityId,
-        ticketId: e.ticketId,
-        note: e.note,
-        userId: user.id,
-      },
-      include: { customer: true, activity: true },
-    });
+    const r = parsed.result;
 
-    const dateLabel = (() => {
-      const d = new Date(created.date + 'T00:00:00');
-      return `${d.getDate()}.${d.getMonth() + 1}`;
-    })();
+    // ── CREATE ──
+    if (r.action === 'create') {
+      const e = r.entry;
+      const created = await prisma.entry.create({
+        data: {
+          date: e.date,
+          qty: e.qty,
+          customerId: e.customerId,
+          activityId: e.activityId,
+          ticketId: e.ticketId,
+          note: e.note,
+          userId: user.id,
+        },
+        include: { customer: true, activity: true },
+      });
+      await sendWhatsApp(
+        from,
+        `✅ Eklendi:\n${fmtEntry(created)}` +
+          (created.note ? `\n📝 ${created.note}` : '')
+      );
+      return;
+    }
 
-    await sendWhatsApp(
-      from,
-      `✅ Kaydedildi:\n` +
-        `${dateLabel} · ${created.customer.name} · ${created.activity.name}\n` +
-        `${created.qty}${created.activity.unit === 'saat' ? ' saat' : ' gün'}` +
-        (created.ticketId ? `\n🎫 ${created.ticketId}` : '') +
-        (created.note ? `\n📝 ${created.note}` : '')
-    );
+    // ── UPDATE ──
+    if (r.action === 'update') {
+      const existing = await prisma.entry.findUnique({
+        where: { id: r.entryId },
+      });
+      if (!existing) {
+        await sendWhatsApp(from, '❌ Kayıt bulunamadı.');
+        return;
+      }
+      if (existing.userId !== user.id) {
+        await sendWhatsApp(from, '⚠️ Bu kayıt sana ait değil.');
+        return;
+      }
+
+      const updated = await prisma.entry.update({
+        where: { id: r.entryId },
+        data: r.updates as any,
+        include: { customer: true, activity: true },
+      });
+
+      const changes = Object.keys(r.updates)
+        .map((k) => {
+          const label: any = {
+            qty: 'süre',
+            date: 'tarih',
+            customerId: 'müşteri',
+            activityId: 'aktivite',
+            ticketId: 'talep',
+            note: 'not',
+          };
+          return label[k] || k;
+        })
+        .join(', ');
+
+      await sendWhatsApp(
+        from,
+        `✏️ Güncellendi (${changes}):\n${fmtEntry(updated)}` +
+          (updated.note ? `\n📝 ${updated.note}` : '')
+      );
+      return;
+    }
+
+    // ── DELETE ──
+    if (r.action === 'delete') {
+      const existing = await prisma.entry.findUnique({
+        where: { id: r.entryId },
+        include: { customer: true, activity: true },
+      });
+      if (!existing) {
+        await sendWhatsApp(from, '❌ Kayıt bulunamadı.');
+        return;
+      }
+      if (existing.userId !== user.id) {
+        await sendWhatsApp(from, '⚠️ Bu kayıt sana ait değil.');
+        return;
+      }
+
+      await prisma.entry.delete({ where: { id: r.entryId } });
+      await sendWhatsApp(
+        from,
+        `🗑️ Silindi:\n${fmtEntry(existing)}`
+      );
+      return;
+    }
+
+    // ── LIST ──
+    if (r.action === 'list') {
+      const where: any = { userId: user.id };
+      if (r.filter?.from || r.filter?.to) {
+        where.date = {};
+        if (r.filter.from) where.date.gte = r.filter.from;
+        if (r.filter.to) where.date.lte = r.filter.to;
+      }
+      if (r.filter?.customerId) where.customerId = r.filter.customerId;
+
+      const list = await prisma.entry.findMany({
+        where,
+        include: { customer: true, activity: true },
+        orderBy: [{ date: 'desc' }, { id: 'desc' }],
+        take: 20,
+      });
+
+      if (!list.length) {
+        await sendWhatsApp(from, '📭 Bu kritere göre kayıt yok.');
+        return;
+      }
+
+      const lines = list.map(fmtEntry);
+      const total = list.reduce(
+        (s, e) => s + (e.activity.unit === 'saat' ? e.qty : e.qty * 8),
+        0
+      );
+      await sendWhatsApp(
+        from,
+        `📊 ${list.length} kayıt:\n${lines.join('\n')}\n\nToplam: ${total}s`
+      );
+      return;
+    }
   } catch (err: any) {
     console.error('WhatsApp webhook error:', err);
     try {
-      await sendWhatsApp(from, '❌ Bir hata oluştu, tekrar denermisin?');
+      await sendWhatsApp(from, '❌ Bir hata oluştu, tekrar dener misin?');
     } catch {}
   }
 });
