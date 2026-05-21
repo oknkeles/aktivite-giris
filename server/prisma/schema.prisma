@@ -84,3 +84,21 @@ model Entry {
   @@index([date])
   @@index([customerId])
 }
+
+// Önemli aksiyonların izi — kim ne zaman ne yaptı.
+// Sadece admin'in görebileceği bir sayfada listelenir.
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     // null olabilir (örn. login fail vakalarında)
+  username  String?  // user silinse bile iz kalsın diye snapshot
+  action    String   // create | update | delete | login | login_fail
+  target    String   // entry | user | customer | contractor | activity | session
+  targetId  Int?
+  summary   String?  // İnsan-okur özet ("Müşteri 'Beymen' güncellendi")
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([target])
+}

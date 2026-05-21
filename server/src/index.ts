@@ -11,12 +11,17 @@ import entriesRouter from './routes/entries.js';
 import usersRouter from './routes/users.js';
 import reportsRouter from './routes/reports.js';
 import whatsappRouter from './routes/whatsapp.js';
+import auditRouter from './routes/audit.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isProd = process.env.NODE_ENV === 'production';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
+
+// Railway / Cloudflare proxy arkasında — gerçek client IP'yi alabilmek için
+// (rate-limit ve audit log doğru IP loglasın diye).
+app.set('trust proxy', 1);
 
 app.use(
   cors({
@@ -38,6 +43,7 @@ app.use('/api/entries', entriesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/whatsapp', whatsappRouter);
+app.use('/api/audit', auditRouter);
 
 // In production: serve the built React client from server/dist
 if (isProd) {

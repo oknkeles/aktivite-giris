@@ -12,6 +12,7 @@ const TITLES: Record<string, string> = {
   '/customers': 'Müşteriler',
   '/reports': 'Raporlar',
   '/users': 'Kullanıcılar',
+  '/audit': 'Audit Log',
 };
 
 export default function Layout() {

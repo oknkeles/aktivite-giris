@@ -11,6 +11,7 @@ import Contractors from './pages/Contractors';
 import Customers from './pages/Customers';
 import Reports from './pages/Reports';
 import Users from './pages/Users';
+import AuditLog from './pages/AuditLog';
 
 const qc = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, staleTime: 30_000 } },
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="/customers" element={<Customers />} />
             <Route path="/reports" element={<Protected adminOnly><Reports /></Protected>} />
             <Route path="/users" element={<Protected adminOnly><Users /></Protected>} />
+            <Route path="/audit" element={<Protected adminOnly><AuditLog /></Protected>} />
           </Route>
           <Route path="*" element={<Navigate to="/timesheet" replace />} />
         </Routes>

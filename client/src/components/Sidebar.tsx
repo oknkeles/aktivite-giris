@@ -1,7 +1,7 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   Calendar, List, CheckSquare, Users, UserCog, BarChart3, LogOut, Menu, X,
-  ShieldCheck, ChevronDown, Briefcase
+  ShieldCheck, ChevronDown, Briefcase, ScrollText
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
@@ -18,6 +18,7 @@ const ADMIN_ITEMS = [
   { to: '/contractors', icon: Briefcase, label: 'Yükleniciler' },
   { to: '/customers', icon: UserCog, label: 'Müşteriler' },
   { to: '/users', icon: Users, label: 'Kullanıcılar' },
+  { to: '/audit', icon: ScrollText, label: 'Audit Log' },
 ];
 
 const FINANCE_ITEMS = [

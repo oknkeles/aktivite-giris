@@ -2,15 +2,35 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { authRequired, type AuthRequest } from '../middleware/auth.js';
+import { audit } from '../services/audit.js';
 
 const router = Router();
 router.use(authRequired);
 
 router.get('/', async (req: AuthRequest, res) => {
-  const { from, to, customerId, contractorId } = req.query as Record<string, string | undefined>;
-  // Her kullanıcı sadece kendi kayıtlarını görür (admin dahil).
-  // Tüm kayıtları görmek için /api/reports admin endpoint'i kullanılır.
-  const where: any = { userId: req.user!.id };
+  const { from, to, customerId, contractorId, userId } = req.query as Record<
+    string,
+    string | undefined
+  >;
+
+  const isAdmin = req.user!.role === 'admin';
+  const where: any = {};
+
+  // Kullanıcı filtresi:
+  // - Admin: ?userId=all → hepsi, ?userId=N → o kullanıcı, parametre yok → kendi
+  // - Normal: her zaman sadece kendi (parametre ne olursa olsun)
+  if (isAdmin) {
+    if (userId === 'all') {
+      // Filtre yok — tüm kullanıcıların kayıtları
+    } else if (userId && /^\d+$/.test(userId)) {
+      where.userId = Number(userId);
+    } else {
+      where.userId = req.user!.id;
+    }
+  } else {
+    where.userId = req.user!.id;
+  }
+
   if (from || to) {
     where.date = {};
     if (from) where.date.gte = from;
@@ -107,13 +127,24 @@ router.put('/:id', async (req: AuthRequest, res) => {
 
 router.delete('/:id', async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
-  const entry = await prisma.entry.findUnique({ where: { id } });
+  const entry = await prisma.entry.findUnique({
+    where: { id },
+    include: { customer: true, activity: true },
+  });
   if (!entry) return res.status(404).json({ error: 'Not found' });
-  // Users can only delete their own; admins can delete any
   if (req.user!.role !== 'admin' && entry.userId !== req.user!.id) {
     return res.status(403).json({ error: 'Yetkiniz yok' });
   }
   await prisma.entry.delete({ where: { id } });
+  await audit({
+    action: 'delete',
+    target: 'entry',
+    targetId: id,
+    userId: req.user!.id,
+    username: req.user!.username,
+    summary: `Kayıt silindi: ${entry.date} · ${entry.customer.name} · ${entry.qty}${entry.activity.unit === 'saat' ? 's' : 'g'}`,
+    req,
+  });
   res.json({ ok: true });
 });
 

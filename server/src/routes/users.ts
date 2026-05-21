@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { authRequired, adminRequired, type AuthRequest } from '../middleware/auth.js';
+import { audit } from '../services/audit.js';
 
 const router = Router();
 router.use(authRequired, adminRequired);
@@ -26,7 +27,7 @@ const createSchema = z.object({
   phone: z.string().regex(phoneRegex).optional().nullable(),
 });
 
-router.post('/', async (req, res) => {
+router.post('/', async (req: AuthRequest, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Geçersiz veri (telefon E.164 formatında olmalı, örn. +905551234567)' });
   const { username, fullname, password, role, phone } = parsed.data;
@@ -40,6 +41,15 @@ router.post('/', async (req, res) => {
   const user = await prisma.user.create({
     data: { username: username.toLowerCase(), fullname, passwordHash, role, phone: phone || null },
     select: { id: true, username: true, fullname: true, role: true, phone: true, createdAt: true },
+  });
+  await audit({
+    action: 'create',
+    target: 'user',
+    targetId: user.id,
+    userId: req.user!.id,
+    username: req.user!.username,
+    summary: `Kullanıcı oluşturuldu: ${user.fullname} (@${user.username}, ${user.role})`,
+    req,
   });
   res.json(user);
 });
@@ -75,13 +85,33 @@ router.put('/:id', async (req: AuthRequest, res) => {
     data,
     select: { id: true, username: true, fullname: true, role: true, phone: true, createdAt: true },
   });
+  const changed = Object.keys(data).join(', ');
+  await audit({
+    action: 'update',
+    target: 'user',
+    targetId: updated.id,
+    userId: req.user!.id,
+    username: req.user!.username,
+    summary: `Kullanıcı güncellendi: ${updated.fullname} (${changed})`,
+    req,
+  });
   res.json(updated);
 });
 
 router.delete('/:id', async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   if (id === req.user!.id) return res.status(400).json({ error: 'Kendi hesabınızı silemezsiniz.' });
+  const target = await prisma.user.findUnique({ where: { id }, select: { username: true, fullname: true } });
   await prisma.user.delete({ where: { id } });
+  await audit({
+    action: 'delete',
+    target: 'user',
+    targetId: id,
+    userId: req.user!.id,
+    username: req.user!.username,
+    summary: `Kullanıcı silindi: ${target?.fullname || ''} (@${target?.username || id})`,
+    req,
+  });
   res.json({ ok: true });
 });
 

@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileDown, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { api, type Entry, type Customer } from '../api/client';
+import { api, type Entry, type Customer, type User } from '../api/client';
+import { useAuth, isAdmin } from '../store/auth';
 import { useToast } from '../components/Toast';
 import { fmtHours, qtyToHours, MONTHS } from '../lib/format';
 
@@ -11,18 +12,30 @@ function entryHours(e: Entry) { return qtyToHours(e.qty, e.activity.unit); }
 export default function Entries() {
   const toast = useToast();
   const qc = useQueryClient();
+  const { user: me } = useAuth();
+  const admin = isAdmin(me);
 
   const [cusFilter, setCusFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
+  // Admin için kullanıcı filtresi: '' (kendi) | 'all' (hepsi) | userId string
+  const [userFilter, setUserFilter] = useState<string>('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const { data: entries = [] } = useQuery({
-    queryKey: ['entries-all'],
-    queryFn: () => api.get<Entry[]>('/entries'),
+    queryKey: ['entries-all', userFilter],
+    queryFn: () => {
+      const qs = userFilter ? `?userId=${encodeURIComponent(userFilter)}` : '';
+      return api.get<Entry[]>(`/entries${qs}`);
+    },
   });
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: () => api.get<Customer[]>('/customers'),
+  });
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => api.get<User[]>('/users'),
+    enabled: admin, // Sadece admin için fetch
   });
 
   const delMut = useMutation({
@@ -71,6 +84,22 @@ export default function Entries() {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <span className="clabel">Aktivite Kayıtları</span>
           <div className="flex flex-wrap gap-2">
+            {admin && (
+              <select
+                value={userFilter}
+                onChange={(e) => setUserFilter(e.target.value)}
+                className="input !w-auto !py-1.5 text-xs border-brand-indigo/40"
+                title="Yönetici: kullanıcı filtresi"
+              >
+                <option value="">👤 Sadece benim</option>
+                <option value="all">🌐 Tüm kullanıcılar</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    👤 {u.fullname}
+                  </option>
+                ))}
+              </select>
+            )}
             <select value={cusFilter} onChange={(e) => setCusFilter(e.target.value)} className="input !w-auto !py-1.5 text-xs">
               <option value="">Tüm müşteriler</option>
               {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
