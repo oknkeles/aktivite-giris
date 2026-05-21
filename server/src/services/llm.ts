@@ -112,18 +112,41 @@ export async function parseWhatsAppMessage(
   }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema: responseSchema as any,
-        temperature: 0.2,
-      },
-      systemInstruction: buildSystemPrompt(ctx),
-    });
+    // Birden fazla model dene — biri quota'ya takılırsa diğerini dene.
+    // 1.5-flash genelde free tier kotasında daha rahat (1500 req/gün).
+    const modelPriority = [
+      'gemini-1.5-flash',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash-8b',
+    ];
 
-    const result = await model.generateContent(text);
-    const json = JSON.parse(result.response.text());
+    let json: any = null;
+    let lastErr: any = null;
+    for (const modelName of modelPriority) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: responseSchema as any,
+            temperature: 0.2,
+          },
+          systemInstruction: buildSystemPrompt(ctx),
+        });
+        const result = await model.generateContent(text);
+        json = JSON.parse(result.response.text());
+        console.log(`✓ LLM parse OK with ${modelName}`);
+        break;
+      } catch (err: any) {
+        lastErr = err;
+        const is429 = err?.status === 429 || /429|quota|rate/i.test(err?.message || '');
+        if (!is429) throw err; // başka hata ise dene değil, dön
+        console.warn(`⚠ ${modelName} quota exceeded, trying next...`);
+      }
+    }
+
+    if (!json) throw lastErr || new Error('Tüm modeller quota dolu');
 
     if (json.status === 'ok' && json.entry) {
       return {
