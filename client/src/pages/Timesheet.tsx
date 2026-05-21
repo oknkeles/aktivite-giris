@@ -642,3 +642,4 @@ function BulkModal({ dates, onClose, customers, activities, onDone }: {
     </Modal>
   );
 }
+
