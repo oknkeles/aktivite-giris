@@ -15,8 +15,8 @@
     "dev:server": "npm --workspace=server run dev",
     "dev:client": "npm --workspace=client run dev",
     "dev": "concurrently -n SERVER,CLIENT -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",
-    "build:client": "npm --workspace=client run build",
-    "build:server": "npm --workspace=server run build",
+    "build:client": "rm -rf client/dist && npm --workspace=client run build",
+    "build:server": "rm -rf server/dist && npm --workspace=server run build",
     "build": "npm run build:client && npm run build:server && cd server && npx prisma generate",
     "postinstall": "cd server && npx prisma generate || true",
     "start": "cd server && (npx prisma migrate deploy || npx prisma db push --accept-data-loss) && node dist/index.js"
