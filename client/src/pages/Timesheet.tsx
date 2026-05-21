@@ -137,154 +137,147 @@ export default function Timesheet() {
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] 2xl:grid-cols-[1fr_380px] gap-5 animate-fade-in">
       {/* LEFT: Calendar */}
       <div className="min-w-0">
-        {/* Header */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-5 px-1">
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex-1 min-w-[180px]">
-            {MONTHS[calMonth]}
-            <span className="grad-text font-bold ml-2.5">{calYear}</span>
+        {/* Header — macOS Calendar style */}
+        <div className="flex flex-wrap items-center gap-2 mb-5 px-1">
+          <h1 className="text-3xl sm:text-[34px] font-bold tracking-tight flex-1 min-w-[200px] leading-tight">
+            {MONTHS[calMonth]} <span className="text-ink-4 font-medium">{calYear}</span>
           </h1>
           <button
             className={clsx(
-              'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border-2 text-xs font-bold transition shadow-soft',
+              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition',
               multiMode
-                ? 'bg-grad-primary text-white border-transparent shadow-glow'
-                : 'bg-white border-paper-3 text-ink hover:bg-brand-violet/10 hover:border-brand-violet hover:text-brand-violet'
+                ? 'bg-brand-indigo text-white'
+                : 'bg-paper-2 text-ink-2 hover:bg-paper-3'
             )}
             onClick={toggleMulti}
           >
             <CheckSquare size={13} />
             Çoklu Seçim
           </button>
-          <button className="px-4 py-2 rounded-full border-2 border-paper-3 bg-white text-xs font-bold hover:bg-brand-indigo/10 hover:border-brand-indigo hover:text-brand-indigo transition shadow-soft" onClick={goToday}>
+          <button className="px-3 py-1.5 rounded-lg bg-paper-2 text-ink-2 text-xs font-semibold hover:bg-paper-3 transition" onClick={goToday}>
             Bugün
           </button>
-          <button className="w-9 h-9 rounded-full bg-white border-2 border-paper-3 flex items-center justify-center hover:bg-grad-primary hover:text-white hover:border-transparent shadow-soft transition" onClick={goPrev}>
-            <ChevronLeft size={16} />
+          <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goPrev}>
+            <ChevronLeft size={15} />
           </button>
-          <button className="w-9 h-9 rounded-full bg-white border-2 border-paper-3 flex items-center justify-center hover:bg-grad-primary hover:text-white hover:border-transparent shadow-soft transition" onClick={goNext}>
-            <ChevronRight size={16} />
+          <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goNext}>
+            <ChevronRight size={15} />
           </button>
         </div>
 
-        {/* Summary metrics — saat odaklı, tutar bilgisi Raporlar sayfasında */}
+        {/* Summary metrics — flat, subdued */}
         <div className="grid grid-cols-3 gap-3 mb-5">
-          <MetricCard label="⏱️ Bu Ay" value={fmtHours(monthHours)} variant="indigo" />
-          <MetricCard label="📅 Aktif Gün" value={activeDays.toString()} variant="neutral" />
-          <MetricCard label="📊 Gün Ort." value={fmtHours(avgPerDay)} variant="emerald" />
+          <MetricCard label="Bu Ay" value={fmtHours(monthHours)} variant="indigo" />
+          <MetricCard label="Aktif Gün" value={activeDays.toString()} variant="neutral" />
+          <MetricCard label="Gün Ort." value={fmtHours(avgPerDay)} variant="emerald" />
         </div>
 
         {/* Selection bar */}
         {selected.size > 0 && (
-          <div className="flex items-center gap-3 mb-4 p-3.5 rounded-2xl bg-grad-primary text-white shadow-glow animate-fade-in flex-wrap">
-            <Sparkles size={18} />
-            <div className="font-bold text-sm flex-1 flex items-center gap-2">
-              <span className="bg-white/25 px-2.5 py-0.5 rounded-xl font-mono">{selected.size}</span>
-              gün seçildi · toplu giriş yapabilirsin
+          <div className="flex items-center gap-3 mb-4 px-4 py-2.5 rounded-xl bg-brand-indigo text-white animate-fade-in flex-wrap">
+            <Sparkles size={15} />
+            <div className="text-sm flex-1 flex items-center gap-2">
+              <span className="bg-white/20 px-2 py-0.5 rounded font-mono font-bold text-xs">{selected.size}</span>
+              <span className="font-medium">gün seçildi</span>
             </div>
-            <button className="bg-white/20 border border-white/25 rounded-lg px-3 py-1.5 text-xs font-bold hover:bg-white/30 transition" onClick={clearAll}>
+            <button className="bg-white/15 rounded-md px-2.5 py-1 text-xs font-semibold hover:bg-white/25 transition" onClick={clearAll}>
               Temizle
             </button>
-            <button className="bg-white text-brand-indigo rounded-lg px-3.5 py-1.5 text-xs font-bold hover:shadow-lg transition" onClick={() => setBulkOpen(true)}>
-              ✨ Toplu Ekle
+            <button className="bg-white text-brand-indigo rounded-md px-3 py-1 text-xs font-bold hover:bg-paper-2 transition" onClick={() => setBulkOpen(true)}>
+              Toplu Ekle
             </button>
           </div>
         )}
 
         {/* Hint */}
-        <div className="text-xs text-ink-3 mb-3 px-1">
-          💡 Tek tıkla gün modalını aç · sürükleyerek birden fazla gün seç · "Çoklu Seçim" ile tek tek seç
+        <div className="text-[11px] text-ink-3 mb-3 px-1">
+          Tek tıkla gün modalını aç · sürükleyerek birden fazla gün seç · "Çoklu Seçim" ile tek tek seç
         </div>
 
-        {/* Calendar */}
-        <div className="border border-paper-3 rounded-2xl overflow-hidden shadow-md bg-paper-3">
-          <div className="grid grid-cols-7 gap-px bg-paper-3">
-            {DAYS_SHORT.map((d, i) => (
-              <div key={d} className={clsx(
-                'bg-white text-center text-[10px] sm:text-[11px] font-extrabold py-3 uppercase tracking-widest',
-                i >= 5 ? 'text-brand-pink' : 'text-ink-3'
-              )}>{d}</div>
+        {/* Calendar — macOS Calendar style clean grid */}
+        <div className="rounded-xl bg-white border border-paper-3 overflow-hidden">
+          {/* Day headers */}
+          <div className="grid grid-cols-7 border-b border-paper-3">
+            {DAYS_SHORT.map((d) => (
+              <div key={d} className="text-center text-[10px] font-semibold py-2.5 uppercase tracking-[0.14em] text-ink-3">
+                {d}
+              </div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-px bg-paper-3 select-none">
+          {/* Grid cells */}
+          <div className="grid grid-cols-7 select-none">
             {cells.map((c, idx) => {
               const dayEntries = c.date ? (entriesByDate[c.date] || []) : [];
               const totalHours = dayEntries.reduce((s, e) => s + entryHours(e), 0);
               const isToday = c.date === dateStr(today);
               const isSelected = c.date && selected.has(c.date);
               const isDragPrev = c.date && dragPreview.has(c.date);
-              const isWeekend = idx % 7 >= 5;
-              const pct = Math.min((totalHours / 8) * 100, 100);
+              const isLastCol = idx % 7 === 6;
+              const isLastRow = idx >= cells.length - 7;
 
               return (
                 <div
                   key={idx}
                   className={clsx(
-                    'relative bg-white min-h-[110px] sm:min-h-[130px] p-2 sm:p-2.5 pb-7 transition-colors overflow-hidden flex flex-col',
-                    c.cur ? 'cursor-pointer' : 'bg-paper cursor-default',
-                    !c.cur && 'opacity-50',
-                    c.cur && !isSelected && 'hover:bg-brand-violet/10',
-                    c.cur && isWeekend && !isSelected && 'bg-[#FEFAFC]',
-                    isSelected && 'bg-gradient-to-br from-brand-indigo/15 to-brand-pink/10 ring-2 ring-brand-indigo ring-inset z-[2]',
-                    isDragPrev && !isSelected && 'bg-gradient-to-br from-brand-indigo/15 to-brand-pink/10 ring-2 ring-brand-violet ring-inset'
+                    'relative min-h-[110px] sm:min-h-[120px] px-1.5 py-1.5 transition-colors overflow-hidden flex flex-col',
+                    !isLastCol && 'border-r border-paper-2',
+                    !isLastRow && 'border-b border-paper-2',
+                    c.cur ? 'bg-white cursor-pointer' : 'bg-paper-2/40 cursor-default',
+                    !c.cur && 'opacity-60',
+                    c.cur && !isSelected && !isDragPrev && 'hover:bg-paper-2/60',
+                    isSelected && 'bg-brand-indigo/10 ring-1 ring-brand-indigo/40 ring-inset z-[2]',
+                    isDragPrev && !isSelected && 'bg-brand-indigo/8'
                   )}
                   onMouseDown={(e) => c.date && onCellMouseDown(e, c.date)}
                   onMouseEnter={() => c.date && onCellMouseEnter(c.date)}
                 >
-                  <div className={clsx(
-                    'inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 text-[13px] sm:text-[14px] font-semibold transition-transform',
-                    isToday && 'bg-grad-primary text-white rounded-full font-extrabold shadow-glow',
-                    !isToday && !c.cur && 'text-ink-4',
-                    !isToday && c.cur && 'text-ink',
-                  )}>
-                    {c.day}
+                  {/* Day number — top right, small */}
+                  <div className="flex justify-end mb-1 h-[22px]">
+                    <div className={clsx(
+                      'inline-flex items-center justify-center min-w-[22px] h-[22px] text-[12.5px] font-semibold leading-none',
+                      isToday && 'bg-brand-indigo text-white rounded-full px-1.5',
+                      !isToday && !c.cur && 'text-ink-4',
+                      !isToday && c.cur && 'text-ink',
+                    )}>
+                      {c.day}
+                    </div>
                   </div>
 
-                  {/* Chips (max 2) */}
-                  <div className="flex-1 min-h-0 mt-1 space-y-1">
-                    {dayEntries.slice(0, 2).map((e, i) => {
+                  {/* Chips — solid color, single line, macOS style */}
+                  <div className="flex-1 min-h-0 space-y-[2px]">
+                    {dayEntries.slice(0, 3).map((e) => {
                       const colorIdx = (e.customerId || 0) % 5;
-                      const gradients = [
-                        'from-brand-indigo to-brand-violet',
-                        'from-brand-emerald to-brand-cyan',
-                        'from-brand-amber to-brand-pink',
-                        'from-brand-sky to-brand-indigo',
-                        'from-brand-violet to-brand-pink',
+                      const chipColors = [
+                        'bg-brand-indigo text-white',
+                        'bg-brand-emerald text-white',
+                        'bg-brand-amber text-white',
+                        'bg-brand-cyan text-white',
+                        'bg-brand-violet text-white',
                       ];
                       return (
                         <div key={e.id} className={clsx(
-                          'flex items-center gap-1 text-[10px] sm:text-[11px] text-white font-semibold rounded-lg px-1.5 pl-2 py-0.5 shadow-sm',
-                          'bg-gradient-to-r', gradients[colorIdx]
+                          'flex items-center gap-1 text-[10.5px] font-medium rounded px-1.5 py-[2px] leading-tight',
+                          chipColors[colorIdx]
                         )}>
                           <span className="flex-1 truncate">{e.customer.name.split(' ')[0]}</span>
-                          <span className="bg-white/30 rounded text-[9px] font-mono font-extrabold px-1 py-px flex-shrink-0">
+                          <span className="font-mono font-semibold opacity-90 flex-shrink-0 text-[10px]">
                             {fmtHours(entryHours(e))}
                           </span>
                         </div>
                       );
                     })}
-                    {dayEntries.length > 2 && (
-                      <div className="text-[9.5px] font-bold text-brand-violet pl-1">
-                        +{dayEntries.length - 2} daha
+                    {dayEntries.length > 3 && (
+                      <div className="text-[10px] font-semibold text-ink-3 pl-1 pt-0.5">
+                        +{dayEntries.length - 3} daha
                       </div>
                     )}
                   </div>
 
-                  {/* Total footer — sadece saat */}
+                  {/* Total — bottom right, only if entries exist */}
                   {totalHours > 0 && (
-                    <div className="absolute bottom-2 right-2 flex justify-end items-baseline text-[10px] font-mono font-extrabold text-ink-3">
+                    <div className="absolute bottom-1 right-1.5 text-[9.5px] font-mono font-semibold text-ink-3">
                       {fmtHours(totalHours)}
                     </div>
-                  )}
-
-                  {/* Fill bar */}
-                  {totalHours > 0 && (
-                    <div
-                      className={clsx(
-                        'absolute left-0 bottom-0 h-[3px] transition-all',
-                        pct >= 100 ? 'bg-grad-warm shadow-[0_-2px_18px_rgba(37,99,235,.4)]' : 'bg-grad-primary'
-                      )}
-                      style={{ width: `${pct}%` }}
-                    />
                   )}
                 </div>
               );
@@ -326,18 +319,12 @@ export default function Timesheet() {
 
 function MetricCard({ label, value, variant }: { label: string; value: string; variant: 'indigo' | 'emerald' | 'neutral' }) {
   return (
-    <div className="bg-white border border-paper-3 rounded-2xl p-4 sm:p-5 shadow-soft hover:-translate-y-1 hover:shadow-md transition-all relative overflow-hidden">
+    <div className="bg-white border border-paper-3 rounded-xl p-4 transition-colors hover:border-paper-4">
+      <div className="text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider mb-1.5">{label}</div>
       <div className={clsx(
-        'absolute top-0 left-0 right-0 h-1',
-        variant === 'indigo' && 'bg-grad-primary',
-        variant === 'emerald' && 'bg-grad-mint',
-        variant === 'neutral' && 'bg-paper-3'
-      )} />
-      <div className="text-[11px] font-bold text-ink-3 uppercase tracking-wider mb-2">{label}</div>
-      <div className={clsx(
-        'text-2xl sm:text-3xl font-extrabold font-mono tracking-tight',
-        variant === 'indigo' && 'grad-text',
-        variant === 'emerald' && 'grad-text-mint',
+        'text-2xl sm:text-[26px] font-bold font-mono tracking-tight',
+        variant === 'indigo' && 'text-brand-indigo',
+        variant === 'emerald' && 'text-brand-emerald',
         variant === 'neutral' && 'text-ink'
       )}>{value}</div>
     </div>
