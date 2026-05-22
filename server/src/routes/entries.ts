@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { authRequired, type AuthRequest } from '../middleware/auth.js';
 import { audit } from '../services/audit.js';
+import { parseBulkText } from '../services/llm-bulk.js';
 
 const router = Router();
 router.use(authRequired);
@@ -80,6 +81,82 @@ const bulkSchema = z.object({
   activityId: z.number().int(),
   ticketId: z.string().max(80).optional().nullable(),
   note: z.string().max(2000).optional().nullable(),
+});
+
+// ── AI ile toplu giriş ──
+// 1. parse: serbest metni Gemini ile satır satır parse et → preview döndür
+// 2. create: parse edilmiş entry listesi → DB'ye yaz
+
+const bulkParseSchema = z.object({
+  text: z.string().min(3).max(20000),
+});
+
+router.post('/bulk-parse', async (req: AuthRequest, res) => {
+  const parsed = bulkParseSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'text alanı zorunlu' });
+
+  const [customers, activities, user] = await Promise.all([
+    prisma.customer.findMany({ select: { id: true, name: true } }),
+    prisma.activity.findMany({ select: { id: true, name: true, unit: true } }),
+    prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { defaultActivityId: true },
+    }),
+  ]);
+
+  // Bugün TR
+  const now = new Date();
+  const tr = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  const today = tr.toISOString().slice(0, 10);
+
+  const result = await parseBulkText(parsed.data.text, {
+    customers,
+    activities,
+    today,
+    defaultActivityId: user?.defaultActivityId || null,
+  });
+
+  if (!result.ok) return res.status(500).json({ error: result.error || 'Parse hatası' });
+  res.json({ entries: result.entries });
+});
+
+const bulkCreateSchema = z.object({
+  entries: z
+    .array(
+      z.object({
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        qty: z.number().positive(),
+        customerId: z.number().int(),
+        activityId: z.number().int(),
+        ticketId: z.string().max(80).optional().nullable(),
+        note: z.string().max(2000).optional().nullable(),
+      })
+    )
+    .min(1)
+    .max(200),
+});
+
+router.post('/bulk-create', async (req: AuthRequest, res) => {
+  const parsed = bulkCreateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Geçersiz veri' });
+
+  const userId = req.user!.id;
+  const created = await prisma.$transaction(
+    parsed.data.entries.map((e) =>
+      prisma.entry.create({
+        data: {
+          date: e.date,
+          qty: e.qty,
+          customerId: e.customerId,
+          activityId: e.activityId,
+          ticketId: e.ticketId || null,
+          note: e.note || null,
+          userId,
+        },
+      })
+    )
+  );
+  res.json({ created: created.length });
 });
 
 router.post('/bulk', async (req: AuthRequest, res) => {

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, CheckSquare, Sparkles, Trash2, Pencil } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckSquare, Sparkles, Trash2, Pencil, Zap, Wand2 } from 'lucide-react';
 import clsx from 'clsx';
 import { api, type Entry, type Customer, type Activity } from '../api/client';
 import { useAuth } from '../store/auth';
 import { useHeader } from '../store/header';
+import { useQuickEntry } from '../store/quickEntry';
 import { useToast, confettiBurst } from '../components/Toast';
 import Modal from '../components/Modal';
 import { MONTHS, DAYS_SHORT, DAYS_LONG, dateStr, qtyToHours, fmtHours } from '../lib/format';
@@ -173,8 +174,8 @@ export default function Timesheet() {
   return (
     <div className="animate-fade-in">
       <div className="min-w-0">
-        {/* Summary metrics + last entry — flat, subdued */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        {/* Summary metrics + last entry — kompakt */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3">
           <MetricCard label="Bu Ay" value={fmtHours(monthHours)} variant="indigo" />
           <MetricCard label="Aktif Gün" value={activeDays.toString()} variant="neutral" />
           <MetricCard label="Toplam Gün" value={totalDays.toFixed(1)} variant="emerald" />
@@ -198,10 +199,10 @@ export default function Timesheet() {
           </div>
         )}
 
-        {/* Hint */}
-        <div className="text-[11px] text-ink-3 mb-3 px-1">
-          Tek tıkla gün modalını aç · sürükleyerek birden fazla gün seç · "Çoklu Seçim" ile tek tek seç
-        </div>
+        {/* Aksiyon butonları + ipucu — hint metninin yerine */}
+        <TimesheetActions />
+
+
 
         {/* Calendar — macOS Calendar style clean grid */}
         <div className="rounded-xl bg-white border border-paper-3 overflow-hidden">
@@ -228,7 +229,7 @@ export default function Timesheet() {
                 <div
                   key={idx}
                   className={clsx(
-                    'relative min-h-[110px] sm:min-h-[120px] px-1.5 py-1.5 transition-colors overflow-hidden flex flex-col',
+                    'relative min-h-[88px] sm:min-h-[96px] px-1.5 py-1.5 transition-colors overflow-hidden flex flex-col',
                     !isLastCol && 'border-r border-paper-2',
                     !isLastRow && 'border-b border-paper-2',
                     c.cur ? 'bg-white cursor-pointer' : 'bg-paper-2/40 cursor-default',
@@ -322,14 +323,43 @@ export default function Timesheet() {
 
 function MetricCard({ label, value, variant }: { label: string; value: string; variant: 'indigo' | 'emerald' | 'neutral' }) {
   return (
-    <div className="bg-white border border-paper-3 rounded-xl p-4 transition-colors hover:border-paper-4">
-      <div className="text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider mb-1.5">{label}</div>
+    <div className="bg-white border border-paper-3 rounded-xl px-3 py-2.5 transition-colors hover:border-paper-4">
+      <div className="text-[10px] font-semibold text-ink-3 uppercase tracking-wider mb-0.5">{label}</div>
       <div className={clsx(
-        'text-2xl sm:text-[26px] font-bold font-mono tracking-tight',
+        'text-xl sm:text-[22px] font-bold font-mono tracking-tight leading-tight',
         variant === 'indigo' && 'text-brand-indigo',
         variant === 'emerald' && 'text-brand-emerald',
         variant === 'neutral' && 'text-ink'
       )}>{value}</div>
+    </div>
+  );
+}
+
+function TimesheetActions() {
+  const openWizard = useQuickEntry((s) => s.openWizard);
+  const openBulkAI = useQuickEntry((s) => s.openBulkAI);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 mb-3 px-1">
+      <button
+        onClick={openWizard}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-grad-primary text-white text-xs font-bold hover:-translate-y-0.5 transition-all shadow-glow"
+        title="⌘K"
+      >
+        <Zap size={13} />
+        Hızlı Kayıt
+        <span className="text-[10px] font-mono opacity-70 ml-1">⌘K</span>
+      </button>
+      <button
+        onClick={openBulkAI}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border-2 border-brand-indigo text-brand-indigo text-xs font-bold hover:bg-brand-indigo hover:text-white transition"
+      >
+        <Wand2 size={13} />
+        AI ile Toplu Giriş
+      </button>
+      <span className="text-[11px] text-ink-3 ml-auto hidden md:inline">
+        💡 takvimde gün tıkla · sürükle ile birden fazla seç
+      </span>
     </div>
   );
 }
@@ -342,31 +372,31 @@ function LastEntryCard({ entries }: { entries: Entry[] }) {
   );
 
   return (
-    <div className="bg-white border border-paper-3 rounded-xl p-4 transition-colors hover:border-paper-4 flex flex-col">
-      <div className="text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider mb-1.5">
+    <div className="bg-white border border-paper-3 rounded-xl px-3 py-2.5 transition-colors hover:border-paper-4 flex flex-col">
+      <div className="text-[10px] font-semibold text-ink-3 uppercase tracking-wider mb-0.5">
         Son Kayıt
       </div>
       {!last ? (
-        <div className="text-sm text-ink-4 flex-1 flex items-center">Henüz yok</div>
+        <div className="text-[12.5px] text-ink-4 flex-1 flex items-center">Henüz yok</div>
       ) : (
         <div className="flex items-center gap-2 flex-1">
-          <div className="w-9 h-9 rounded-lg bg-paper-2 text-ink-2 flex flex-col items-center justify-center flex-shrink-0 leading-none">
-            <span className="text-[8.5px] font-semibold text-ink-3 uppercase">
+          <div className="w-8 h-8 rounded-md bg-paper-2 text-ink-2 flex flex-col items-center justify-center flex-shrink-0 leading-none">
+            <span className="text-[8px] font-semibold text-ink-3 uppercase">
               {MONTHS[new Date(last.date + 'T00:00:00').getMonth()].substring(0, 3)}
             </span>
-            <span className="text-[13px] font-bold">
+            <span className="text-[11.5px] font-bold">
               {new Date(last.date + 'T00:00:00').getDate()}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[12.5px] font-bold truncate text-ink leading-tight">
+            <div className="text-[12px] font-bold truncate text-ink leading-tight">
               {last.customer.name}
             </div>
-            <div className="text-[10.5px] text-ink-3 truncate leading-tight">
+            <div className="text-[10px] text-ink-3 truncate leading-tight">
               {last.activity.name}
             </div>
           </div>
-          <div className="text-[12px] font-mono font-bold text-brand-indigo flex-shrink-0">
+          <div className="text-[11.5px] font-mono font-bold text-brand-indigo flex-shrink-0">
             {fmtHours(entryHours(last))}
           </div>
         </div>

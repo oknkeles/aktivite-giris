@@ -6,13 +6,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Zap, X, ChevronRight, ChevronLeft, RotateCcw, Check,
-  Briefcase, Calendar as CalIcon, Clock, FileText, Sparkles,
+  Briefcase, Calendar as CalIcon, Clock, FileText, Sparkles, CalendarDays,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { api, type Customer, type Activity } from '../api/client';
 import { useAuth } from '../store/auth';
 import { useToast, confettiBurst } from './Toast';
-import { dateStr, MONTHS, DAYS_LONG } from '../lib/format';
+import { dateStr, MONTHS, DAYS_LONG, DAYS_SHORT } from '../lib/format';
 
 type Step = 'customer' | 'activity' | 'date' | 'qty' | 'note';
 
@@ -161,6 +161,7 @@ export default function QuickEntryWizard({
   const [savedCount, setSavedCount] = useState(0);
   const [savedHistory, setSavedHistory] = useState<{ summary: string; id: number }[]>([]);
   const [error, setError] = useState<string>('');
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
@@ -443,9 +444,26 @@ export default function QuickEntryWizard({
 
         {/* Input alanı */}
         <div className="px-4 pt-3 pb-2">
-          <label className="block text-[10.5px] font-bold text-ink-3 uppercase tracking-wider mb-1.5">
-            {stepLabel[step]}
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-[10.5px] font-bold text-ink-3 uppercase tracking-wider">
+              {stepLabel[step]}
+            </label>
+            {step === 'date' && (
+              <button
+                onClick={() => setCalendarOpen((o) => !o)}
+                className={clsx(
+                  'flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-md transition',
+                  calendarOpen
+                    ? 'bg-brand-indigo text-white'
+                    : 'bg-paper-2 text-ink-2 hover:bg-paper-3'
+                )}
+                title="Takvim aç/kapat"
+              >
+                <CalendarDays size={11} />
+                Takvim
+              </button>
+            )}
+          </div>
           <input
             ref={inputRef}
             value={search}
@@ -458,10 +476,24 @@ export default function QuickEntryWizard({
           {error && <div className="text-[11px] text-brand-rose mt-1.5 px-1">{error}</div>}
 
           {/* Date/Qty preview — varsa kompakt */}
-          {step === 'date' && parsedDate && (
+          {step === 'date' && parsedDate && !calendarOpen && (
             <div className="mt-2 text-[11.5px] text-brand-indigo font-semibold px-1">
               → {fmtPrettyDate(parsedDate)}
             </div>
+          )}
+
+          {/* Mini takvim — sadece date step + toggle açıkken */}
+          {step === 'date' && calendarOpen && (
+            <MiniCalendar
+              value={parsedDate}
+              lastDate={lastDate}
+              onSelect={(picked) => {
+                setDraft((d) => ({ ...d, date: picked }));
+                setSearch('');
+                setCalendarOpen(false);
+                setStep('qty');
+              }}
+            />
           )}
           {step === 'qty' && parsedQty !== null && (
             <div className="mt-2 text-[11.5px] text-brand-emerald font-semibold px-1">
@@ -536,6 +568,88 @@ export default function QuickEntryWizard({
               </div>
             ))}
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── MiniCalendar ─────────────────────────────────────────────────────
+function MiniCalendar({
+  value,
+  lastDate,
+  onSelect,
+}: {
+  value: string | null;
+  lastDate: string | null;
+  onSelect: (date: string) => void;
+}) {
+  const initial = value
+    ? new Date(value + 'T00:00:00')
+    : lastDate
+    ? new Date(lastDate + 'T00:00:00')
+    : new Date();
+  const [viewDate, setViewDate] = useState(
+    new Date(initial.getFullYear(), initial.getMonth(), 1)
+  );
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const today = dateStr(new Date());
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startDow = (new Date(year, month, 1).getDay() + 6) % 7; // Pzt = 0
+
+  const cells: ({ day: number; date: string } | null)[] = [];
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    cells.push({ day: d, date });
+  }
+
+  return (
+    <div className="mt-2 border border-paper-3 rounded-xl p-2.5 bg-paper-2/30">
+      <div className="flex items-center justify-between mb-2 px-1">
+        <button
+          onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          className="p-1 hover:bg-paper-3 rounded-md text-ink-2"
+        >
+          <ChevronLeft size={13} />
+        </button>
+        <span className="text-[12px] font-semibold text-ink">
+          {MONTHS[month]} {year}
+        </span>
+        <button
+          onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          className="p-1 hover:bg-paper-3 rounded-md text-ink-2"
+        >
+          <ChevronRight size={13} />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 text-center text-[9px] font-bold text-ink-3 uppercase mb-1">
+        {DAYS_SHORT.map((d) => (
+          <div key={d}>{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {cells.map((c, i) =>
+          c ? (
+            <button
+              key={i}
+              onClick={() => onSelect(c.date)}
+              className={clsx(
+                'aspect-square rounded-md text-[12px] font-medium transition',
+                value === c.date && 'bg-brand-indigo text-white font-bold',
+                today === c.date &&
+                  value !== c.date &&
+                  'ring-1 ring-brand-indigo/40 text-brand-indigo font-bold',
+                value !== c.date && today !== c.date && 'text-ink hover:bg-brand-indigo/10'
+              )}
+            >
+              {c.day}
+            </button>
+          ) : (
+            <div key={i} />
+          )
         )}
       </div>
     </div>

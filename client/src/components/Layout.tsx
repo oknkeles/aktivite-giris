@@ -4,7 +4,9 @@ import { Zap } from 'lucide-react';
 import Sidebar from './Sidebar';
 import { ToastHost } from './Toast';
 import { useHeader } from '../store/header';
+import { useQuickEntry } from '../store/quickEntry';
 import QuickEntryWizard from './QuickEntryWizard';
+import BulkAIEntry from './BulkAIEntry';
 
 const TITLES: Record<string, string> = {
   '/timesheet': 'Timesheet',
@@ -19,22 +21,22 @@ const TITLES: Record<string, string> = {
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [quickOpen, setQuickOpen] = useState(false);
   const loc = useLocation();
   const title = TITLES[loc.pathname] || 'Aktivite Giriş';
   const extras = useHeader((s) => s.extras);
+  const { wizardOpen, openWizard, closeWizard, bulkAIOpen, closeBulkAI } = useQuickEntry();
 
   // Cmd+K / Ctrl+K → Hızlı kayıt
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        setQuickOpen(true);
+        openWizard();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [openWizard]);
 
   return (
     <div className="min-h-screen">
@@ -66,7 +68,7 @@ export default function Layout() {
 
       {/* Floating Quick Entry button — Cmd+K kısayolu da var */}
       <button
-        onClick={() => setQuickOpen(true)}
+        onClick={openWizard}
         title="Hızlı Kayıt (⌘K)"
         className="fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-grad-primary text-white shadow-glow hover:shadow-[0_12px_30px_rgba(37,99,235,.45)] hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center group"
         style={{ backgroundSize: '200% 200%' }}
@@ -77,7 +79,8 @@ export default function Layout() {
         </span>
       </button>
 
-      <QuickEntryWizard open={quickOpen} onClose={() => setQuickOpen(false)} />
+      <QuickEntryWizard open={wizardOpen} onClose={closeWizard} />
+      <BulkAIEntry open={bulkAIOpen} onClose={closeBulkAI} />
 
       <ToastHost />
     </div>
