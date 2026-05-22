@@ -172,8 +172,8 @@ export default function Timesheet() {
   }, [calMonth, calYear, multiMode, setExtras]);
 
   return (
-    <div className="animate-fade-in">
-      <div className="min-w-0">
+    <div className="animate-fade-in flex flex-col h-[calc(100vh-112px)]">
+      <div className="min-w-0 flex-1 flex flex-col min-h-0">
         {/* Summary metrics + last entry — kompakt */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3">
           <MetricCard label="Bu Ay" value={fmtHours(monthHours)} variant="indigo" />
@@ -204,18 +204,21 @@ export default function Timesheet() {
 
 
 
-        {/* Calendar — macOS Calendar style clean grid */}
-        <div className="rounded-xl bg-white border border-paper-3 overflow-hidden">
+        {/* Calendar — macOS Calendar style clean grid, viewport'a göre esner */}
+        <div className="rounded-xl bg-white border border-paper-3 overflow-hidden flex-1 flex flex-col min-h-0">
           {/* Day headers */}
-          <div className="grid grid-cols-7 border-b border-paper-3">
+          <div className="grid grid-cols-7 border-b border-paper-3 flex-shrink-0">
             {DAYS_SHORT.map((d) => (
-              <div key={d} className="text-center text-[10px] font-semibold py-2.5 uppercase tracking-[0.14em] text-ink-3">
+              <div key={d} className="text-center text-[10px] font-semibold py-2 uppercase tracking-[0.14em] text-ink-3">
                 {d}
               </div>
             ))}
           </div>
-          {/* Grid cells */}
-          <div className="grid grid-cols-7 select-none">
+          {/* Grid cells — N hafta, eşit yükseklikte, kalan alanı doldurur */}
+          <div
+            className="grid grid-cols-7 select-none flex-1 min-h-0"
+            style={{ gridTemplateRows: `repeat(${cells.length / 7}, minmax(0, 1fr))` }}
+          >
             {cells.map((c, idx) => {
               const dayEntries = c.date ? (entriesByDate[c.date] || []) : [];
               const totalHours = dayEntries.reduce((s, e) => s + entryHours(e), 0);
@@ -229,7 +232,7 @@ export default function Timesheet() {
                 <div
                   key={idx}
                   className={clsx(
-                    'relative min-h-[115px] sm:min-h-[130px] px-1.5 py-1.5 transition-colors overflow-hidden flex flex-col',
+                    'relative min-h-[88px] px-1.5 py-1.5 transition-colors overflow-hidden flex flex-col',
                     !isLastCol && 'border-r border-paper-2',
                     !isLastRow && 'border-b border-paper-2',
                     c.cur ? 'bg-white cursor-pointer' : 'bg-paper-2/40 cursor-default',
