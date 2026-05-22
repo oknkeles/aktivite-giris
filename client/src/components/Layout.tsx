@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Zap } from 'lucide-react';
 import Sidebar from './Sidebar';
 import { ToastHost } from './Toast';
 import { useHeader } from '../store/header';
@@ -66,18 +65,7 @@ export default function Layout() {
         </div>
       </main>
 
-      {/* Floating Quick Entry button — Cmd+K kısayolu da var */}
-      <button
-        onClick={openWizard}
-        title="Hızlı Kayıt (⌘K)"
-        className="fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-grad-primary text-white shadow-glow hover:shadow-[0_12px_30px_rgba(37,99,235,.45)] hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center group"
-        style={{ backgroundSize: '200% 200%' }}
-      >
-        <Zap size={22} strokeWidth={2.5} />
-        <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 whitespace-nowrap bg-ink text-white text-[11px] font-semibold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none">
-          Hızlı Kayıt · ⌘K
-        </span>
-      </button>
+      {/* FAB kaldırıldı — sayfa içindeki Hızlı Kayıt butonu + ⌘K yeterli */}
 
       <QuickEntryWizard open={wizardOpen} onClose={closeWizard} />
       <BulkAIEntry open={bulkAIOpen} onClose={closeBulkAI} />

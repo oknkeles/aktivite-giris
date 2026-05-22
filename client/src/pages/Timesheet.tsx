@@ -229,7 +229,7 @@ export default function Timesheet() {
                 <div
                   key={idx}
                   className={clsx(
-                    'relative min-h-[88px] sm:min-h-[96px] px-1.5 py-1.5 transition-colors overflow-hidden flex flex-col',
+                    'relative min-h-[115px] sm:min-h-[130px] px-1.5 py-1.5 transition-colors overflow-hidden flex flex-col',
                     !isLastCol && 'border-r border-paper-2',
                     !isLastRow && 'border-b border-paper-2',
                     c.cur ? 'bg-white cursor-pointer' : 'bg-paper-2/40 cursor-default',
