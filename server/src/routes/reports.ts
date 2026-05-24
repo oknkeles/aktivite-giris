@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
 import { authRequired, adminRequired, type AuthRequest } from '../middleware/auth.js';
-import { streamPdfReport, type ReportEntry } from '../services/pdf-report.js';
+import { buildPdfReport, type ReportEntry } from '../services/pdf-report.js';
 
 const router = Router();
 router.use(authRequired, adminRequired);
@@ -116,8 +116,8 @@ router.get('/pdf', async (req: AuthRequest, res) => {
   const totalGross = reportEntries.reduce((s, e) => s + e.gross, 0);
   const totalNet = reportEntries.reduce((s, e) => s + e.net, 0);
 
-  streamPdfReport(
-    {
+  try {
+    const buffer = await buildPdfReport({
       title: `${customer.name} · ${period || 'Rapor'}`,
       customerName: customer.name,
       contractorName: customer.contractor.name,
@@ -129,9 +129,17 @@ router.get('/pdf', async (req: AuthRequest, res) => {
       discount: customer.contractor.discount || 0,
       generatedAt: new Date(),
       generatedBy: req.user?.username,
-    },
-    res
-  );
+    });
+
+    const fileName = `rapor_${customer.name.replace(/\s+/g, '_')}_${(period || from).replace(/\s+/g, '_')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', String(buffer.length));
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(buffer);
+  } catch (err: any) {
+    console.error('PDF üretim hatası:', err);
+    res.status(500).json({ error: 'PDF üretilemedi: ' + (err.message || 'bilinmeyen hata') });
+  }
 });
 
 export default router;

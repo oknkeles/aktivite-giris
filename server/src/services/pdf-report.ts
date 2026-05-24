@@ -2,7 +2,6 @@
 // Fatura ekinde gönderilebilir, müşteri imzalayabilir.
 
 import PDFDocument from 'pdfkit';
-import type { Response } from 'express';
 
 export interface ReportEntry {
   date: string;
@@ -52,22 +51,36 @@ function fmtDate(s: string): string {
   return d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-export function streamPdfReport(ctx: ReportContext, res: Response): void {
-  const doc = new PDFDocument({
-    size: 'A4',
-    margin: 40,
-    info: {
-      Title: ctx.title,
-      Author: 'TDev Aktivite Giriş Sistemi',
-    },
-  });
+/**
+ * PDF'i buffer'a yazar. Hata olursa exception fırlatır (route handle eder).
+ * Stream yerine buffer kullanıyoruz: mid-stream hatada response yarım kalmasın.
+ */
+export async function buildPdfReport(ctx: ReportContext): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: 'A4',
+        margin: 40,
+        info: {
+          Title: ctx.title,
+          Author: 'TDev Aktivite Giris Sistemi',
+        },
+      });
 
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader(
-    'Content-Disposition',
-    `attachment; filename="rapor_${ctx.customerName.replace(/\s+/g, '_')}_${ctx.periodLabel.replace(/\s+/g, '_')}.pdf"`
-  );
-  doc.pipe(res);
+      const chunks: Buffer[] = [];
+      doc.on('data', (c: Buffer) => chunks.push(c));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => reject(err));
+
+      drawReport(doc, ctx);
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+function drawReport(doc: PDFKit.PDFDocument, ctx: ReportContext): void {
 
   // ── HEADER ──
   doc
@@ -205,6 +218,5 @@ export function streamPdfReport(ctx: ReportContext, res: Response): void {
       40, 800,
       { width: 515, align: 'center' }
     );
-
-  doc.end();
+  // doc.end() buildPdfReport içinde çağrılıyor
 }

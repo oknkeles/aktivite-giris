@@ -67,8 +67,16 @@ export default function Reports() {
     fetch(`${apiBase}/reports/pdf?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => {
-        if (!res.ok) throw new Error('PDF üretilemedi');
+      .then(async (res) => {
+        if (!res.ok) {
+          // Sunucudan gelen JSON hata mesajını çıkar
+          let msg = `PDF üretilemedi (HTTP ${res.status})`;
+          try {
+            const j = await res.json();
+            if (j?.error) msg = j.error;
+          } catch {}
+          throw new Error(msg);
+        }
         return res.blob();
       })
       .then((blob) => {
