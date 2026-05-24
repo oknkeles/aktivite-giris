@@ -17,14 +17,13 @@ export default function Reports() {
   const [to, setTo] = useState(`${yyyy}-${mm}-${String(last).padStart(2, '0')}`);
   const [conId, setConId] = useState('');
   const [cusId, setCusId] = useState('');
-  const [run, setRun] = useState(true);
 
   const { data: contractors = [] } = useQuery({ queryKey: ['contractors'], queryFn: () => api.get<Contractor[]>('/contractors') });
   const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => api.get<Customer[]>('/customers') });
 
-  const { data: report } = useQuery({
-    queryKey: ['report', from, to, conId, cusId, run],
-    enabled: run,
+  // Filtreler değişince otomatik fetch — ekstra buton lazım değil
+  const { data: report, isFetching: reportFetching, refetch: refetchReport } = useQuery({
+    queryKey: ['report', from, to, conId, cusId],
     queryFn: () => {
       const params = new URLSearchParams();
       if (from) params.set('from', from);
@@ -149,11 +148,22 @@ export default function Reports() {
           <div><label className="label">Başlangıç</label><input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
           <div><label className="label">Bitiş</label><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button className="btn btn-primary" onClick={() => setRun(r => !r)}><BarChart3 size={15} /> Raporu Oluştur</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            className="btn"
+            onClick={() => refetchReport()}
+            disabled={reportFetching}
+            title="Verileri yeniden çek"
+          >
+            <BarChart3 size={15} className={reportFetching ? 'animate-spin' : ''} />
+            {reportFetching ? 'Yükleniyor...' : 'Yenile'}
+          </button>
           {report && report.count > 0 && (
             <button className="btn btn-success" onClick={exportExcel}><FileDown size={15} /> Excel'e Aktar</button>
           )}
+          <span className="text-[11px] text-ink-3 ml-auto italic">
+            💡 Filtreleri değiştirdiğinde rapor otomatik güncellenir
+          </span>
         </div>
       </div>
 

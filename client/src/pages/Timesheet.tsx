@@ -9,6 +9,7 @@ import { useQuickEntry } from '../store/quickEntry';
 import { useToast, confettiBurst } from '../components/Toast';
 import Modal from '../components/Modal';
 import { MONTHS, DAYS_SHORT, DAYS_LONG, dateStr, qtyToHours, fmtHours } from '../lib/format';
+import { getHoliday } from '../lib/holidays';
 
 function entryHours(e: Entry): number {
   return qtyToHours(e.qty, e.activity.unit);
@@ -206,10 +207,16 @@ export default function Timesheet() {
 
         {/* Calendar — macOS Calendar style clean grid, viewport'a göre esner */}
         <div className="rounded-xl bg-white border border-paper-3 overflow-hidden flex-1 flex flex-col min-h-0">
-          {/* Day headers */}
+          {/* Day headers — hafta sonu renkli */}
           <div className="grid grid-cols-7 border-b border-paper-3 flex-shrink-0">
-            {DAYS_SHORT.map((d) => (
-              <div key={d} className="text-center text-[10px] font-semibold py-2 uppercase tracking-[0.14em] text-ink-3">
+            {DAYS_SHORT.map((d, i) => (
+              <div
+                key={d}
+                className={clsx(
+                  'text-center text-[10px] font-semibold py-2 uppercase tracking-[0.14em]',
+                  i >= 5 ? 'text-brand-rose/70' : 'text-ink-3'
+                )}
+              >
                 {d}
               </div>
             ))}
@@ -227,30 +234,45 @@ export default function Timesheet() {
               const isDragPrev = c.date && dragPreview.has(c.date);
               const isLastCol = idx % 7 === 6;
               const isLastRow = idx >= cells.length - 7;
+              const isWeekend = c.cur && (idx % 7 === 5 || idx % 7 === 6);
+              const holidayName = c.cur ? getHoliday(c.date) : null;
+              const isHoliday = !!holidayName;
 
               return (
                 <div
                   key={idx}
+                  title={holidayName || undefined}
                   className={clsx(
                     'relative min-h-[88px] px-1.5 py-1.5 transition-colors overflow-hidden flex flex-col',
                     !isLastCol && 'border-r border-paper-2',
                     !isLastRow && 'border-b border-paper-2',
-                    c.cur ? 'bg-white cursor-pointer' : 'bg-paper-2/40 cursor-default',
+                    c.cur ? 'cursor-pointer' : 'bg-paper-2/40 cursor-default',
                     !c.cur && 'opacity-60',
-                    c.cur && !isSelected && !isDragPrev && 'hover:bg-paper-2/60',
+                    // Arka plan öncelik sırası: seçili > drag > tatil > hafta sonu > normal
+                    c.cur && !isSelected && !isDragPrev && !isHoliday && !isWeekend && 'bg-white hover:bg-paper-2/60',
+                    c.cur && !isSelected && !isDragPrev && isWeekend && !isHoliday && 'bg-paper-2/40 hover:bg-paper-2/70',
+                    c.cur && !isSelected && !isDragPrev && isHoliday && 'bg-brand-amber/[0.07] hover:bg-brand-amber/[0.12]',
                     isSelected && 'bg-brand-indigo/10 ring-1 ring-brand-indigo/40 ring-inset z-[2]',
                     isDragPrev && !isSelected && 'bg-brand-indigo/8'
                   )}
                   onMouseDown={(e) => c.date && onCellMouseDown(e, c.date)}
                   onMouseEnter={() => c.date && onCellMouseEnter(c.date)}
                 >
-                  {/* Day number — top right, small */}
-                  <div className="flex justify-end mb-1 h-[22px]">
+                  {/* Day number + tatil etiketi — top, sağa hizalı */}
+                  <div className="flex items-center justify-between mb-1 h-[22px] gap-1 min-w-0">
+                    {/* Tatil adı — sol, küçük italik */}
+                    {isHoliday && (
+                      <span className="text-[9.5px] text-brand-amber font-semibold truncate" title={holidayName!}>
+                        {holidayName!.length > 14 ? holidayName!.substring(0, 12) + '…' : holidayName}
+                      </span>
+                    )}
                     <div className={clsx(
-                      'inline-flex items-center justify-center min-w-[22px] h-[22px] text-[12.5px] font-semibold leading-none',
+                      'inline-flex items-center justify-center min-w-[22px] h-[22px] text-[12.5px] font-semibold leading-none ml-auto flex-shrink-0',
                       isToday && 'bg-brand-indigo text-white rounded-full px-1.5',
                       !isToday && !c.cur && 'text-ink-4',
-                      !isToday && c.cur && 'text-ink',
+                      !isToday && c.cur && isHoliday && 'text-brand-amber',
+                      !isToday && c.cur && !isHoliday && isWeekend && 'text-ink-3',
+                      !isToday && c.cur && !isHoliday && !isWeekend && 'text-ink',
                     )}>
                       {c.day}
                     </div>

@@ -131,10 +131,26 @@ router.get('/pdf', async (req: AuthRequest, res) => {
       generatedBy: req.user?.username,
     });
 
-    const fileName = `rapor_${customer.name.replace(/\s+/g, '_')}_${(period || from).replace(/\s+/g, '_')}.pdf`;
+    // HTTP header'da Türkçe karakter olamaz → ASCII'ye düşür (fallback)
+    // ve UTF-8 versiyonunu filename* ile ekle (modern tarayıcılar bunu kullanır)
+    const trMap: Record<string, string> = {
+      ç: 'c', Ç: 'C', ğ: 'g', Ğ: 'G', ı: 'i', İ: 'I',
+      ö: 'o', Ö: 'O', ş: 's', Ş: 'S', ü: 'u', Ü: 'U',
+    };
+    const toAscii = (s: string) =>
+      s
+        .replace(/[çÇğĞıİöÖşŞüÜ]/g, (ch) => trMap[ch] || ch)
+        .replace(/[^a-zA-Z0-9._-]/g, '_');
+
+    const fullName = `rapor_${customer.name}_${period || from}.pdf`;
+    const asciiName = toAscii(fullName);
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Length', String(buffer.length));
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(fullName)}`
+    );
     res.send(buffer);
   } catch (err: any) {
     console.error('PDF üretim hatası:', err);
