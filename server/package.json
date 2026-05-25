@@ -12,9 +12,11 @@
     "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
+    "@fontsource/roboto": "^5.2.10",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.0.0",
     "@types/pdfkit": "^0.17.6",
+    "@types/svg-to-pdfkit": "^0.1.4",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -22,6 +24,7 @@
     "express-rate-limit": "^8.5.2",
     "jsonwebtoken": "^9.0.2",
     "pdfkit": "^0.18.0",
+    "svg-to-pdfkit": "^0.1.8",
     "twilio": "^6.0.2",
     "zod": "^3.24.1"
   },

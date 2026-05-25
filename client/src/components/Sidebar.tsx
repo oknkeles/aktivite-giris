@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { useAuth, isAdmin } from '../store/auth';
 import { useQueryClient } from '@tanstack/react-query';
+import Logo from './Logo';
 
 const ENTRY_ITEMS = [
   { to: '/timesheet', icon: Calendar, label: 'Timesheet' },
@@ -63,15 +64,13 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        {/* Brand */}
-        <div className="flex items-center gap-3 p-5 border-b border-white/5">
-          <div className="w-10 h-10 rounded-xl bg-grad-primary shadow-[0_6px_20px_rgba(37,99,235,.45)] flex items-center justify-center text-white animate-shimmer"
-               style={{ backgroundSize: '200% 200%' }}>
-            <Calendar size={20} strokeWidth={2.4} />
-          </div>
+        {/* Brand — TDev logosu + uygulama adı */}
+        <div className="flex items-center gap-3 p-4 border-b border-white/5">
+          {/* TDev compact pin logo */}
+          <Logo compact light height={36} />
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-extrabold text-white tracking-tight">Aktivite Giriş</div>
-            <div className="text-[9.5px] font-bold text-white/30 uppercase tracking-widest mt-0.5">v5.0 · Cloud</div>
+            <div className="text-[13px] font-extrabold text-white tracking-tight leading-tight">Aktivite Giriş</div>
+            <div className="text-[9px] font-bold text-white/40 uppercase tracking-widest mt-0.5">tdev consulting</div>
           </div>
           <button
             className="lg:hidden text-white/60 hover:text-white"

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 140">
+  <!-- Outer navy pin (teardrop) -->
+  <path d="M 10 50 A 40 40 0 1 1 90 50 Q 88 95 50 128 Q 12 95 10 50 Z" fill="#0F2440"/>
+  <!-- Inner white circle (creates ring/donut effect) -->
+  <circle cx="50" cy="48" r="28" fill="white"/>
+  <!-- Orange T - horizontal bar -->
+  <rect x="28" y="28" width="44" height="10" fill="#F5A623"/>
+  <!-- Orange T - vertical leg -->
+  <rect x="44" y="38" width="12" height="30" fill="#F5A623"/>
+
+  <!-- Vertical divider line -->
+  <line x1="115" y1="25" x2="115" y2="110" stroke="#0F2440" stroke-width="3"/>
+
+  <!-- "tdev" — big bold -->
+  <text x="135" y="82" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="64" fill="#0F2440" letter-spacing="-2">tdev</text>
+
+  <!-- "consulting" — small, right-aligned under tdev -->
+  <text x="335" y="112" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-weight="400" font-size="22" fill="#0F2440" letter-spacing="1">consulting</text>
+</svg>
