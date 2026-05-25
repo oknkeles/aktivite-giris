@@ -1,20 +1,37 @@
-// PDF rapor üretici — müşteri mutabakatı formatında, müşteriye doğrudan gönderilebilir.
-// Tek tutar (net) gösterilir, yüklenici/iskonto/brüt detayları gizlenir.
+// PDF rapor üretici — sade, fiziksel basıma uygun mutabakat formatı.
+// Türkçe karakter için Roboto TTF kullanır.
 
 import PDFDocument from 'pdfkit';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Compile sonrası dosya yolu: server/dist/services/pdf-report.js
-// Font yolu: server/assets/fonts/Roboto-*.ttf
-// Geriye gidiş: dist/services → dist → server → assets/fonts
-const FONT_DIR = path.resolve(__dirname, '../../assets/fonts');
+
+// Font yolu — birden fazla olası konumu dene (Railway, local dev, bundled)
+function findFontDir(): string {
+  const candidates = [
+    path.resolve(__dirname, '../../assets/fonts'),         // dist/services → server/assets/fonts
+    path.resolve(process.cwd(), 'assets/fonts'),           // CWD = server/
+    path.resolve(process.cwd(), 'server/assets/fonts'),    // CWD = /app/
+    path.resolve(__dirname, '../assets/fonts'),            // fallback
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(path.join(c, 'Roboto-Regular.ttf'))) {
+      console.log(`✓ PDF fontları bulundu: ${c}`);
+      return c;
+    }
+  }
+  console.warn('⚠ Roboto TTF bulunamadı, denenen yollar:', candidates);
+  return candidates[0];
+}
+
+let FONT_DIR: string | null = null;
 
 export interface ReportEntry {
   date: string;
   customerName: string;
-  contractorName: string; // backend hâlâ döner ama PDF göstermez
+  contractorName: string;
   activityName: string;
   ticketId: string | null;
   note: string | null;
@@ -35,20 +52,19 @@ export interface ReportContext {
   totalHours: number;
   totalGross: number;
   totalNet: number;
-  discount: number; // PDF'de gösterilmez, sadece backend için
+  discount: number;
   generatedAt: Date;
   generatedBy?: string;
 }
 
 const COLORS = {
-  primary: '#0F2440',      // Logo navy
-  accent: '#F5A623',       // Logo orange
+  primary: '#0F2440',
+  accent: '#F5A623',
   ink: '#0F172A',
   ink2: '#334155',
   ink3: '#64748B',
   paper2: '#F1F5F9',
   paper3: '#E2E8F0',
-  emerald: '#10B981',
 };
 
 function fmtMoney(n: number): string {
@@ -60,19 +76,13 @@ function fmtDate(s: string): string {
   return d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-/**
- * PDF'i buffer'a yazar. Türkçe karakter için Roboto TTF kullanır.
- */
 export async function buildPdfReport(ctx: ReportContext): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({
         size: 'A4',
         margin: 40,
-        info: {
-          Title: ctx.title,
-          Author: 'TDev Consulting',
-        },
+        info: { Title: ctx.title, Author: 'TDev Consulting' },
       });
 
       const chunks: Buffer[] = [];
@@ -80,15 +90,24 @@ export async function buildPdfReport(ctx: ReportContext): Promise<Buffer> {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', (err) => reject(err));
 
-      // Türkçe destekli font kayıt
+      // Türkçe destekli font kayıt — file buffer olarak okuyup veriyoruz
+      // ki path/permission sorunlarında net hata mesajı görelim.
+      if (FONT_DIR === null) FONT_DIR = findFontDir();
+      let hasRoboto = false;
       try {
-        doc.registerFont('Body', path.join(FONT_DIR, 'Roboto-Regular.ttf'));
-        doc.registerFont('Bold', path.join(FONT_DIR, 'Roboto-Bold.ttf'));
+        const regularPath = path.join(FONT_DIR, 'Roboto-Regular.ttf');
+        const boldPath = path.join(FONT_DIR, 'Roboto-Bold.ttf');
+        const regularBuffer = fs.readFileSync(regularPath);
+        const boldBuffer = fs.readFileSync(boldPath);
+        doc.registerFont('Body', regularBuffer);
+        doc.registerFont('Bold', boldBuffer);
+        hasRoboto = true;
+        console.log(`✓ Roboto fontları yüklendi (${regularBuffer.length} + ${boldBuffer.length} bytes)`);
       } catch (err) {
-        console.warn('Roboto font yüklenemedi, Helvetica kullanılıyor:', err);
+        console.error('❌ Roboto yüklenemedi:', (err as Error).message);
       }
 
-      drawReport(doc, ctx);
+      drawReport(doc, ctx, hasRoboto);
       doc.end();
     } catch (err) {
       reject(err);
@@ -96,187 +115,137 @@ export async function buildPdfReport(ctx: ReportContext): Promise<Buffer> {
   });
 }
 
-function font(doc: PDFKit.PDFDocument, weight: 'Body' | 'Bold' = 'Body'): PDFKit.PDFDocument {
-  try {
-    return doc.font(weight);
-  } catch {
-    return doc.font(weight === 'Bold' ? 'Helvetica-Bold' : 'Helvetica');
-  }
-}
+function drawReport(doc: PDFKit.PDFDocument, ctx: ReportContext, hasRoboto: boolean): void {
+  const FONT_BODY = hasRoboto ? 'Body' : 'Helvetica';
+  const FONT_BOLD = hasRoboto ? 'Bold' : 'Helvetica-Bold';
 
-function drawReport(doc: PDFKit.PDFDocument, ctx: ReportContext): void {
-  const pageW = 595; // A4 width
+  const pageW = 595;
   const marginX = 40;
   const contentW = pageW - marginX * 2;
 
   // ─── HEADER ───────────────────────────────────────────
-  // Sol: Şirket adı + başlık
-  font(doc, 'Bold').fillColor(COLORS.primary).fontSize(11)
+  doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(11)
     .text('TDev Consulting', marginX, 40);
-  font(doc, 'Body').fillColor(COLORS.ink3).fontSize(8)
-    .text('tdevco.com', marginX, 55);
+  doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8)
+    .text('tdevco.com · activity.tdevco.com', marginX, 55);
 
-  font(doc, 'Bold').fillColor(COLORS.primary).fontSize(22)
-    .text('Aktivite Çalışma Raporu', marginX, 78);
+  doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(20)
+    .text('Aktivite Çalışma Raporu', marginX, 76);
 
-  // Sağ: Dönem badge
+  // Dönem badge
   const badgeX = pageW - marginX - 140;
-  doc.roundedRect(badgeX, 40, 140, 44, 6).fillColor(COLORS.primary).fill();
-  font(doc, 'Body').fillColor('#FFFFFF').fontSize(8)
-    .text('DÖNEM', badgeX + 12, 50);
-  font(doc, 'Bold').fillColor('#FFFFFF').fontSize(15)
-    .text(ctx.periodLabel, badgeX + 12, 62);
-
-  // ─── MÜŞTERİ BİLGİ ────────────────────────────────────
-  let y = 120;
-  doc.roundedRect(marginX, y, contentW, 50, 6).fillColor(COLORS.paper2).fill();
-  font(doc, 'Body').fillColor(COLORS.ink3).fontSize(8)
-    .text('MÜŞTERİ', marginX + 12, y + 10);
-  font(doc, 'Bold').fillColor(COLORS.primary).fontSize(15)
-    .text(ctx.customerName, marginX + 12, y + 22);
-
-  // Sağda: hazırlayan + tarih
-  const metaX = marginX + contentW - 220;
-  font(doc, 'Body').fillColor(COLORS.ink3).fontSize(8)
-    .text(`Oluşturulma: ${ctx.generatedAt.toLocaleString('tr-TR')}`, metaX, y + 14, { width: 210, align: 'right' });
-  if (ctx.generatedBy) {
-    font(doc, 'Body').fillColor(COLORS.ink3).fontSize(8)
-      .text(`Hazırlayan: ${ctx.generatedBy}`, metaX, y + 28, { width: 210, align: 'right' });
-  }
-
-  y += 70;
-
-  // ─── ÖZET KARTLARI (2 kart: Toplam Saat + Tutar) ──────
-  const cardW = (contentW - 12) / 2;
-  // Toplam Saat
-  doc.roundedRect(marginX, y, cardW, 60, 6).strokeColor(COLORS.paper3).lineWidth(1).stroke();
-  font(doc, 'Body').fillColor(COLORS.ink3).fontSize(9)
-    .text('TOPLAM SAAT', marginX + 14, y + 12);
-  font(doc, 'Bold').fillColor(COLORS.primary).fontSize(22)
-    .text(`${ctx.totalHours.toFixed(1)} saat`, marginX + 14, y + 28);
-
-  // Tutar
-  const card2X = marginX + cardW + 12;
-  doc.roundedRect(card2X, y, cardW, 60, 6).fillColor(COLORS.primary).fill();
-  font(doc, 'Body').fillColor('#FFFFFF').fontSize(9).opacity(0.7)
-    .text('TUTAR', card2X + 14, y + 12);
+  doc.roundedRect(badgeX, 40, 140, 40, 6).fillColor(COLORS.primary).fill();
+  doc.font(FONT_BODY).fillColor('#FFFFFF').fontSize(8).opacity(0.7)
+    .text('DÖNEM', badgeX + 12, 49);
   doc.opacity(1);
-  font(doc, 'Bold').fillColor('#FFFFFF').fontSize(22)
-    .text(fmtMoney(ctx.totalNet), card2X + 14, y + 28);
+  doc.font(FONT_BOLD).fillColor('#FFFFFF').fontSize(14)
+    .text(ctx.periodLabel, badgeX + 12, 60);
+
+  // ─── MÜŞTERİ + ÖZET (tek satır) ────────────────────────
+  let y = 112;
+  // Müşteri kutusu
+  doc.roundedRect(marginX, y, contentW * 0.55, 56, 6).fillColor(COLORS.paper2).fill();
+  doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8)
+    .text('MÜŞTERİ', marginX + 12, y + 10);
+  doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(14)
+    .text(ctx.customerName, marginX + 12, y + 22, { width: contentW * 0.55 - 24, ellipsis: true });
+  doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8)
+    .text(
+      `Oluşturulma: ${ctx.generatedAt.toLocaleDateString('tr-TR')}` +
+      (ctx.generatedBy ? ` · Hazırlayan: ${ctx.generatedBy}` : ''),
+      marginX + 12, y + 41
+    );
+
+  // Tutar kartı (sağ, vurgulu)
+  const tutarX = marginX + contentW * 0.55 + 10;
+  const tutarW = contentW - (contentW * 0.55 + 10);
+  doc.roundedRect(tutarX, y, tutarW, 56, 6).fillColor(COLORS.primary).fill();
+  doc.font(FONT_BODY).fillColor('#FFFFFF').fontSize(8).opacity(0.7)
+    .text('TOPLAM', tutarX + 14, y + 10);
+  doc.opacity(1);
+  doc.font(FONT_BOLD).fillColor('#FFFFFF').fontSize(18)
+    .text(`${ctx.totalHours.toFixed(1)} saat`, tutarX + 14, y + 22);
+  doc.font(FONT_BOLD).fillColor(COLORS.accent).fontSize(14)
+    .text(fmtMoney(ctx.totalNet), tutarX + 14, y + 40);
 
   y += 80;
 
   // ─── DETAY TABLOSU ────────────────────────────────────
-  font(doc, 'Bold').fillColor(COLORS.ink).fontSize(10)
-    .text('Detay', marginX, y);
-  y += 18;
-
-  // Sütun düzeni
+  // Sütunlar: Tarih · Aktivite · Kullanıcı · Talep · Açıklama · Saat · Tutar
   const cols = [
-    { x: marginX, w: 60, label: 'TARİH' },
-    { x: marginX + 65, w: 80, label: 'AKTİVİTE' },
-    { x: marginX + 150, w: 70, label: 'TALEP ID' },
-    { x: marginX + 225, w: 200, label: 'AÇIKLAMA' },
-    { x: marginX + 430, w: 35, label: 'SAAT', align: 'right' as const },
-    { x: marginX + 470, w: 45, label: 'TUTAR', align: 'right' as const },
+    { x: marginX,         w: 55,  label: 'TARİH' },
+    { x: marginX + 58,    w: 65,  label: 'AKTİVİTE' },
+    { x: marginX + 126,   w: 75,  label: 'KULLANICI' },
+    { x: marginX + 204,   w: 55,  label: 'TALEP' },
+    { x: marginX + 262,   w: 158, label: 'AÇIKLAMA' },
+    { x: marginX + 422,   w: 30,  label: 'SAAT',  align: 'right' as const },
+    { x: marginX + 455,   w: 60,  label: 'TUTAR', align: 'right' as const },
   ];
 
   // Header
-  font(doc, 'Bold').fillColor(COLORS.ink3).fontSize(7.5);
+  doc.font(FONT_BOLD).fillColor(COLORS.ink3).fontSize(7.5);
   cols.forEach((c) => {
     doc.text(c.label, c.x, y, { width: c.w, align: (c.align as any) || 'left' });
   });
   y += 12;
   doc.moveTo(marginX, y).lineTo(marginX + contentW, y)
     .strokeColor(COLORS.ink2).lineWidth(0.6).stroke();
-  y += 6;
+  y += 5;
 
   // Satırlar
-  font(doc, 'Body').fontSize(9);
   for (const e of ctx.entries) {
-    if (y > 760) { doc.addPage(); y = 40; }
-    const rowH = 20;
+    if (y > 770) { doc.addPage(); y = 40; }
+    const rowH = 16;
 
-    font(doc, 'Body').fillColor(COLORS.ink3).fontSize(9)
+    doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8.5)
       .text(fmtDate(e.date), cols[0].x, y, { width: cols[0].w });
-
-    font(doc, 'Body').fillColor(COLORS.ink).fontSize(9)
+    doc.font(FONT_BODY).fillColor(COLORS.ink).fontSize(8.5)
       .text(e.activityName, cols[1].x, y, { width: cols[1].w, ellipsis: true });
-
-    font(doc, 'Body').fillColor(COLORS.ink3).fontSize(8.5)
-      .text(e.ticketId || '—', cols[2].x, y, { width: cols[2].w, ellipsis: true });
-
-    font(doc, 'Body').fillColor(COLORS.ink2).fontSize(8.5)
-      .text(e.note || '—', cols[3].x, y, { width: cols[3].w, ellipsis: true, height: rowH });
-
-    font(doc, 'Body').fillColor(COLORS.ink).fontSize(9)
-      .text(e.hours.toFixed(1), cols[4].x, y, { width: cols[4].w, align: 'right' });
-
-    font(doc, 'Bold').fillColor(COLORS.primary).fontSize(9)
-      .text(fmtMoney(e.net), cols[5].x, y, { width: cols[5].w, align: 'right' });
+    doc.font(FONT_BODY).fillColor(COLORS.ink2).fontSize(8.5)
+      .text(e.userName || '—', cols[2].x, y, { width: cols[2].w, ellipsis: true });
+    doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8)
+      .text(e.ticketId || '—', cols[3].x, y, { width: cols[3].w, ellipsis: true });
+    doc.font(FONT_BODY).fillColor(COLORS.ink2).fontSize(8)
+      .text(e.note || '—', cols[4].x, y, { width: cols[4].w, ellipsis: true, height: rowH });
+    doc.font(FONT_BODY).fillColor(COLORS.ink).fontSize(8.5)
+      .text(e.hours.toFixed(1), cols[5].x, y, { width: cols[5].w, align: 'right' });
+    doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(8.5)
+      .text(fmtMoney(e.net), cols[6].x, y, { width: cols[6].w, align: 'right' });
 
     y += rowH;
-    doc.moveTo(marginX, y - 2).lineTo(marginX + contentW, y - 2)
+    doc.moveTo(marginX, y - 1).lineTo(marginX + contentW, y - 1)
       .strokeColor(COLORS.paper3).lineWidth(0.3).stroke();
   }
 
   // ─── TOPLAM ──────────────────────────────────────────
-  y += 6;
+  y += 8;
   doc.moveTo(marginX, y).lineTo(marginX + contentW, y)
     .strokeColor(COLORS.primary).lineWidth(1.2).stroke();
   y += 10;
 
-  font(doc, 'Bold').fillColor(COLORS.ink2).fontSize(11)
+  doc.font(FONT_BOLD).fillColor(COLORS.ink2).fontSize(11)
     .text(`Toplam: ${ctx.totalHours.toFixed(1)} saat`, marginX, y);
-  font(doc, 'Bold').fillColor(COLORS.primary).fontSize(14)
+  doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(14)
     .text(fmtMoney(ctx.totalNet), marginX + contentW - 200, y - 2, {
       width: 200,
       align: 'right',
     });
 
-  // ─── MUTABAKAT NOTU ───────────────────────────────────
-  y += 50;
-  if (y > 700) { doc.addPage(); y = 40; }
-
-  doc.roundedRect(marginX, y, contentW, 70, 6).fillColor(COLORS.paper2).fill();
-  font(doc, 'Bold').fillColor(COLORS.ink).fontSize(9)
-    .text('Mutabakat', marginX + 14, y + 12);
-  font(doc, 'Body').fillColor(COLORS.ink2).fontSize(8.5)
+  // ─── KISA NOT (mutabakat metni — kompakt) ─────────────
+  y += 36;
+  if (y > 760) { doc.addPage(); y = 40; }
+  doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8)
     .text(
-      `Yukarıdaki ${ctx.periodLabel} dönemine ait çalışma kayıtları, tarafımızca kontrol edilmiş ve mutabık kalınmıştır. ` +
-      `Toplam çalışma süresi ${ctx.totalHours.toFixed(1)} saat olup, toplam tutar ${fmtMoney(ctx.totalNet)} olarak ` +
-      `hesaplanmıştır. İtiraz halinde 7 iş günü içinde tarafımıza yazılı olarak bildirilmediği takdirde, ` +
-      `bu rapor onaylanmış sayılır.`,
-      marginX + 14, y + 28,
-      { width: contentW - 28, lineGap: 2 }
+      `Bu rapor ${ctx.periodLabel} dönemine ait çalışma kayıtlarını içerir. ` +
+      `İtiraz veya düzeltme talepleri için tarafımıza yazılı olarak bildirim yapılması rica olunur.`,
+      marginX, y,
+      { width: contentW, lineGap: 1.5 }
     );
 
-  // ─── İMZA ALANI ───────────────────────────────────────
-  y += 90;
-  if (y > 730) { doc.addPage(); y = 40; }
-
-  const sigW = (contentW - 20) / 2;
-  // Sol: Hazırlayan
-  font(doc, 'Body').fillColor(COLORS.ink3).fontSize(8)
-    .text('Hazırlayan (TDev Consulting)', marginX, y);
-  doc.moveTo(marginX, y + 30).lineTo(marginX + sigW, y + 30)
-    .strokeColor(COLORS.ink3).lineWidth(0.5).stroke();
-  font(doc, 'Body').fillColor(COLORS.ink3).fontSize(7.5)
-    .text('İmza / Tarih', marginX, y + 34);
-
-  // Sağ: Müşteri onayı
-  const sig2X = marginX + sigW + 20;
-  font(doc, 'Body').fillColor(COLORS.ink3).fontSize(8)
-    .text(`Onaylayan (${ctx.customerName})`, sig2X, y);
-  doc.moveTo(sig2X, y + 30).lineTo(sig2X + sigW, y + 30)
-    .strokeColor(COLORS.ink3).lineWidth(0.5).stroke();
-  font(doc, 'Body').fillColor(COLORS.ink3).fontSize(7.5)
-    .text('İmza / Tarih', sig2X, y + 34);
-
   // ─── FOOTER ───────────────────────────────────────────
-  font(doc, 'Body').fillColor(COLORS.ink3).fontSize(7)
+  doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(7)
     .text(
-      `Bu rapor TDev Aktivite Giriş Sistemi tarafından otomatik oluşturulmuştur · ${ctx.generatedAt.toLocaleDateString('tr-TR')}`,
+      `TDev Consulting · activity.tdevco.com · Sayfa otomatik oluşturulmuştur (${ctx.generatedAt.toLocaleDateString('tr-TR')})`,
       marginX, 815,
       { width: contentW, align: 'center' }
     );
