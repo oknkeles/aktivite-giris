@@ -26,7 +26,23 @@ function findFontDir(): string {
   return candidates[0];
 }
 
+function findAssetsDir(): string {
+  const candidates = [
+    path.resolve(__dirname, '../../assets'),
+    path.resolve(process.cwd(), 'assets'),
+    path.resolve(process.cwd(), 'server/assets'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(path.join(c, 'logo.png'))) {
+      return c;
+    }
+  }
+  return candidates[0];
+}
+
 let FONT_DIR: string | null = null;
+let ASSETS_DIR: string | null = null;
+let LOGO_BUFFER: Buffer | null = null;
 
 export interface ReportEntry {
   date: string;
@@ -91,14 +107,11 @@ export async function buildPdfReport(ctx: ReportContext): Promise<Buffer> {
       doc.on('error', (err) => reject(err));
 
       // Türkçe destekli font kayıt — file buffer olarak okuyup veriyoruz
-      // ki path/permission sorunlarında net hata mesajı görelim.
       if (FONT_DIR === null) FONT_DIR = findFontDir();
       let hasRoboto = false;
       try {
-        const regularPath = path.join(FONT_DIR, 'Roboto-Regular.ttf');
-        const boldPath = path.join(FONT_DIR, 'Roboto-Bold.ttf');
-        const regularBuffer = fs.readFileSync(regularPath);
-        const boldBuffer = fs.readFileSync(boldPath);
+        const regularBuffer = fs.readFileSync(path.join(FONT_DIR, 'Roboto-Regular.ttf'));
+        const boldBuffer = fs.readFileSync(path.join(FONT_DIR, 'Roboto-Bold.ttf'));
         doc.registerFont('Body', regularBuffer);
         doc.registerFont('Bold', boldBuffer);
         hasRoboto = true;
@@ -107,7 +120,18 @@ export async function buildPdfReport(ctx: ReportContext): Promise<Buffer> {
         console.error('❌ Roboto yüklenemedi:', (err as Error).message);
       }
 
-      drawReport(doc, ctx, hasRoboto);
+      // Logo'yu yükle (lazy, bir kez)
+      if (ASSETS_DIR === null) ASSETS_DIR = findAssetsDir();
+      if (LOGO_BUFFER === null) {
+        try {
+          LOGO_BUFFER = fs.readFileSync(path.join(ASSETS_DIR, 'logo.png'));
+          console.log(`✓ Logo yüklendi (${LOGO_BUFFER.length} bytes)`);
+        } catch (err) {
+          console.warn('⚠ Logo yüklenemedi:', (err as Error).message);
+        }
+      }
+
+      drawReport(doc, ctx, hasRoboto, LOGO_BUFFER);
       doc.end();
     } catch (err) {
       reject(err);
@@ -115,7 +139,12 @@ export async function buildPdfReport(ctx: ReportContext): Promise<Buffer> {
   });
 }
 
-function drawReport(doc: PDFKit.PDFDocument, ctx: ReportContext, hasRoboto: boolean): void {
+function drawReport(
+  doc: PDFKit.PDFDocument,
+  ctx: ReportContext,
+  hasRoboto: boolean,
+  logoBuffer: Buffer | null
+): void {
   const FONT_BODY = hasRoboto ? 'Body' : 'Helvetica';
   const FONT_BOLD = hasRoboto ? 'Bold' : 'Helvetica-Bold';
 
@@ -124,13 +153,23 @@ function drawReport(doc: PDFKit.PDFDocument, ctx: ReportContext, hasRoboto: bool
   const contentW = pageW - marginX * 2;
 
   // ─── HEADER ───────────────────────────────────────────
-  doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(11)
-    .text('TDev Consulting', marginX, 40);
-  doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8)
-    .text('tdevco.com · activity.tdevco.com', marginX, 55);
+  // Logo (sol üst) — varsa
+  if (logoBuffer) {
+    try {
+      doc.image(logoBuffer, marginX, 36, { height: 36 });
+    } catch (err) {
+      console.warn('Logo PDF\'e gömülemedi:', (err as Error).message);
+    }
+  } else {
+    // Logo yoksa text fallback
+    doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(13)
+      .text('TDev Consulting', marginX, 40);
+    doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8)
+      .text('tdevco.com', marginX, 56);
+  }
 
   doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(20)
-    .text('Aktivite Çalışma Raporu', marginX, 76);
+    .text('Aktivite Çalışma Raporu', marginX, 84);
 
   // Dönem badge
   const badgeX = pageW - marginX - 140;
@@ -142,7 +181,7 @@ function drawReport(doc: PDFKit.PDFDocument, ctx: ReportContext, hasRoboto: bool
     .text(ctx.periodLabel, badgeX + 12, 60);
 
   // ─── MÜŞTERİ + ÖZET (tek satır) ────────────────────────
-  let y = 112;
+  let y = 120;
   // Müşteri kutusu
   doc.roundedRect(marginX, y, contentW * 0.55, 56, 6).fillColor(COLORS.paper2).fill();
   doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8)
