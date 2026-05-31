@@ -71,6 +71,15 @@ router.post('/', async (req: AuthRequest, res) => {
       user: { select: { id: true, username: true, fullname: true } },
     },
   });
+  await audit({
+    action: 'create',
+    target: 'entry',
+    targetId: entry.id,
+    userId: req.user!.id,
+    username: req.user!.username,
+    summary: `Kayıt eklendi: ${entry.date} · ${entry.customer.name} · ${entry.qty}${entry.activity.unit === 'saat' ? 's' : 'g'}`,
+    req,
+  });
   res.json(entry);
 });
 
@@ -198,6 +207,15 @@ router.put('/:id', async (req: AuthRequest, res) => {
       activity: true,
       user: { select: { id: true, username: true, fullname: true } },
     },
+  });
+  await audit({
+    action: 'update',
+    target: 'entry',
+    targetId: updated.id,
+    userId: req.user!.id,
+    username: req.user!.username,
+    summary: `Kayıt güncellendi: #${updated.id} (${Object.keys(parsed.data).join(', ')})`,
+    req,
   });
   res.json(updated);
 });

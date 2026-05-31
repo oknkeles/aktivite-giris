@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { authRequired, adminRequired } from '../middleware/auth.js';
+import { authRequired, adminRequired, type AuthRequest } from '../middleware/auth.js';
+import { audit } from '../services/audit.js';
 
 const router = Router();
 router.use(authRequired);
@@ -22,7 +23,7 @@ const schema = z.object({
   rates: z.record(z.string(), z.number()).optional(), // activityId → rate
 });
 
-router.post('/', adminRequired, async (req, res) => {
+router.post('/', adminRequired, async (req: AuthRequest, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid' });
   const { rates, ...data } = parsed.data;
@@ -36,6 +37,15 @@ router.post('/', adminRequired, async (req, res) => {
       )
     );
   }
+  await audit({
+    action: 'create',
+    target: 'customer',
+    targetId: customer.id,
+    userId: req.user!.id,
+    username: req.user!.username,
+    summary: `Müşteri eklendi: ${customer.name}${rates ? ` (+${Object.keys(rates).length} fiyat)` : ''}`,
+    req,
+  });
   const full = await prisma.customer.findUnique({
     where: { id: customer.id },
     include: { contractor: true, rates: true },
@@ -43,7 +53,7 @@ router.post('/', adminRequired, async (req, res) => {
   res.json(full);
 });
 
-router.patch('/:id', adminRequired, async (req, res) => {
+router.patch('/:id', adminRequired, async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   const parsed = schema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid' });
@@ -66,12 +76,36 @@ router.patch('/:id', adminRequired, async (req, res) => {
     where: { id },
     include: { contractor: true, rates: true },
   });
+  // Fiyat değişiklikleri faturayı doğrudan etkiler — ayrı audit hedefi 'rate'.
+  const changedFields = [
+    ...Object.keys(data),
+    ...(rates ? ['fiyat'] : []),
+  ];
+  await audit({
+    action: 'update',
+    target: rates ? 'rate' : 'customer',
+    targetId: id,
+    userId: req.user!.id,
+    username: req.user!.username,
+    summary: `Müşteri güncellendi: ${updated?.name ?? id} (${changedFields.join(', ')})`,
+    req,
+  });
   res.json(updated);
 });
 
-router.delete('/:id', adminRequired, async (req, res) => {
+router.delete('/:id', adminRequired, async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
+  const existing = await prisma.customer.findUnique({ where: { id } });
   await prisma.customer.delete({ where: { id } });
+  await audit({
+    action: 'delete',
+    target: 'customer',
+    targetId: id,
+    userId: req.user!.id,
+    username: req.user!.username,
+    summary: `Müşteri silindi: ${existing?.name ?? id}`,
+    req,
+  });
   res.json({ ok: true });
 });
 

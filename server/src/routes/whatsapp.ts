@@ -5,6 +5,7 @@ import { Router } from 'express';
 import express from 'express';
 import twilio from 'twilio';
 import { prisma } from '../db.js';
+import { audit } from '../services/audit.js';
 import {
   parseWhatsAppMessage,
   type RecentEntry,
@@ -222,6 +223,23 @@ router.post('/webhook', async (req, res) => {
     // ── CREATE ──
     if (r.action === 'create') {
       const e = r.entry;
+      // LLM çıktısı güven temelli değil — müşteri/aktivite/süre/tarih'i doğrula.
+      // Geçersizse DB'ye yazma; FK hatası ya da hayali veri oluşmasın.
+      const validCustomer = customers.some((c) => c.id === e.customerId);
+      const validActivity = activities.some((a) => a.id === e.activityId);
+      if (
+        !validCustomer ||
+        !validActivity ||
+        !(e.qty > 0) ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(e.date)
+      ) {
+        await sendWhatsApp(
+          from,
+          '❓ Kaydı oluşturamadım — müşteri, aktivite ve süre net değil. Tekrar yazar mısın?',
+          user.id
+        );
+        return;
+      }
       const created = await prisma.entry.create({
         data: {
           date: e.date,
@@ -233,6 +251,15 @@ router.post('/webhook', async (req, res) => {
           userId: user.id,
         },
         include: { customer: true, activity: true },
+      });
+      await audit({
+        action: 'create',
+        target: 'entry',
+        targetId: created.id,
+        userId: user.id,
+        username: user.username,
+        summary: `WhatsApp ile kayıt: ${created.date} · ${created.customer.name} · ${created.qty}${created.activity.unit === 'saat' ? 's' : 'g'}`,
+        req,
       });
       await sendWhatsApp(
         from,
@@ -257,10 +284,38 @@ router.post('/webhook', async (req, res) => {
         return;
       }
 
+      // LLM çıktısı doğrulama — değiştirilen müşteri/aktivite/süre/tarih geçerli mi?
+      const u = r.updates as Record<string, any>;
+      if (u.customerId !== undefined && !customers.some((c) => c.id === u.customerId)) {
+        await sendWhatsApp(from, '❓ Belirttiğin müşteriyi bulamadım.', user.id);
+        return;
+      }
+      if (u.activityId !== undefined && !activities.some((a) => a.id === u.activityId)) {
+        await sendWhatsApp(from, '❓ Belirttiğin aktiviteyi bulamadım.', user.id);
+        return;
+      }
+      if (u.qty !== undefined && !(u.qty > 0)) {
+        await sendWhatsApp(from, '❓ Süre geçerli değil.', user.id);
+        return;
+      }
+      if (u.date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(u.date)) {
+        await sendWhatsApp(from, '❓ Tarih geçerli değil.', user.id);
+        return;
+      }
+
       const updated = await prisma.entry.update({
         where: { id: r.entryId },
         data: r.updates as any,
         include: { customer: true, activity: true },
+      });
+      await audit({
+        action: 'update',
+        target: 'entry',
+        targetId: updated.id,
+        userId: user.id,
+        username: user.username,
+        summary: `WhatsApp ile güncelleme: #${updated.id} (${Object.keys(u).join(', ')})`,
+        req,
       });
 
       const changes = Object.keys(r.updates)
@@ -302,6 +357,15 @@ router.post('/webhook', async (req, res) => {
       }
 
       await prisma.entry.delete({ where: { id: r.entryId } });
+      await audit({
+        action: 'delete',
+        target: 'entry',
+        targetId: existing.id,
+        userId: user.id,
+        username: user.username,
+        summary: `WhatsApp ile silindi: ${existing.date} · ${existing.customer.name} · ${existing.qty}${existing.activity.unit === 'saat' ? 's' : 'g'}`,
+        req,
+      });
       await sendWhatsApp(
         from,
         `🗑️ Silindi:\n${fmtEntry(existing)}`,
