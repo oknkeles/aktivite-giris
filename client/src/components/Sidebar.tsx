@@ -63,9 +63,11 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        {/* Brand — TDev gerçek logosu */}
+        {/* Brand — TDev gerçek logosu, beyaz kutu içinde (kontrast için) */}
         <div className="flex items-center gap-3 px-4 py-4 border-b border-white/5">
-          <img src="/logo.png" alt="TDev Consulting" className="h-10 w-auto object-contain" />
+          <div className="bg-white rounded-lg px-3 py-2 flex items-center justify-center flex-shrink-0">
+            <img src="/logo.png" alt="TDev Consulting" className="h-8 w-auto object-contain" />
+          </div>
           <div className="flex-1 min-w-0">
             <div className="text-[12px] font-bold text-white/90 tracking-tight leading-tight">Aktivite</div>
             <div className="text-[10px] font-semibold text-white/40 uppercase tracking-widest">Giriş Sistemi</div>
