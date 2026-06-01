@@ -389,7 +389,6 @@ export default function QuickEntryWizard({
   return (
     <div
       className="fixed inset-0 z-[100] bg-ink/60 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-6 animate-fade-in"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden">
         {/* Compact header — sadece ikon + sayaç + kapat */}

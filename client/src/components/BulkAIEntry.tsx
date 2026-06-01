@@ -2,7 +2,7 @@
 // her satır düzenlenebilir bir önizleme olarak gösterilir, onaylanan satırlar
 // DB'ye yazılır.
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, X, Check, AlertTriangle, Trash2, Loader2, Wand2 } from 'lucide-react';
 import clsx from 'clsx';
@@ -94,6 +94,17 @@ export default function BulkAIEntry({ open, onClose }: { open: boolean; onClose:
     onClose();
   }
 
+  // ESC ile kapat (dışarı tıklama kapatmaz — yanlışlıkla veri kaybı olmasın)
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') handleClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   function updateEntry(idx: number, patch: Partial<ParsedEntry>) {
     setParsed((arr) =>
       arr.map((e, i) => {
@@ -128,7 +139,6 @@ export default function BulkAIEntry({ open, onClose }: { open: boolean; onClose:
   return (
     <div
       className="fixed inset-0 z-[100] bg-ink/60 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-6 animate-fade-in"
-      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
         {/* Header */}

@@ -152,91 +152,79 @@ function drawReport(
   const marginX = 40;
   const contentW = pageW - marginX * 2;
 
-  // ─── HEADER ───────────────────────────────────────────
-  // Logo (sol üst) — varsa
+  // ─── HEADER (sade) ─────────────────────────────────────
+  // Logo sol üst — varsa
   if (logoBuffer) {
     try {
-      doc.image(logoBuffer, marginX, 36, { height: 36 });
+      doc.image(logoBuffer, marginX, 40, { height: 30 });
     } catch (err) {
       console.warn('Logo PDF\'e gömülemedi:', (err as Error).message);
     }
   } else {
-    // Logo yoksa text fallback
     doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(13)
-      .text('TDev Consulting', marginX, 40);
-    doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8)
-      .text('tdevco.com', marginX, 56);
+      .text('TDev Consulting', marginX, 44);
   }
 
-  doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(20)
-    .text('Aktivite Çalışma Raporu', marginX, 84);
+  // Başlık + dönem (sağ, düz metin)
+  doc.font(FONT_BOLD).fillColor(COLORS.ink).fontSize(15)
+    .text('Çalışma Raporu', marginX, 42, { width: contentW, align: 'right' });
+  doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(10)
+    .text(ctx.periodLabel, marginX, 62, { width: contentW, align: 'right' });
 
-  // Dönem badge
-  const badgeX = pageW - marginX - 140;
-  doc.roundedRect(badgeX, 40, 140, 40, 6).fillColor(COLORS.primary).fill();
-  doc.font(FONT_BODY).fillColor('#FFFFFF').fontSize(8).opacity(0.7)
-    .text('DÖNEM', badgeX + 12, 49);
-  doc.opacity(1);
-  doc.font(FONT_BOLD).fillColor('#FFFFFF').fontSize(14)
-    .text(ctx.periodLabel, badgeX + 12, 60);
+  // İnce ayraç çizgisi
+  let y = 86;
+  doc.moveTo(marginX, y).lineTo(marginX + contentW, y)
+    .strokeColor(COLORS.paper3).lineWidth(1).stroke();
+  y += 16;
 
-  // ─── MÜŞTERİ + ÖZET (tek satır) ────────────────────────
-  let y = 120;
-  // Müşteri kutusu
-  doc.roundedRect(marginX, y, contentW * 0.55, 56, 6).fillColor(COLORS.paper2).fill();
-  doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8)
-    .text('MÜŞTERİ', marginX + 12, y + 10);
-  doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(14)
-    .text(ctx.customerName, marginX + 12, y + 22, { width: contentW * 0.55 - 24, ellipsis: true });
-  doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8)
-    .text(
-      `Oluşturulma: ${ctx.generatedAt.toLocaleDateString('tr-TR')}` +
-      (ctx.generatedBy ? ` · Hazırlayan: ${ctx.generatedBy}` : ''),
-      marginX + 12, y + 41
-    );
+  // ─── BİLGİ SATIRLARI (düz metin) ───────────────────────
+  function infoRow(label: string, value: string): void {
+    doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(9)
+      .text(label, marginX, y, { width: 90, continued: false });
+    doc.font(FONT_BODY).fillColor(COLORS.ink).fontSize(10)
+      .text(value, marginX + 90, y - 1, { width: contentW - 90, ellipsis: true });
+    y += 17;
+  }
+  infoRow('Müşteri', ctx.customerName);
+  infoRow('Dönem', ctx.periodLabel);
+  infoRow(
+    'Toplam',
+    `${ctx.totalHours.toFixed(1)} saat · ${ctx.entries.length} kayıt · ${fmtMoney(ctx.totalNet)}`
+  );
+  if (ctx.generatedBy) infoRow('Hazırlayan', ctx.generatedBy);
 
-  // Tutar kartı (sağ, vurgulu)
-  const tutarX = marginX + contentW * 0.55 + 10;
-  const tutarW = contentW - (contentW * 0.55 + 10);
-  doc.roundedRect(tutarX, y, tutarW, 56, 6).fillColor(COLORS.primary).fill();
-  doc.font(FONT_BODY).fillColor('#FFFFFF').fontSize(8).opacity(0.7)
-    .text('TOPLAM', tutarX + 14, y + 10);
-  doc.opacity(1);
-  doc.font(FONT_BOLD).fillColor('#FFFFFF').fontSize(18)
-    .text(`${ctx.totalHours.toFixed(1)} saat`, tutarX + 14, y + 22);
-  doc.font(FONT_BOLD).fillColor(COLORS.accent).fontSize(14)
-    .text(fmtMoney(ctx.totalNet), tutarX + 14, y + 40);
-
-  y += 80;
+  y += 6;
 
   // ─── DETAY TABLOSU ────────────────────────────────────
   // Sütunlar: Tarih · Aktivite · Kullanıcı · Talep · Açıklama · Saat · Tutar
   const cols = [
-    { x: marginX,         w: 55,  label: 'TARİH' },
-    { x: marginX + 58,    w: 65,  label: 'AKTİVİTE' },
-    { x: marginX + 126,   w: 75,  label: 'KULLANICI' },
-    { x: marginX + 204,   w: 55,  label: 'TALEP' },
-    { x: marginX + 262,   w: 158, label: 'AÇIKLAMA' },
-    { x: marginX + 422,   w: 30,  label: 'SAAT',  align: 'right' as const },
-    { x: marginX + 455,   w: 60,  label: 'TUTAR', align: 'right' as const },
+    { x: marginX,         w: 55,  label: 'Tarih' },
+    { x: marginX + 58,    w: 65,  label: 'Aktivite' },
+    { x: marginX + 126,   w: 75,  label: 'Kullanıcı' },
+    { x: marginX + 204,   w: 55,  label: 'Talep' },
+    { x: marginX + 262,   w: 158, label: 'Açıklama' },
+    { x: marginX + 422,   w: 30,  label: 'Saat',  align: 'right' as const },
+    { x: marginX + 455,   w: 60,  label: 'Tutar', align: 'right' as const },
   ];
 
-  // Header
-  doc.font(FONT_BOLD).fillColor(COLORS.ink3).fontSize(7.5);
-  cols.forEach((c) => {
-    doc.text(c.label, c.x, y, { width: c.w, align: (c.align as any) || 'left' });
-  });
-  y += 12;
-  doc.moveTo(marginX, y).lineTo(marginX + contentW, y)
-    .strokeColor(COLORS.ink2).lineWidth(0.6).stroke();
-  y += 5;
+  function drawTableHeader(): void {
+    doc.font(FONT_BOLD).fillColor(COLORS.ink2).fontSize(8);
+    cols.forEach((c) => {
+      doc.text(c.label, c.x, y, { width: c.w, align: (c.align as any) || 'left' });
+    });
+    y += 13;
+    doc.moveTo(marginX, y).lineTo(marginX + contentW, y)
+      .strokeColor(COLORS.ink2).lineWidth(0.8).stroke();
+    y += 6;
+  }
+  drawTableHeader();
 
   // Satırlar
   for (const e of ctx.entries) {
-    if (y > 770) { doc.addPage(); y = 40; }
+    if (y > 780) { doc.addPage(); y = 40; drawTableHeader(); }
     const rowH = 16;
 
-    doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8.5)
+    doc.font(FONT_BODY).fillColor(COLORS.ink2).fontSize(8.5)
       .text(fmtDate(e.date), cols[0].x, y, { width: cols[0].w });
     doc.font(FONT_BODY).fillColor(COLORS.ink).fontSize(8.5)
       .text(e.activityName, cols[1].x, y, { width: cols[1].w, ellipsis: true });
@@ -248,7 +236,7 @@ function drawReport(
       .text(e.note || '—', cols[4].x, y, { width: cols[4].w, ellipsis: true, height: rowH });
     doc.font(FONT_BODY).fillColor(COLORS.ink).fontSize(8.5)
       .text(e.hours.toFixed(1), cols[5].x, y, { width: cols[5].w, align: 'right' });
-    doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(8.5)
+    doc.font(FONT_BODY).fillColor(COLORS.ink).fontSize(8.5)
       .text(fmtMoney(e.net), cols[6].x, y, { width: cols[6].w, align: 'right' });
 
     y += rowH;
@@ -257,26 +245,27 @@ function drawReport(
   }
 
   // ─── TOPLAM ──────────────────────────────────────────
-  y += 8;
+  if (y > 770) { doc.addPage(); y = 40; }
+  y += 6;
   doc.moveTo(marginX, y).lineTo(marginX + contentW, y)
-    .strokeColor(COLORS.primary).lineWidth(1.2).stroke();
+    .strokeColor(COLORS.ink2).lineWidth(0.8).stroke();
   y += 10;
 
-  doc.font(FONT_BOLD).fillColor(COLORS.ink2).fontSize(11)
-    .text(`Toplam: ${ctx.totalHours.toFixed(1)} saat`, marginX, y);
-  doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(14)
+  doc.font(FONT_BOLD).fillColor(COLORS.ink2).fontSize(10)
+    .text(`Genel Toplam — ${ctx.totalHours.toFixed(1)} saat`, marginX, y);
+  doc.font(FONT_BOLD).fillColor(COLORS.ink).fontSize(13)
     .text(fmtMoney(ctx.totalNet), marginX + contentW - 200, y - 2, {
       width: 200,
       align: 'right',
     });
 
-  // ─── KISA NOT (mutabakat metni — kompakt) ─────────────
-  y += 36;
-  if (y > 760) { doc.addPage(); y = 40; }
-  doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8)
+  // ─── KISA BİLGİ NOTU ──────────────────────────────────
+  y += 32;
+  if (y > 770) { doc.addPage(); y = 40; }
+  doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(8.5)
     .text(
       `Bu rapor ${ctx.periodLabel} dönemine ait çalışma kayıtlarını içerir. ` +
-      `İtiraz veya düzeltme talepleri için tarafımıza yazılı olarak bildirim yapılması rica olunur.`,
+      `Sorularınız veya düzeltme talepleriniz için bizimle iletişime geçebilirsiniz.`,
       marginX, y,
       { width: contentW, lineGap: 1.5 }
     );
@@ -284,7 +273,7 @@ function drawReport(
   // ─── FOOTER ───────────────────────────────────────────
   doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(7)
     .text(
-      `TDev Consulting · activity.tdevco.com · Sayfa otomatik oluşturulmuştur (${ctx.generatedAt.toLocaleDateString('tr-TR')})`,
+      `TDev Consulting · activity.tdevco.com · ${ctx.generatedAt.toLocaleDateString('tr-TR')}`,
       marginX, 815,
       { width: contentW, align: 'center' }
     );
