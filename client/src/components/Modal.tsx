@@ -33,14 +33,13 @@ export default function Modal({ open, onClose, title, children, size = 'md', foo
   }, [open, onClose]);
 
   if (!open) return null;
+  // Backdrop tıklaması kapatmaz — yanlışlıkla veri kaybı olmasın. Sadece X veya ESC.
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-md animate-fade-in"
-      onClick={onClose}
     >
       <div
         className={clsx('bg-white rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-y-auto animate-fade-in', sizes[size])}
-        onClick={(e) => e.stopPropagation()}
       >
         {title && (
           <div className="sticky top-0 bg-white/90 backdrop-blur-sm flex items-center justify-between p-5 sm:p-6 border-b border-paper-3 z-10">

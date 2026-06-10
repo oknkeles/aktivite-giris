@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileDown, Trash2, Edit3, X, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -379,6 +379,15 @@ function BulkEditModal({
   const [updateTicket, setUpdateTicket] = useState(false);
   const [updateNote, setUpdateNote] = useState(false);
 
+  // ESC ile kapat (backdrop tıklaması kapatmaz)
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   function apply() {
     const patch: any = {};
     if (updateCustomer && customerId) patch.customerId = +customerId;
@@ -395,8 +404,7 @@ function BulkEditModal({
   const anySelected = updateCustomer || updateActivity || updateTicket || updateNote;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-ink/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
-         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 z-[100] bg-ink/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
         <div className="px-5 py-4 border-b border-paper-3 flex items-center justify-between">
           <div>
