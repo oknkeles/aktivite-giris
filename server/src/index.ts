@@ -13,7 +13,9 @@ import usersRouter from './routes/users.js';
 import reportsRouter from './routes/reports.js';
 import whatsappRouter from './routes/whatsapp.js';
 import auditRouter from './routes/audit.js';
+import locksRouter from './routes/locks.js';
 import { startReminderCron } from './services/reminders.js';
+import { startMonthlySummaryCron } from './services/monthly-summary.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isProd = process.env.NODE_ENV === 'production';
@@ -46,6 +48,7 @@ app.use('/api/users', usersRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/audit', auditRouter);
+app.use('/api/locks', locksRouter);
 
 // In production: serve the built React client from server/dist
 if (isProd) {
@@ -97,6 +100,9 @@ if (isProd) {
 
   // Smart Reminders — her gün 18:00 (TR) WhatsApp hatırlatıcı
   startReminderCron();
+
+  // Ay kapanışı özeti — her ayın 1'i 09:00 (TR), admin'lere WhatsApp
+  startMonthlySummaryCron();
 
   // WhatsApp konuşma geçmişi temizleme — 24 saatten eski mesajları sil.
   // (Multi-turn için 15 dk yetiyor, ama hata ayıklama için 24h tutuyoruz.)

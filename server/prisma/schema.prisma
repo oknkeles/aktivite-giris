@@ -105,6 +105,16 @@ model WhatsAppMessage {
   @@index([userId, createdAt])
 }
 
+// Dönem kilidi — mutabakat gönderilen aylar kilitlenir.
+// Kilitli döneme kayıt eklenemez/değiştirilemez/silinemez (WhatsApp dahil).
+// Yönetici kilidi açabilir; kilitle/aç işlemleri audit'e düşer.
+model PeriodLock {
+  id        Int      @id @default(autoincrement())
+  period    String   @unique // YYYY-MM
+  lockedBy  String?  // kilitleyen kullanıcı (snapshot)
+  createdAt DateTime @default(now())
+}
+
 // Önemli aksiyonların izi — kim ne zaman ne yaptı.
 // Sadece admin'in görebileceği bir sayfada listelenir.
 model AuditLog {

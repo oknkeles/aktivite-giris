@@ -64,6 +64,73 @@ router.get('/', async (req, res) => {
   res.json({ entries: data, totalGross, totalNet, totalHours, count: data.length });
 });
 
+// Dashboard — admin özet verisi (bu ay müşteri dağılımı + 6 aylık trend + toplam tutar)
+router.get('/dashboard', async (_req, res) => {
+  // Son 6 ayın başından bugüne tüm kayıtlar (TR saatiyle)
+  const now = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  const thisPeriod = now.toISOString().slice(0, 7); // YYYY-MM
+  const windowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1))
+    .toISOString()
+    .slice(0, 10);
+
+  const entries = await prisma.entry.findMany({
+    where: { date: { gte: windowStart } },
+    include: {
+      customer: { include: { contractor: true, rates: true } },
+      activity: true,
+    },
+  });
+
+  // Ay listesi (eski → yeni, 6 ay) — kayıt olmayan aylar da 0 ile görünsün
+  const months: string[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    months.push(d.toISOString().slice(0, 7));
+  }
+  const trend: Record<string, { period: string; hours: number; net: number }> = {};
+  months.forEach((m) => (trend[m] = { period: m, hours: 0, net: 0 }));
+
+  // Bu ay müşteri bazında dağılım
+  const byCustomer: Record<number, { id: number; name: string; hours: number; net: number }> = {};
+  let monthHours = 0;
+  let monthNet = 0;
+  let monthCount = 0;
+
+  for (const e of entries) {
+    const rate = e.customer.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
+    const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
+    const disc = e.customer.contractor.discount || 0;
+    const net = (hours / 8) * rate * (1 - disc / 100);
+
+    const period = e.date.slice(0, 7);
+    if (trend[period]) {
+      trend[period].hours += hours;
+      trend[period].net += net;
+    }
+
+    if (period === thisPeriod) {
+      monthHours += hours;
+      monthNet += net;
+      monthCount++;
+      const c = (byCustomer[e.customerId] ??= {
+        id: e.customerId,
+        name: e.customer.name,
+        hours: 0,
+        net: 0,
+      });
+      c.hours += hours;
+      c.net += net;
+    }
+  }
+
+  res.json({
+    period: thisPeriod,
+    month: { hours: monthHours, net: monthNet, count: monthCount },
+    customers: Object.values(byCustomer).sort((a, b) => b.hours - a.hours),
+    trend: months.map((m) => trend[m]),
+  });
+});
+
 // PDF Rapor — bir müşteri + aylık özet
 router.get('/pdf', async (req: AuthRequest, res) => {
   const { customerId, from, to, period } = req.query as Record<string, string | undefined>;

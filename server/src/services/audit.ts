@@ -12,6 +12,7 @@ export type AuditTarget =
   | 'contractor'
   | 'activity'
   | 'rate'
+  | 'period'
   | 'session';
 
 interface AuditParams {

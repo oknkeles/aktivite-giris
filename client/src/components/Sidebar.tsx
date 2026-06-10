@@ -1,7 +1,7 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   Calendar, List, CheckSquare, Users, UserCog, BarChart3, LogOut, Menu, X,
-  ShieldCheck, ChevronDown, Briefcase, ScrollText
+  ShieldCheck, ChevronDown, Briefcase, ScrollText, LayoutDashboard
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
@@ -22,6 +22,7 @@ const ADMIN_ITEMS = [
 ];
 
 const FINANCE_ITEMS = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/reports', icon: BarChart3, label: 'Raporlar' },
 ];
 

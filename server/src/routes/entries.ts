@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { authRequired, type AuthRequest } from '../middleware/auth.js';
 import { audit } from '../services/audit.js';
 import { parseBulkText } from '../services/llm-bulk.js';
+import { lockedPeriodsAmong, lockedError } from '../services/period-lock.js';
 
 const router = Router();
 router.use(authRequired);
@@ -63,6 +64,8 @@ const createSchema = z.object({
 router.post('/', async (req: AuthRequest, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid' });
+  const locked = await lockedPeriodsAmong([parsed.data.date]);
+  if (locked.length) return res.status(423).json({ error: lockedError(locked) });
   const entry = await prisma.entry.create({
     data: { ...parsed.data, userId: req.user!.id },
     include: {
@@ -149,6 +152,9 @@ router.post('/bulk-create', async (req: AuthRequest, res) => {
   const parsed = bulkCreateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Geçersiz veri' });
 
+  const lockedBulk = await lockedPeriodsAmong(parsed.data.entries.map((e) => e.date));
+  if (lockedBulk.length) return res.status(423).json({ error: lockedError(lockedBulk) });
+
   const userId = req.user!.id;
   const created = await prisma.$transaction(
     parsed.data.entries.map((e) =>
@@ -172,6 +178,8 @@ router.post('/bulk', async (req: AuthRequest, res) => {
   const parsed = bulkSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid' });
   const { dates, ...rest } = parsed.data;
+  const locked = await lockedPeriodsAmong(dates);
+  if (locked.length) return res.status(423).json({ error: lockedError(locked) });
   const created = await prisma.$transaction(
     dates.map((date) =>
       prisma.entry.create({ data: { ...rest, date, userId: req.user!.id } })
@@ -199,6 +207,10 @@ router.put('/:id', async (req: AuthRequest, res) => {
   if (req.user!.role !== 'admin' && entry.userId !== req.user!.id) {
     return res.status(403).json({ error: 'Yetkiniz yok' });
   }
+  // Hem kaydın mevcut dönemi hem de taşınmak istenen dönem kilitsiz olmalı
+  const datesToCheck = [entry.date, ...(parsed.data.date ? [parsed.data.date] : [])];
+  const locked = await lockedPeriodsAmong(datesToCheck);
+  if (locked.length) return res.status(423).json({ error: lockedError(locked) });
   const updated = await prisma.entry.update({
     where: { id },
     data: parsed.data,
@@ -230,6 +242,8 @@ router.delete('/:id', async (req: AuthRequest, res) => {
   if (req.user!.role !== 'admin' && entry.userId !== req.user!.id) {
     return res.status(403).json({ error: 'Yetkiniz yok' });
   }
+  const locked = await lockedPeriodsAmong([entry.date]);
+  if (locked.length) return res.status(423).json({ error: lockedError(locked) });
   await prisma.entry.delete({ where: { id } });
   await audit({
     action: 'delete',

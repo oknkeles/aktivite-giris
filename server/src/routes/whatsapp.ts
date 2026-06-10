@@ -6,6 +6,7 @@ import express from 'express';
 import twilio from 'twilio';
 import { prisma } from '../db.js';
 import { audit } from '../services/audit.js';
+import { lockedPeriodsAmong } from '../services/period-lock.js';
 import {
   parseWhatsAppMessage,
   type RecentEntry,
@@ -240,6 +241,15 @@ router.post('/webhook', async (req, res) => {
         );
         return;
       }
+      const lockedCreate = await lockedPeriodsAmong([e.date]);
+      if (lockedCreate.length) {
+        await sendWhatsApp(
+          from,
+          `🔒 ${lockedCreate.join(', ')} dönemi kilitli (mutabakat gönderildi). Bu aya kayıt eklenemez.`,
+          user.id
+        );
+        return;
+      }
       const created = await prisma.entry.create({
         data: {
           date: e.date,
@@ -281,6 +291,19 @@ router.post('/webhook', async (req, res) => {
       }
       if (existing.userId !== user.id) {
         await sendWhatsApp(from, '⚠️ Bu kayıt sana ait değil.', user.id);
+        return;
+      }
+
+      // Dönem kilidi — kaydın mevcut ayı veya taşınmak istenen ay kilitliyse engelle
+      const uDates = [existing.date];
+      if ((r.updates as any).date) uDates.push((r.updates as any).date);
+      const lockedUpd = await lockedPeriodsAmong(uDates);
+      if (lockedUpd.length) {
+        await sendWhatsApp(
+          from,
+          `🔒 ${lockedUpd.join(', ')} dönemi kilitli (mutabakat gönderildi). Bu kayıt değiştirilemez.`,
+          user.id
+        );
         return;
       }
 
@@ -356,6 +379,15 @@ router.post('/webhook', async (req, res) => {
         return;
       }
 
+      const lockedDel = await lockedPeriodsAmong([existing.date]);
+      if (lockedDel.length) {
+        await sendWhatsApp(
+          from,
+          `🔒 ${lockedDel.join(', ')} dönemi kilitli (mutabakat gönderildi). Bu kayıt silinemez.`,
+          user.id
+        );
+        return;
+      }
       await prisma.entry.delete({ where: { id: r.entryId } });
       await audit({
         action: 'delete',
