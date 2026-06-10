@@ -13,6 +13,7 @@ import Reports from './pages/Reports';
 import Users from './pages/Users';
 import AuditLog from './pages/AuditLog';
 import Dashboard from './pages/Dashboard';
+import PeriodLocks from './pages/PeriodLocks';
 
 // React Query cache stratejisi:
 // - staleTime 5 dk: bu süre içinde aynı query yeniden fetch edilmez (cache'ten döner)
@@ -57,6 +58,7 @@ export default function App() {
             <Route path="/reports" element={<Protected adminOnly><Reports /></Protected>} />
             <Route path="/users" element={<Protected adminOnly><Users /></Protected>} />
             <Route path="/audit" element={<Protected adminOnly><AuditLog /></Protected>} />
+            <Route path="/locks" element={<Protected adminOnly><PeriodLocks /></Protected>} />
           </Route>
           <Route path="*" element={<Navigate to="/timesheet" replace />} />
         </Routes>
