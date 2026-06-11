@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, DollarSign } from 'lucide-react';
+import { Plus, Trash2, DollarSign, Search, X } from 'lucide-react';
 import { api, type Customer, type Contractor, type Activity } from '../api/client';
 import { useAuth, isAdmin } from '../store/auth';
 import { useToast } from '../components/Toast';
@@ -16,6 +16,7 @@ export default function Customers() {
   const [rates, setRates] = useState<Record<number, number>>({});
   const [editing, setEditing] = useState<Customer | null>(null);
   const [editRates, setEditRates] = useState<Record<number, number>>({});
+  const [search, setSearch] = useState('');
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
@@ -60,6 +61,16 @@ export default function Customers() {
     setEditRates(map);
     setEditing(c);
   }
+
+  // Türkçe duyarsız arama (İ/i, ı/I sorunsuz) — müşteri adı + yüklenici adında arar
+  const trLower = (s: string) => s.toLocaleLowerCase('tr-TR');
+  const filtered = useMemo(() => {
+    const q = trLower(search.trim());
+    if (!q) return customers;
+    return customers.filter(
+      (c) => trLower(c.name).includes(q) || trLower(c.contractor.name).includes(q)
+    );
+  }, [customers, search]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[460px_1fr] gap-5 animate-fade-in">
@@ -107,30 +118,77 @@ export default function Customers() {
       )}
 
       <div className="card">
-        <div className="clabel mb-4">Müşteri Listesi ({customers.length})</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="clabel">
+            Müşteri Listesi
+            <span className="text-ink-3 font-normal normal-case tracking-normal ml-1.5">
+              {search ? `${filtered.length} / ${customers.length}` : `(${customers.length})`}
+            </span>
+          </div>
+          {/* Arama */}
+          <div className="relative w-full sm:w-72">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
+            <input
+              className="input !pl-9 !pr-8 !py-2 text-sm"
+              placeholder="Müşteri veya yüklenici ara..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
         {customers.length === 0 ? (
           <div className="text-center py-12 text-ink-3">
             <div className="text-4xl mb-3 animate-pulse-slow">👤</div>
             <div className="text-sm">Henüz eklenmedi</div>
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-12 text-ink-3">
+            <div className="text-3xl mb-2">🔍</div>
+            <div className="text-sm">"{search}" ile eşleşen müşteri yok</div>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
-            {customers.map((c) => {
+          <div className="border border-paper-3 rounded-xl overflow-hidden">
+            {/* Liste başlığı */}
+            <div className="grid grid-cols-[1fr_140px_110px_80px] gap-2 bg-paper-2 border-b border-paper-3 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-ink-3">
+              <span>Müşteri</span>
+              <span className="hidden sm:block">Yüklenici</span>
+              <span className="hidden sm:block">Fiyatlama</span>
+              <span className="text-right">{admin ? 'İşlem' : ''}</span>
+            </div>
+            {filtered.map((c) => {
               const ratedCount = c.rates.filter(r => r.rate > 0).length;
               return (
-                <div key={c.id} className="border border-paper-3 rounded-xl p-3.5 hover:border-brand-violet/30 hover:shadow-md transition">
-                  <div className="font-extrabold mb-1 truncate">{c.name}</div>
-                  <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-                    <span className="badge bg-brand-indigo/15 text-brand-indigo">{c.contractor.name}</span>
-                    {c.contractor.discount > 0 && <span className="badge bg-brand-amber/15 text-[#B45309]">-%{c.contractor.discount}</span>}
+                <div
+                  key={c.id}
+                  className="grid grid-cols-[1fr_140px_110px_80px] gap-2 items-center px-4 py-2.5 border-b border-paper-3 last:border-0 hover:bg-paper transition text-sm"
+                >
+                  <div className="font-semibold truncate">{c.name}</div>
+                  <div className="hidden sm:flex items-center gap-1.5 min-w-0">
+                    <span className="badge bg-brand-indigo/15 text-brand-indigo truncate">{c.contractor.name}</span>
+                    {c.contractor.discount > 0 && (
+                      <span className="badge bg-brand-amber/15 text-[#B45309] flex-shrink-0">-%{c.contractor.discount}</span>
+                    )}
                   </div>
-                  <div className="text-[11px] text-ink-3 mb-3">{ratedCount}/{activities.length} aktivite fiyatlandırıldı</div>
-                  {admin && (
-                    <div className="flex justify-end gap-1.5">
-                      <button onClick={() => openEdit(c)} className="text-brand-emerald hover:bg-brand-emerald/10 p-1.5 rounded-lg transition" title="Fiyat güncelle"><DollarSign size={13} /></button>
-                      <button onClick={() => delMut.mutate(c.id)} className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg transition"><Trash2 size={13} /></button>
-                    </div>
-                  )}
+                  <div className={`hidden sm:block text-[11px] font-mono ${ratedCount === 0 ? 'text-brand-rose' : 'text-ink-3'}`}>
+                    {ratedCount}/{activities.length} aktivite
+                  </div>
+                  <div className="flex justify-end gap-1">
+                    {admin && (
+                      <>
+                        <button onClick={() => openEdit(c)} className="text-brand-emerald hover:bg-brand-emerald/10 p-1.5 rounded-lg transition" title="Fiyat güncelle"><DollarSign size={13} /></button>
+                        <button onClick={() => delMut.mutate(c.id)} className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg transition" title="Sil"><Trash2 size={13} /></button>
+                      </>
+                    )}
+                  </div>
                 </div>
               );
             })}

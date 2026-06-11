@@ -1,7 +1,9 @@
-// Dashboard — sadece admin. Bu ayın müşteri dağılımı, 6 aylık trend, toplam tutar.
+// Dashboard — sadece admin. Seçili ayın müşteri dağılımı, 6 aylık trend, toplam tutar.
+// Üstteki ‹ › oklarıyla geçmiş/gelecek aylara gidilebilir.
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Clock, Banknote, ListChecks } from 'lucide-react';
+import { TrendingUp, Clock, Banknote, ListChecks, ChevronLeft, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../api/client';
 import { fmtHours, fmtMoney, MONTHS } from '../lib/format';
@@ -23,21 +25,66 @@ function periodLabelShort(p: string): string {
   return `${MONTHS[Number(m) - 1].slice(0, 3)} '${y.slice(2)}`;
 }
 
+function currentPeriod(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function shiftPeriod(p: string, delta: number): string {
+  const [y, m] = p.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export default function Dashboard() {
+  const [period, setPeriod] = useState(currentPeriod());
+  const isCurrent = period === currentPeriod();
+
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard'],
-    queryFn: () => api.get<DashboardData>('/reports/dashboard'),
+    queryKey: ['dashboard', period],
+    queryFn: () => api.get<DashboardData>(`/reports/dashboard?period=${period}`),
   });
 
   return (
     <div className="space-y-5 animate-fade-in">
+      {/* Dönem gezintisi */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-extrabold tracking-tight">{periodLabel(period)}</span>
+          {!isCurrent && (
+            <button
+              onClick={() => setPeriod(currentPeriod())}
+              className="btn !py-1 !px-2.5 text-[11px]"
+            >
+              Bugün
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPeriod(shiftPeriod(period, -1))}
+            className="w-9 h-9 rounded-xl bg-white border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition"
+            title="Önceki ay"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button
+            onClick={() => setPeriod(shiftPeriod(period, 1))}
+            className="w-9 h-9 rounded-xl bg-white border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition"
+            title="Sonraki ay"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+
       {isLoading && (
         <div className="card text-center py-12 text-ink-3 text-sm">Yükleniyor...</div>
       )}
 
       {data && (
         <>
-          {/* Bu ay özet kartları */}
+          {/* Seçili ay özet kartları */}
           <div className="grid grid-cols-3 gap-3">
             <MetricCard
               icon={<Clock size={15} />}
@@ -61,10 +108,10 @@ export default function Dashboard() {
             {/* Müşteri bazında saat dağılımı */}
             <div className="card">
               <div className="clabel mb-4 flex items-center gap-2">
-                <Clock size={13} /> Bu Ay Müşteri Dağılımı
+                <Clock size={13} /> {periodLabel(data.period)} Müşteri Dağılımı
               </div>
               {data.customers.length === 0 ? (
-                <div className="text-center py-8 text-ink-3 text-sm">Bu ay henüz kayıt yok</div>
+                <div className="text-center py-8 text-ink-3 text-sm">Bu ayda kayıt yok</div>
               ) : (
                 <div className="space-y-3">
                   {data.customers.map((c) => {

@@ -174,6 +174,77 @@ router.post('/bulk-create', async (req: AuthRequest, res) => {
   res.json({ created: created.length });
 });
 
+// ── Excel içe aktarma (sadece admin) ──
+// Dış sistemden alınan Excel'deki satırlar, Ad Soyad eşleşmesiyle ilgili
+// kullanıcının kaydı olarak yazılır. Eşleştirme client'ta yapılır; burada
+// id'lerin gerçekten var olduğu ve dönem kilidi doğrulanır.
+const importSchema = z.object({
+  entries: z
+    .array(
+      z.object({
+        userId: z.number().int(),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        qty: z.number().positive(),
+        customerId: z.number().int(),
+        activityId: z.number().int(),
+        ticketId: z.string().max(80).optional().nullable(),
+        note: z.string().max(2000).optional().nullable(),
+      })
+    )
+    .min(1)
+    .max(1000),
+});
+
+router.post('/import', async (req: AuthRequest, res) => {
+  if (req.user!.role !== 'admin') {
+    return res.status(403).json({ error: 'Sadece yönetici içe aktarabilir' });
+  }
+  const parsed = importSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Geçersiz veri' });
+  const rows = parsed.data.entries;
+
+  const locked = await lockedPeriodsAmong(rows.map((r) => r.date));
+  if (locked.length) return res.status(423).json({ error: lockedError(locked) });
+
+  // Referans id'leri tek seferde doğrula — LLM/Excel kaynaklı hayali id engellenir
+  const userIds = [...new Set(rows.map((r) => r.userId))];
+  const customerIds = [...new Set(rows.map((r) => r.customerId))];
+  const activityIds = [...new Set(rows.map((r) => r.activityId))];
+  const [validUsers, validCustomers, validActivities] = await Promise.all([
+    prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true } }),
+    prisma.customer.findMany({ where: { id: { in: customerIds } }, select: { id: true } }),
+    prisma.activity.findMany({ where: { id: { in: activityIds } }, select: { id: true } }),
+  ]);
+  if (
+    validUsers.length !== userIds.length ||
+    validCustomers.length !== customerIds.length ||
+    validActivities.length !== activityIds.length
+  ) {
+    return res.status(400).json({ error: 'Geçersiz kullanıcı/müşteri/aktivite referansı var' });
+  }
+
+  const created = await prisma.entry.createMany({
+    data: rows.map((r) => ({
+      date: r.date,
+      qty: r.qty,
+      customerId: r.customerId,
+      activityId: r.activityId,
+      ticketId: r.ticketId || null,
+      note: r.note || null,
+      userId: r.userId,
+    })),
+  });
+  await audit({
+    action: 'create',
+    target: 'entry',
+    userId: req.user!.id,
+    username: req.user!.username,
+    summary: `Excel içe aktarma: ${created.count} kayıt (${userIds.length} kullanıcı)`,
+    req,
+  });
+  res.json({ created: created.count });
+});
+
 router.post('/bulk', async (req: AuthRequest, res) => {
   const parsed = bulkSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid' });

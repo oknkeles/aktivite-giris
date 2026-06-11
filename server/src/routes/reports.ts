@@ -64,17 +64,22 @@ router.get('/', async (req, res) => {
   res.json({ entries: data, totalGross, totalNet, totalHours, count: data.length });
 });
 
-// Dashboard — admin özet verisi (bu ay müşteri dağılımı + 6 aylık trend + toplam tutar)
-router.get('/dashboard', async (_req, res) => {
-  // Son 6 ayın başından bugüne tüm kayıtlar (TR saatiyle)
+// Dashboard — admin özet verisi (seçili ay müşteri dağılımı + 6 aylık trend + toplam tutar)
+// ?period=YYYY-MM ile geçmişe/geleceğe gidilebilir; yoksa bu ay.
+router.get('/dashboard', async (req, res) => {
   const now = new Date(Date.now() + 3 * 60 * 60 * 1000);
-  const thisPeriod = now.toISOString().slice(0, 7); // YYYY-MM
-  const windowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1))
-    .toISOString()
-    .slice(0, 10);
+  const periodParam = String((req.query as any).period || '');
+  const thisPeriod = /^\d{4}-(0[1-9]|1[0-2])$/.test(periodParam)
+    ? periodParam
+    : now.toISOString().slice(0, 7); // YYYY-MM
+
+  const [pYear, pMonth] = thisPeriod.split('-').map(Number);
+  // Pencere: seçili ay dahil geriye 6 ay; bitişi seçili ayın sonu
+  const windowStart = new Date(Date.UTC(pYear, pMonth - 1 - 5, 1)).toISOString().slice(0, 10);
+  const windowEnd = new Date(Date.UTC(pYear, pMonth, 0)).toISOString().slice(0, 10);
 
   const entries = await prisma.entry.findMany({
-    where: { date: { gte: windowStart } },
+    where: { date: { gte: windowStart, lte: windowEnd } },
     include: {
       customer: { include: { contractor: true, rates: true } },
       activity: true,
@@ -84,7 +89,7 @@ router.get('/dashboard', async (_req, res) => {
   // Ay listesi (eski → yeni, 6 ay) — kayıt olmayan aylar da 0 ile görünsün
   const months: string[] = [];
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    const d = new Date(Date.UTC(pYear, pMonth - 1 - i, 1));
     months.push(d.toISOString().slice(0, 7));
   }
   const trend: Record<string, { period: string; hours: number; net: number }> = {};

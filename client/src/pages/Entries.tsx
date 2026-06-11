@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileDown, Trash2, Edit3, X, FileText } from 'lucide-react';
+import { FileDown, FileUp, Trash2, Edit3, X, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import clsx from 'clsx';
 import { api, type Entry, type Customer, type User, type Activity } from '../api/client';
 import { useAuth, isAdmin } from '../store/auth';
 import { useToast } from '../components/Toast';
+import ExcelImport from '../components/ExcelImport';
 import { fmtHours, qtyToHours, MONTHS } from '../lib/format';
 
 function entryHours(e: Entry) { return qtyToHours(e.qty, e.activity.unit); }
@@ -26,6 +27,7 @@ export default function Entries() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkConfirmDelete, setBulkConfirmDelete] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: entries = [], isLoading: entriesLoading, isFetching: entriesFetching } = useQuery({
     queryKey: ['entries-all', userFilter],
@@ -166,6 +168,11 @@ export default function Entries() {
             <button className="btn btn-success btn-sm" onClick={exportExcel}>
               <FileDown size={14} /> Excel
             </button>
+            {admin && (
+              <button className="btn btn-sm" onClick={() => setImportOpen(true)} title="Dış sistem Excel'inden toplu aktar">
+                <FileUp size={14} /> İçe Aktar
+              </button>
+            )}
           </div>
         </div>
 
@@ -350,6 +357,15 @@ export default function Entries() {
           loading={bulkUpdateMut.isPending}
         />
       )}
+
+      {/* Excel İçe Aktarma (admin) */}
+      <ExcelImport
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        users={users}
+        customers={customers}
+        activities={activities}
+      />
     </div>
   );
 }
