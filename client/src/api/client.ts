@@ -56,6 +56,7 @@ export interface Activity {
   name: string;
   unit: string;
   desc?: string | null;
+  active?: boolean;
 }
 
 export interface Contractor {
@@ -83,6 +84,7 @@ export interface Customer {
   contact?: string | null;
   phone?: string | null;
   currency?: string | null;
+  active?: boolean;
   contractor: Contractor;
   rates: CustomerRate[];
 }

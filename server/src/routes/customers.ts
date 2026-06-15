@@ -21,6 +21,7 @@ const schema = z.object({
   contact: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   currency: z.enum(['TRY', 'USD', 'EUR']).optional(),
+  active: z.boolean().optional(),
   rates: z.record(z.string(), z.number()).optional(), // activityId → rate
 });
 
@@ -97,6 +98,13 @@ router.patch('/:id', adminRequired, async (req: AuthRequest, res) => {
 router.delete('/:id', adminRequired, async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   const existing = await prisma.customer.findUnique({ where: { id } });
+  // Kaydı olan müşteri silinemez — geçmiş veri kaybolmasın. Pasife çekilebilir.
+  const entryCount = await prisma.entry.count({ where: { customerId: id } });
+  if (entryCount > 0) {
+    return res.status(409).json({
+      error: `Bu müşterinin ${entryCount} kaydı var, silinemez. Bunun yerine "Pasife Çek" ile gizleyebilirsiniz.`,
+    });
+  }
   await prisma.customer.delete({ where: { id } });
   await audit({
     action: 'delete',

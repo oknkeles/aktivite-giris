@@ -34,9 +34,40 @@ router.post('/', adminRequired, async (req: AuthRequest, res) => {
   res.json(activity);
 });
 
+const updateSchema = z.object({
+  name: z.string().min(1).optional(),
+  unit: z.string().optional(),
+  desc: z.string().optional().nullable(),
+  active: z.boolean().optional(),
+});
+
+router.patch('/:id', adminRequired, async (req: AuthRequest, res) => {
+  const id = Number(req.params.id);
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid' });
+  const activity = await prisma.activity.update({ where: { id }, data: parsed.data as any });
+  await audit({
+    action: 'update',
+    target: 'activity',
+    targetId: id,
+    userId: req.user!.id,
+    username: req.user!.username,
+    summary: `Aktivite türü güncellendi: ${activity.name} (${Object.keys(parsed.data).join(', ')})`,
+    req,
+  });
+  res.json(activity);
+});
+
 router.delete('/:id', adminRequired, async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   const existing = await prisma.activity.findUnique({ where: { id } });
+  // Kaydı olan aktivite türü silinemez — geçmiş veri kaybolmasın. Pasife çekilebilir.
+  const entryCount = await prisma.entry.count({ where: { activityId: id } });
+  if (entryCount > 0) {
+    return res.status(409).json({
+      error: `Bu aktivite türünün ${entryCount} kaydı var, silinemez. Bunun yerine "Pasife Çek" ile gizleyebilirsiniz.`,
+    });
+  }
   await prisma.activity.delete({ where: { id } });
   await audit({
     action: 'delete',

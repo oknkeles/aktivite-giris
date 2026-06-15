@@ -13,9 +13,10 @@ type FormState = {
   contact: string;
   phone: string;
   currency: string;
+  active: boolean;
 };
 
-const EMPTY_FORM: FormState = { name: '', contractorId: 0, contact: '', phone: '', currency: 'TRY' };
+const EMPTY_FORM: FormState = { name: '', contractorId: 0, contact: '', phone: '', currency: 'TRY', active: true };
 
 export default function Customers() {
   const { user } = useAuth();
@@ -108,9 +109,12 @@ export default function Customers() {
               return (
                 <div
                   key={c.id}
-                  className="grid grid-cols-[1fr_140px_60px_110px_48px] gap-2 items-center px-4 py-2.5 border-b border-paper-3 last:border-0 hover:bg-paper transition text-sm"
+                  className={`grid grid-cols-[1fr_140px_60px_110px_48px] gap-2 items-center px-4 py-2.5 border-b border-paper-3 last:border-0 hover:bg-paper transition text-sm ${c.active === false ? 'opacity-50' : ''}`}
                 >
-                  <div className="font-semibold truncate">{c.name}</div>
+                  <div className="font-semibold truncate flex items-center gap-1.5">
+                    {c.name}
+                    {c.active === false && <span className="badge bg-ink/10 text-ink-2 flex-shrink-0">Pasif</span>}
+                  </div>
                   <div className="hidden sm:flex items-center gap-1.5 min-w-0">
                     <span className="badge bg-brand-indigo/15 text-brand-indigo truncate">{c.contractor.name}</span>
                     {c.contractor.discount > 0 && (
@@ -170,6 +174,7 @@ function CustomerModal({
           contact: customer.contact || '',
           phone: customer.phone || '',
           currency: customer.currency || 'TRY',
+          active: customer.active !== false,
         }
       : EMPTY_FORM
   );
@@ -276,7 +281,31 @@ function CustomerModal({
               {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
             </select>
           </div>
+          <div>
+            <label className="label">Durum</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, active: true })}
+                className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition ${form.active ? 'bg-brand-emerald/10 border-brand-emerald/40 text-brand-emerald' : 'bg-white border-paper-3 text-ink-3 hover:bg-paper-2'}`}
+              >
+                Aktif
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, active: false })}
+                className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition ${!form.active ? 'bg-ink/5 border-ink/30 text-ink' : 'bg-white border-paper-3 text-ink-3 hover:bg-paper-2'}`}
+              >
+                Pasif
+              </button>
+            </div>
+          </div>
         </div>
+        {!form.active && (
+          <div className="text-[11px] text-ink-3 bg-paper-2 rounded-lg px-3 py-2 -mt-1">
+            ℹ️ Pasif müşteri yeni kayıt eklerken listede çıkmaz; geçmiş kayıtlar ve raporlar korunur.
+          </div>
+        )}
 
         {activities.length > 0 && (
           <div>

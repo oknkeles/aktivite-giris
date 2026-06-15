@@ -9,6 +9,7 @@ import clsx from 'clsx';
 import { api, type Entry, type User } from '../api/client';
 import { fmtHours, qtyToHours, MONTHS, DAYS_SHORT } from '../lib/format';
 import { getHoliday } from '../lib/holidays';
+import Modal from '../components/Modal';
 
 function currentPeriod(): string {
   const d = new Date();
@@ -31,6 +32,7 @@ function dowMon(d: Date): number {
 export default function TeamCalendar() {
   const [period, setPeriod] = useState(currentPeriod());
   const [selected, setSelected] = useState<Set<number> | null>(null);
+  const [cell, setCell] = useState<{ user: User; date: string } | null>(null);
   const isCurrent = period === currentPeriod();
 
   const [y, m] = period.split('-').map(Number);
@@ -199,11 +201,13 @@ export default function TeamCalendar() {
                         return (
                           <td
                             key={d.day}
+                            onClick={() => h > 0 && setCell({ user: u, date: d.dateStr })}
                             className={clsx(
                               'text-center border-b border-l border-paper-3 font-mono font-semibold tabular-nums',
-                              d.nonwork && h <= 0 ? 'bg-paper-3/30' : cellColor(h)
+                              d.nonwork && h <= 0 ? 'bg-paper-3/30' : cellColor(h),
+                              h > 0 && 'cursor-pointer hover:ring-2 hover:ring-brand-indigo/40 hover:ring-inset'
                             )}
-                            title={`${u.fullname} · ${d.day} ${MONTHS[Number(period.split('-')[1]) - 1]} · ${h}s`}
+                            title={h > 0 ? `${u.fullname} · ${d.day} ${MONTHS[Number(period.split('-')[1]) - 1]} · ${h}s — detay için tıkla` : ''}
                           >
                             {h > 0 ? (Number.isInteger(h) ? h : h.toFixed(1)) : ''}
                           </td>
@@ -244,6 +248,51 @@ export default function TeamCalendar() {
         )}
       </div>
 
+      {/* Hücre detayı — o gün o danışmanın kayıtları */}
+      {cell && (() => {
+        const dayEntries = entries
+          .filter((e) => e.userId === cell.user.id && e.date === cell.date)
+          .sort((a, b) => a.id - b.id);
+        const d = new Date(cell.date + 'T00:00:00');
+        const total = dayEntries.reduce((s, e) => s + qtyToHours(e.qty, e.activity.unit), 0);
+        return (
+          <Modal
+            open
+            onClose={() => setCell(null)}
+            size="md"
+            title={
+              <span>
+                {cell.user.fullname}
+                <span className="text-ink-3 font-normal"> · {d.getDate()} {MONTHS[d.getMonth()]} {d.getFullYear()}</span>
+              </span>
+            }
+          >
+            {dayEntries.length === 0 ? (
+              <div className="text-center py-8 text-ink-3 text-sm">Bu güne kayıt yok</div>
+            ) : (
+              <div className="space-y-2">
+                {dayEntries.map((e) => (
+                  <div key={e.id} className="border border-paper-3 rounded-xl p-3">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="font-semibold text-sm truncate">{e.customer.name}</div>
+                      <span className="tag flex-shrink-0">{e.activity.name}</span>
+                      <span className="font-mono font-bold text-brand-indigo flex-shrink-0">
+                        {fmtHours(qtyToHours(e.qty, e.activity.unit))}
+                      </span>
+                    </div>
+                    {e.ticketId && <div className="text-[11px] font-mono text-ink-3 mb-0.5">🎫 {e.ticketId}</div>}
+                    {e.note && <div className="text-[12px] text-ink-2">{e.note}</div>}
+                  </div>
+                ))}
+                <div className="flex justify-between items-center pt-2 border-t border-paper-3 text-sm">
+                  <span className="text-ink-3 font-semibold">{dayEntries.length} kayıt</span>
+                  <span className="font-mono font-extrabold">{fmtHours(total)}</span>
+                </div>
+              </div>
+            )}
+          </Modal>
+        );
+      })()}
     </div>
   );
 }

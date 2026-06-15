@@ -163,16 +163,19 @@ export default function QuickEntryWizard({
   const [error, setError] = useState<string>('');
   const [calendarOpen, setCalendarOpen] = useState(false);
 
-  const { data: customers = [] } = useQuery({
+  const { data: customersAll = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: () => api.get<Customer[]>('/customers'),
     enabled: open,
   });
-  const { data: activities = [] } = useQuery({
+  const { data: activitiesAll = [] } = useQuery({
     queryKey: ['activities'],
     queryFn: () => api.get<Activity[]>('/activities'),
     enabled: open,
   });
+  // Hızlı kayıt yeni giriş içindir → pasif müşteri/aktivite seçilemesin
+  const customers = customersAll.filter((c) => c.active !== false);
+  const activities = activitiesAll.filter((a) => a.active !== false);
 
   const addMut = useMutation({
     mutationFn: (d: Draft) =>

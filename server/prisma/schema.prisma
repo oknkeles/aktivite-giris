@@ -24,10 +24,11 @@ model User {
 }
 
 model Activity {
-  id    Int    @id @default(autoincrement())
-  name  String
-  unit  String // saat | gün
-  desc  String?
+  id     Int     @id @default(autoincrement())
+  name   String
+  unit   String // saat | gün
+  desc   String?
+  active Boolean @default(true) // pasife çekilince yeni kayıtta seçilemez, geçmiş korunur
 
   rates           CustomerRate[]
   entries         Entry[]
@@ -53,6 +54,7 @@ model Customer {
   contact      String?
   phone        String?
   currency     String  @default("TRY") // TRY | USD | EUR — fiyatların para birimi
+  active       Boolean @default(true) // pasife çekilince yeni kayıtta seçilemez, geçmiş korunur
 
   contractor Contractor     @relation(fields: [contractorId], references: [id], onDelete: Cascade)
   rates      CustomerRate[]

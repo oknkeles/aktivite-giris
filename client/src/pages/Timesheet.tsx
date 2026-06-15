@@ -620,14 +620,14 @@ function DayModal({ date, onClose, entries, customers, activities }: {
           <label className="label">Müşteri / Proje</label>
           <select className="input" value={cusId} onChange={(e) => setCusId(e.target.value ? +e.target.value : '')}>
             <option value="">— Seçin —</option>
-            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {customers.filter((c) => c.active !== false).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div>
           <label className="label">Aktivite Türü</label>
           <select className="input" value={actId} onChange={(e) => setActId(e.target.value ? +e.target.value : '')}>
             <option value="">— Seçin —</option>
-            {activities.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.unit})</option>)}
+            {activities.filter((a) => a.active !== false).map((a) => <option key={a.id} value={a.id}>{a.name} ({a.unit})</option>)}
           </select>
         </div>
       </div>
@@ -741,14 +741,14 @@ function BulkModal({ dates, onClose, customers, activities, onDone }: {
           <label className="label">Müşteri / Proje</label>
           <select className="input" value={cusId} onChange={(e) => setCusId(e.target.value ? +e.target.value : '')}>
             <option value="">— Seçin —</option>
-            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {customers.filter((c) => c.active !== false).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div>
           <label className="label">Aktivite Türü</label>
           <select className="input" value={actId} onChange={(e) => setActId(e.target.value ? +e.target.value : '')}>
             <option value="">— Seçin —</option>
-            {activities.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.unit})</option>)}
+            {activities.filter((a) => a.active !== false).map((a) => <option key={a.id} value={a.id}>{a.name} ({a.unit})</option>)}
           </select>
         </div>
       </div>

@@ -229,7 +229,7 @@ export default function BulkAIEntry({ open, onClose }: { open: boolean; onClose:
                       className="input !py-1.5 !text-xs"
                     >
                       <option value="">— Müşteri —</option>
-                      {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {customers.filter((c) => c.active !== false).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                     <select
                       value={e.activityId || ''}
@@ -237,7 +237,7 @@ export default function BulkAIEntry({ open, onClose }: { open: boolean; onClose:
                       className="input !py-1.5 !text-xs"
                     >
                       <option value="">— Aktivite —</option>
-                      {activities.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      {activities.filter((a) => a.active !== false).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
                     <input
                       type="date"
