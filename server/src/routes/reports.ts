@@ -51,6 +51,7 @@ router.get('/', async (req, res) => {
       discount: disc,
       activityId: e.activity.id,
       activityName: e.activity.name,
+      currency: e.customer.currency,
       dayRate,
       gross,
       net,
@@ -92,34 +93,34 @@ router.get('/dashboard', async (req, res) => {
     const d = new Date(Date.UTC(pYear, pMonth - 1 - i, 1));
     months.push(d.toISOString().slice(0, 7));
   }
-  const trend: Record<string, { period: string; hours: number; net: number }> = {};
-  months.forEach((m) => (trend[m] = { period: m, hours: 0, net: 0 }));
+  // Trend sadece saat (para birimleri karışık olabileceği için tutar trendi gösterilmiyor)
+  const trend: Record<string, { period: string; hours: number }> = {};
+  months.forEach((m) => (trend[m] = { period: m, hours: 0 }));
 
-  // Bu ay müşteri bazında dağılım
-  const byCustomer: Record<number, { id: number; name: string; hours: number; net: number }> = {};
+  // Bu ay müşteri bazında dağılım (her müşteri kendi para biriminde)
+  const byCustomer: Record<number, { id: number; name: string; currency: string; hours: number; net: number }> = {};
   let monthHours = 0;
-  let monthNet = 0;
   let monthCount = 0;
+  const monthByCurrency: Record<string, number> = {}; // para birimi → net toplam
 
   for (const e of entries) {
     const rate = e.customer.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
     const disc = e.customer.contractor.discount || 0;
     const net = (hours / 8) * rate * (1 - disc / 100);
+    const cur = e.customer.currency || 'TRY';
 
     const period = e.date.slice(0, 7);
-    if (trend[period]) {
-      trend[period].hours += hours;
-      trend[period].net += net;
-    }
+    if (trend[period]) trend[period].hours += hours;
 
     if (period === thisPeriod) {
       monthHours += hours;
-      monthNet += net;
       monthCount++;
+      monthByCurrency[cur] = (monthByCurrency[cur] || 0) + net;
       const c = (byCustomer[e.customerId] ??= {
         id: e.customerId,
         name: e.customer.name,
+        currency: cur,
         hours: 0,
         net: 0,
       });
@@ -130,7 +131,7 @@ router.get('/dashboard', async (req, res) => {
 
   res.json({
     period: thisPeriod,
-    month: { hours: monthHours, net: monthNet, count: monthCount },
+    month: { hours: monthHours, count: monthCount, byCurrency: monthByCurrency },
     customers: Object.values(byCustomer).sort((a, b) => b.hours - a.hours),
     trend: months.map((m) => trend[m]),
   });
@@ -194,6 +195,7 @@ router.get('/pdf', async (req: AuthRequest, res) => {
       customerName: customer.name,
       contractorName: customer.contractor.name,
       periodLabel: period || `${from} → ${to}`,
+      currency: customer.currency || 'TRY',
       entries: reportEntries,
       totalHours,
       totalGross,

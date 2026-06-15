@@ -52,6 +52,7 @@ model Customer {
   contractorId Int
   contact      String?
   phone        String?
+  currency     String  @default("TRY") // TRY | USD | EUR — fiyatların para birimi
 
   contractor Contractor     @relation(fields: [contractorId], references: [id], onDelete: Cascade)
   rates      CustomerRate[]

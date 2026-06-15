@@ -64,6 +64,7 @@ export interface ReportContext {
   customerName: string;
   contractorName: string;
   periodLabel: string;
+  currency?: string;
   entries: ReportEntry[];
   totalHours: number;
   totalGross: number;
@@ -83,8 +84,12 @@ const COLORS = {
   paper3: '#E2E8F0',
 };
 
-function fmtMoney(n: number): string {
-  return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
+const CUR_LABEL: Record<string, string> = { TRY: 'TL', USD: 'USD', EUR: 'EUR' };
+
+function makeFmtMoney(currency?: string) {
+  const label = CUR_LABEL[currency || 'TRY'] || 'TL';
+  return (n: number): string =>
+    n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + label;
 }
 
 function fmtDate(s: string): string {
@@ -147,6 +152,7 @@ function drawReport(
 ): void {
   const FONT_BODY = hasRoboto ? 'Body' : 'Helvetica';
   const FONT_BOLD = hasRoboto ? 'Bold' : 'Helvetica-Bold';
+  const fmtMoney = makeFmtMoney(ctx.currency);
 
   const pageW = 595;
   const marginX = 40;

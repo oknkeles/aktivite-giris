@@ -82,6 +82,7 @@ export interface Customer {
   contractorId: number;
   contact?: string | null;
   phone?: string | null;
+  currency?: string | null;
   contractor: Contractor;
   rates: CustomerRate[];
 }
@@ -117,6 +118,7 @@ export interface ReportData {
     discount: number;
     activityId: number;
     activityName: string;
+    currency: string;
     dayRate: number;
     gross: number;
     net: number;

@@ -1,22 +1,31 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, DollarSign, Search, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, Search, X, Loader2, Check } from 'lucide-react';
 import { api, type Customer, type Contractor, type Activity } from '../api/client';
 import { useAuth, isAdmin } from '../store/auth';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
-import { fmtMoney } from '../lib/format';
+import { CURRENCIES, curSymbol } from '../lib/format';
+
+type FormState = {
+  name: string;
+  contractorId: number;
+  contact: string;
+  phone: string;
+  currency: string;
+};
+
+const EMPTY_FORM: FormState = { name: '', contractorId: 0, contact: '', phone: '', currency: 'TRY' };
 
 export default function Customers() {
   const { user } = useAuth();
   const admin = isAdmin(user);
   const qc = useQueryClient();
   const toast = useToast();
-  const [form, setForm] = useState({ name: '', contractorId: 0, contact: '', phone: '' });
-  const [rates, setRates] = useState<Record<number, number>>({});
-  const [editing, setEditing] = useState<Customer | null>(null);
-  const [editRates, setEditRates] = useState<Record<number, number>>({});
+
   const [search, setSearch] = useState('');
+  // modal: kapalı | { yeni } | { düzenle: müşteri }
+  const [editing, setEditing] = useState<Customer | null | 'new'>(null);
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
@@ -31,38 +40,7 @@ export default function Customers() {
     queryFn: () => api.get<Activity[]>('/activities'),
   });
 
-  const addMut = useMutation({
-    mutationFn: () => api.post('/customers', { ...form, rates: Object.fromEntries(Object.entries(rates)) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['customers'] });
-      setForm({ name:'', contractorId: 0, contact:'', phone:'' });
-      setRates({});
-      toast.show('Müşteri eklendi');
-    },
-    onError: (e: any) => toast.show(e.message, 'error'),
-  });
-
-  const delMut = useMutation({
-    mutationFn: (id: number) => api.delete(`/customers/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['customers'] }); toast.show('Silindi'); },
-  });
-
-  const updRatesMut = useMutation({
-    mutationFn: () => api.patch(`/customers/${editing!.id}`, { rates: Object.fromEntries(Object.entries(editRates)) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['customers'] }); setEditing(null); toast.show('Fiyatlar güncellendi'); },
-  });
-
-  function openEdit(c: Customer) {
-    const map: Record<number, number> = {};
-    activities.forEach((a) => {
-      const r = c.rates.find((x) => x.activityId === a.id);
-      map[a.id] = r?.rate || 0;
-    });
-    setEditRates(map);
-    setEditing(c);
-  }
-
-  // Türkçe duyarsız arama (İ/i, ı/I sorunsuz) — müşteri adı + yüklenici adında arar
+  // Türkçe duyarsız arama (müşteri + yüklenici adı)
   const trLower = (s: string) => s.toLocaleLowerCase('tr-TR');
   const filtered = useMemo(() => {
     const q = trLower(search.trim());
@@ -73,50 +51,7 @@ export default function Customers() {
   }, [customers, search]);
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[460px_1fr] gap-5 animate-fade-in">
-      {admin && (
-        <div className="card h-fit">
-          <div className="clabel mb-4">Yeni Müşteri</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            <div><label className="label">Müşteri adı</label><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="ör. THY" /></div>
-            <div><label className="label">Yüklenici</label>
-              <select className="input" value={form.contractorId} onChange={(e) => setForm({ ...form, contractorId: +e.target.value })}>
-                <option value="0">— Seçin —</option>
-                {contractors.map(c => <option key={c.id} value={c.id}>{c.name}{c.discount > 0 ? ` (-%${c.discount})` : ''}</option>)}
-              </select>
-            </div>
-            <div><label className="label">Yetkili</label><input className="input" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></div>
-            <div><label className="label">Telefon</label><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-          </div>
-          {activities.length > 0 && (
-            <>
-              <div className="flex items-center justify-between mb-2">
-                <div className="clabel">Aktivite Fiyatları</div>
-                <div className="text-[10px] text-ink-3">KDV hariç · 1 gün = 8 saat</div>
-              </div>
-              <div className="border border-paper-3 rounded-xl overflow-hidden mb-3">
-                <div className="grid grid-cols-[1fr_60px_140px] bg-paper-2 border-b border-paper-3 px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-ink-3">
-                  <span>Aktivite</span><span>Birim</span><span className="text-right">Günlük Ücret</span>
-                </div>
-                {activities.map((a) => (
-                  <div key={a.id} className="grid grid-cols-[1fr_60px_140px] px-3 py-2 border-b border-paper-3 last:border-0 items-center hover:bg-paper text-sm">
-                    <div className="font-medium truncate">{a.name}</div>
-                    <span className="tag !text-[10px]">{a.unit}</span>
-                    <div className="flex border border-paper-3 rounded-lg overflow-hidden focus-within:border-brand-indigo focus-within:ring-4 focus-within:ring-brand-indigo/10">
-                      <input type="number" className="w-full px-2 py-1 text-right font-mono text-xs outline-none" value={rates[a.id] || 0} onChange={(e) => setRates({ ...rates, [a.id]: +e.target.value })} />
-                      <span className="px-2 text-[10px] font-mono text-ink-3 bg-paper-2 border-l border-paper-3 flex items-center">₺/gün</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          <button className="btn btn-primary w-full" disabled={!form.name || !form.contractorId || addMut.isPending} onClick={() => addMut.mutate()}>
-            <Plus size={16} /> Müşteri Ekle
-          </button>
-        </div>
-      )}
-
+    <div className="space-y-4 animate-fade-in">
       <div className="card">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="clabel">
@@ -125,21 +60,25 @@ export default function Customers() {
               {search ? `${filtered.length} / ${customers.length}` : `(${customers.length})`}
             </span>
           </div>
-          {/* Arama */}
-          <div className="relative w-full sm:w-72">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
-            <input
-              className="input !pl-9 !pr-8 !py-2 text-sm"
-              placeholder="Müşteri veya yüklenici ara..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink"
-              >
-                <X size={14} />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Arama */}
+            <div className="relative flex-1 sm:w-72">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
+              <input
+                className="input !pl-9 !pr-8 !py-2 text-sm"
+                placeholder="Müşteri veya yüklenici ara..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            {admin && (
+              <button className="btn btn-primary btn-sm whitespace-nowrap" onClick={() => setEditing('new')}>
+                <Plus size={15} /> Yeni Müşteri
               </button>
             )}
           </div>
@@ -148,7 +87,7 @@ export default function Customers() {
         {customers.length === 0 ? (
           <div className="text-center py-12 text-ink-3">
             <div className="text-4xl mb-3 animate-pulse-slow">👤</div>
-            <div className="text-sm">Henüz eklenmedi</div>
+            <div className="text-sm">Henüz müşteri eklenmedi</div>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-ink-3">
@@ -157,19 +96,19 @@ export default function Customers() {
           </div>
         ) : (
           <div className="border border-paper-3 rounded-xl overflow-hidden">
-            {/* Liste başlığı */}
-            <div className="grid grid-cols-[1fr_140px_110px_80px] gap-2 bg-paper-2 border-b border-paper-3 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-ink-3">
+            <div className="grid grid-cols-[1fr_140px_60px_110px_48px] gap-2 bg-paper-2 border-b border-paper-3 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-ink-3">
               <span>Müşteri</span>
               <span className="hidden sm:block">Yüklenici</span>
+              <span className="hidden sm:block">Birim</span>
               <span className="hidden sm:block">Fiyatlama</span>
-              <span className="text-right">{admin ? 'İşlem' : ''}</span>
+              <span className="text-right">{admin ? '' : ''}</span>
             </div>
             {filtered.map((c) => {
               const ratedCount = c.rates.filter(r => r.rate > 0).length;
               return (
                 <div
                   key={c.id}
-                  className="grid grid-cols-[1fr_140px_110px_80px] gap-2 items-center px-4 py-2.5 border-b border-paper-3 last:border-0 hover:bg-paper transition text-sm"
+                  className="grid grid-cols-[1fr_140px_60px_110px_48px] gap-2 items-center px-4 py-2.5 border-b border-paper-3 last:border-0 hover:bg-paper transition text-sm"
                 >
                   <div className="font-semibold truncate">{c.name}</div>
                   <div className="hidden sm:flex items-center gap-1.5 min-w-0">
@@ -178,15 +117,15 @@ export default function Customers() {
                       <span className="badge bg-brand-amber/15 text-[#B45309] flex-shrink-0">-%{c.contractor.discount}</span>
                     )}
                   </div>
+                  <div className="hidden sm:block font-mono text-ink-2 font-semibold">{curSymbol(c.currency)}</div>
                   <div className={`hidden sm:block text-[11px] font-mono ${ratedCount === 0 ? 'text-brand-rose' : 'text-ink-3'}`}>
                     {ratedCount}/{activities.length} aktivite
                   </div>
-                  <div className="flex justify-end gap-1">
+                  <div className="flex justify-end">
                     {admin && (
-                      <>
-                        <button onClick={() => openEdit(c)} className="text-brand-emerald hover:bg-brand-emerald/10 p-1.5 rounded-lg transition" title="Fiyat güncelle"><DollarSign size={13} /></button>
-                        <button onClick={() => delMut.mutate(c.id)} className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg transition" title="Sil"><Trash2 size={13} /></button>
-                      </>
+                      <button onClick={() => setEditing(c)} className="text-brand-indigo hover:bg-brand-indigo/10 p-2 rounded-lg transition" title="Düzenle">
+                        <Pencil size={14} />
+                      </button>
                     )}
                   </div>
                 </div>
@@ -196,27 +135,178 @@ export default function Customers() {
         )}
       </div>
 
-      {editing && (
-        <Modal open onClose={() => setEditing(null)} size="md"
-          title={<><strong>{editing.name}</strong> <span className="text-ink-3 font-normal">— {editing.contractor.name}</span></>}
-          footer={<><button className="btn" onClick={() => setEditing(null)}>İptal</button><button className="btn btn-primary" onClick={() => updRatesMut.mutate()}>Kaydet</button></>}>
-          <div className="border border-paper-3 rounded-xl overflow-hidden">
-            <div className="grid grid-cols-[1fr_60px_140px] bg-paper-2 border-b border-paper-3 px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-ink-3">
-              <span>Aktivite</span><span>Birim</span><span className="text-right">Günlük Ücret</span>
-            </div>
-            {activities.map((a) => (
-              <div key={a.id} className="grid grid-cols-[1fr_60px_140px] px-3 py-2 border-b border-paper-3 last:border-0 items-center">
-                <div className="font-medium truncate">{a.name}</div>
-                <span className="tag !text-[10px]">{a.unit}</span>
-                <div className="flex border border-paper-3 rounded-lg overflow-hidden focus-within:border-brand-indigo focus-within:ring-4 focus-within:ring-brand-indigo/10">
-                  <input type="number" className="w-full px-2 py-1 text-right font-mono text-xs outline-none" value={editRates[a.id] ?? 0} onChange={(e) => setEditRates({ ...editRates, [a.id]: +e.target.value })} />
-                  <span className="px-2 text-[10px] font-mono text-ink-3 bg-paper-2 border-l border-paper-3 flex items-center">₺/gün</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Modal>
+      {editing !== null && admin && (
+        <CustomerModal
+          customer={editing === 'new' ? null : editing}
+          contractors={contractors}
+          activities={activities}
+          onClose={() => setEditing(null)}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ['customers'] }); setEditing(null); }}
+        />
       )}
     </div>
+  );
+}
+
+// ── Ekle/Düzenle modal'ı (tek form) ────────────────────────
+function CustomerModal({
+  customer, contractors, activities, onClose, onSaved,
+}: {
+  customer: Customer | null; // null = yeni
+  contractors: Contractor[];
+  activities: Activity[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const isNew = !customer;
+
+  const [form, setForm] = useState<FormState>(
+    customer
+      ? {
+          name: customer.name,
+          contractorId: customer.contractorId,
+          contact: customer.contact || '',
+          phone: customer.phone || '',
+          currency: customer.currency || 'TRY',
+        }
+      : EMPTY_FORM
+  );
+  const [rates, setRates] = useState<Record<number, number>>(() => {
+    const map: Record<number, number> = {};
+    activities.forEach((a) => {
+      map[a.id] = customer?.rates.find((r) => r.activityId === a.id)?.rate || 0;
+    });
+    return map;
+  });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const saveMut = useMutation({
+    mutationFn: () => {
+      const payload = { ...form, rates: Object.fromEntries(Object.entries(rates)) };
+      return isNew
+        ? api.post('/customers', payload)
+        : api.patch(`/customers/${customer!.id}`, payload);
+    },
+    onSuccess: () => {
+      toast.show(isNew ? 'Müşteri eklendi' : 'Müşteri güncellendi');
+      onSaved();
+    },
+    onError: (e: any) => toast.show(e.message || 'Hata', 'error'),
+  });
+
+  const delMut = useMutation({
+    mutationFn: () => api.delete(`/customers/${customer!.id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      toast.show('Müşteri silindi');
+      onClose();
+    },
+    onError: (e: any) => toast.show(e.message || 'Silinemedi', 'error'),
+  });
+
+  const sym = curSymbol(form.currency);
+  const valid = form.name.trim() && form.contractorId > 0;
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="md"
+      title={isNew ? 'Yeni Müşteri' : <><strong>{customer!.name}</strong> <span className="text-ink-3 font-normal">düzenle</span></>}
+      footer={
+        <div className="flex items-center justify-between w-full gap-2">
+          {/* Sol: silme (sadece düzenlemede) */}
+          <div>
+            {!isNew && (
+              confirmDelete ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-ink-3">Emin misin?</span>
+                  <button onClick={() => delMut.mutate()} disabled={delMut.isPending} className="btn btn-sm !bg-brand-rose !text-white">
+                    {delMut.isPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} Sil
+                  </button>
+                  <button onClick={() => setConfirmDelete(false)} className="btn btn-sm">Vazgeç</button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmDelete(true)} className="text-brand-rose hover:bg-brand-rose/10 p-2 rounded-lg transition" title="Müşteriyi sil">
+                  <Trash2 size={15} />
+                </button>
+              )
+            )}
+          </div>
+          {/* Sağ: kaydet */}
+          <div className="flex items-center gap-2">
+            <button className="btn" onClick={onClose}>İptal</button>
+            <button className="btn btn-primary" disabled={!valid || saveMut.isPending} onClick={() => saveMut.mutate()}>
+              {saveMut.isPending ? (
+                <><Loader2 size={14} className="animate-spin" /> Kaydediliyor...</>
+              ) : (
+                <><Check size={14} /> {isNew ? 'Müşteri Ekle' : 'Güncelle'}</>
+              )}
+            </button>
+          </div>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="label">Müşteri adı</label>
+            <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="ör. THY" />
+          </div>
+          <div>
+            <label className="label">Yüklenici</label>
+            <select className="input" value={form.contractorId} onChange={(e) => setForm({ ...form, contractorId: +e.target.value })}>
+              <option value="0">— Seçin —</option>
+              {contractors.map((c) => <option key={c.id} value={c.id}>{c.name}{c.discount > 0 ? ` (-%${c.discount})` : ''}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Yetkili</label>
+            <input className="input" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">Telefon</label>
+            <input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">Para Birimi</label>
+            <select className="input" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+              {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {activities.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="clabel">Aktivite Fiyatları</div>
+              <div className="text-[10px] text-ink-3">{sym} · KDV hariç · 1 gün = 8 saat</div>
+            </div>
+            <div className="border border-paper-3 rounded-xl overflow-hidden">
+              <div className="grid grid-cols-[1fr_60px_140px] bg-paper-2 border-b border-paper-3 px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-ink-3">
+                <span>Aktivite</span><span>Birim</span><span className="text-right">Günlük Ücret</span>
+              </div>
+              {activities.map((a) => (
+                <div key={a.id} className="grid grid-cols-[1fr_60px_140px] px-3 py-2 border-b border-paper-3 last:border-0 items-center hover:bg-paper text-sm">
+                  <div className="font-medium truncate">{a.name}</div>
+                  <span className="tag !text-[10px]">{a.unit}</span>
+                  <div className="flex border border-paper-3 rounded-lg overflow-hidden focus-within:border-brand-indigo focus-within:ring-4 focus-within:ring-brand-indigo/10">
+                    <input
+                      type="number"
+                      className="w-full px-2 py-1 text-right font-mono text-xs outline-none"
+                      value={rates[a.id] ?? 0}
+                      onChange={(e) => setRates({ ...rates, [a.id]: +e.target.value })}
+                    />
+                    <span className="px-2 text-[10px] font-mono text-ink-3 bg-paper-2 border-l border-paper-3 flex items-center">{sym}/gün</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }

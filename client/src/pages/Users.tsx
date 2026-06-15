@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, Phone, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Pencil, Phone, Sparkles, Loader2, Check } from 'lucide-react';
 import clsx from 'clsx';
 import { api, type Activity } from '../api/client';
 import { useAuth } from '../store/auth';
@@ -147,7 +147,7 @@ export default function Users() {
             </select>
           </div>
           <button className="btn btn-primary w-full" disabled={!form.username || !form.password || addMut.isPending} onClick={() => addMut.mutate()}>
-            <Plus size={16} /> Kullanıcı Ekle
+            {addMut.isPending ? <><Loader2 size={16} className="animate-spin" /> Ekleniyor...</> : <><Plus size={16} /> Kullanıcı Ekle</>}
           </button>
         </div>
       </div>
@@ -201,7 +201,7 @@ export default function Users() {
                     </div>
                   </div>
                   <div className="flex gap-2 pt-2">
-                    <button className="btn btn-primary" disabled={updateMut.isPending} onClick={() => updateMut.mutate()}>Kaydet</button>
+                    <button className="btn btn-primary" disabled={updateMut.isPending} onClick={() => updateMut.mutate()}>{updateMut.isPending ? <><Loader2 size={14} className="animate-spin" /> Kaydediliyor...</> : <><Check size={14} /> Kaydet</>}</button>
                     <button className="btn" onClick={() => setEditingId(null)}>İptal</button>
                   </div>
                 </div>

@@ -6,13 +6,13 @@ import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Clock, Banknote, ListChecks, ChevronLeft, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../api/client';
-import { fmtHours, fmtMoney, MONTHS } from '../lib/format';
+import { fmtHours, fmtMoney, curSymbol, fmtMoneyByCurrency, MONTHS } from '../lib/format';
 
 interface DashboardData {
   period: string;
-  month: { hours: number; net: number; count: number };
-  customers: { id: number; name: string; hours: number; net: number }[];
-  trend: { period: string; hours: number; net: number }[];
+  month: { hours: number; count: number; byCurrency: Record<string, number> };
+  customers: { id: number; name: string; currency: string; hours: number; net: number }[];
+  trend: { period: string; hours: number }[];
 }
 
 function periodLabel(p: string): string {
@@ -99,7 +99,7 @@ export default function Dashboard() {
             <MetricCard
               icon={<Banknote size={15} />}
               label="Faturalanacak Tutar"
-              value={`${fmtMoney(data.month.net)} ₺`}
+              value={fmtMoneyByCurrency(data.month.byCurrency)}
               accent
             />
           </div>
@@ -122,7 +122,7 @@ export default function Dashboard() {
                         <div className="flex items-center justify-between text-[12px] mb-1">
                           <span className="font-semibold text-ink">{c.name}</span>
                           <span className="font-mono text-ink-2">
-                            {fmtHours(c.hours)} · {fmtMoney(c.net)} ₺
+                            {fmtHours(c.hours)} · {fmtMoney(c.net)} {curSymbol(c.currency)}
                           </span>
                         </div>
                         <div className="h-2.5 rounded-full bg-paper-2 overflow-hidden">
@@ -170,11 +170,12 @@ function MetricCard({ icon, label, value, accent = false }: {
   );
 }
 
-// Saat = bar, tutar = bar altı etiket. El yapımı SVG — kütüphane gerektirmez.
-function TrendChart({ trend }: { trend: { period: string; hours: number; net: number }[] }) {
+// Aylık saat trendi — el yapımı SVG (kütüphane gerektirmez).
+// Tutar gösterilmiyor: müşteriler farklı para biriminde olabilir, toplamı karışır.
+function TrendChart({ trend }: { trend: { period: string; hours: number }[] }) {
   const W = 460;
-  const H = 170;
-  const padB = 38; // ay + tutar etiketi alanı
+  const H = 150;
+  const padB = 24; // ay etiketi alanı
   const padT = 18;
   const maxH = Math.max(...trend.map((t) => t.hours), 1);
   const barW = 38;
@@ -209,18 +210,11 @@ function TrendChart({ trend }: { trend: { period: string; hours: number; net: nu
               >
                 {periodLabelShort(t.period)}
               </text>
-              {/* Tutar */}
-              <text
-                x={x + barW / 2} y={H - padB + 28} textAnchor="middle"
-                className="fill-ink-3 font-mono" fontSize={9}
-              >
-                {t.net > 0 ? `${Math.round(t.net / 1000)}K` : '—'}
-              </text>
             </g>
           );
         })}
       </svg>
-      <div className="text-[10px] text-ink-3 mt-1 text-right">bar = saat · alt satır = tutar (bin ₺)</div>
+      <div className="text-[10px] text-ink-3 mt-1 text-right">aylık toplam çalışma saati</div>
     </div>
   );
 }

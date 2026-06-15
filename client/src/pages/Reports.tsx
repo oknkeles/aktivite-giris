@@ -4,7 +4,7 @@ import { FileDown, BarChart3, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { api, type ReportData, type Customer } from '../api/client';
 import { useToast } from '../components/Toast';
-import { fmtHours, fmtMoney } from '../lib/format';
+import { fmtHours, fmtMoney, curSymbol, fmtMoneyByCurrency } from '../lib/format';
 
 export default function Reports() {
   const toast = useToast();
@@ -31,12 +31,12 @@ export default function Reports() {
     },
   });
 
-  // Müşteri → aktivite grupla (yüklenici kaldırıldı, sadece net tutar)
+  // Müşteri → aktivite grupla (her müşteri kendi para biriminde)
   const customerGroups: Record<string, any> = {};
   report?.entries.forEach((e) => {
     const key = e.customerName;
     if (!customerGroups[key]) {
-      customerGroups[key] = { name: key, id: e.customerId, acts: {}, net: 0, hours: 0 };
+      customerGroups[key] = { name: key, id: e.customerId, currency: e.currency || 'TRY', acts: {}, net: 0, hours: 0 };
     }
     const cu = customerGroups[key];
     const ag = cu.acts[e.activityName] = cu.acts[e.activityName] || { name: e.activityName, hours: 0, days: 0, net: 0 };
@@ -45,6 +45,13 @@ export default function Reports() {
     ag.net += e.net;
     cu.net += e.net;
     cu.hours += e.hours;
+  });
+
+  // Toplam tutar para birimine göre (karışık olabilir)
+  const totalByCurrency: Record<string, number> = {};
+  report?.entries.forEach((e) => {
+    const c = e.currency || 'TRY';
+    totalByCurrency[c] = (totalByCurrency[c] || 0) + e.net;
   });
 
   function downloadPdf(customerId: number, customerName: string) {
@@ -97,31 +104,29 @@ export default function Reports() {
     if (!report?.entries.length) return toast.show('Rapor boş', 'error');
     const wb = XLSX.utils.book_new();
 
-    // Sheet 1: Detay — Yüklenici/Brüt/İskonto kolonları kaldırıldı
-    const detail: any[][] = [['Tarih', 'Müşteri', 'Aktivite', 'Talep ID', 'Açıklama', 'Saat', 'Gün', 'Tutar (TL)']];
+    // Sheet 1: Detay — para birimi kolonu eklendi (müşteri bazında farklı olabilir)
+    const detail: any[][] = [['Tarih', 'Müşteri', 'Aktivite', 'Talep ID', 'Açıklama', 'Saat', 'Gün', 'Tutar', 'Para Birimi']];
     report.entries.forEach(e => {
       detail.push([
         e.date, e.customerName, e.activityName,
         e.ticketId || '', e.note || '',
         +e.hours.toFixed(2), +e.days.toFixed(2),
-        +e.net.toFixed(2),
+        +e.net.toFixed(2), e.currency || 'TRY',
       ]);
     });
-    detail.push(['', '', 'TOPLAM', '', '', +report.totalHours.toFixed(2), +(report.totalHours / 8).toFixed(2), +report.totalNet.toFixed(2)]);
     const ws1 = XLSX.utils.aoa_to_sheet(detail);
-    ws1['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 18 }, { wch: 14 }, { wch: 36 }, { wch: 10 }, { wch: 10 }, { wch: 14 }];
+    ws1['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 18 }, { wch: 14 }, { wch: 36 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws1, 'Detay');
 
     // Sheet 2: Müşteri × Aktivite özeti
-    const summary: any[][] = [['Müşteri', 'Aktivite', 'Saat', 'Gün', 'Tutar (TL)']];
+    const summary: any[][] = [['Müşteri', 'Aktivite', 'Saat', 'Gün', 'Tutar', 'Para Birimi']];
     Object.values(customerGroups).forEach((cu: any) => {
       Object.values(cu.acts).forEach((ag: any) => {
-        summary.push([cu.name, ag.name, +ag.hours.toFixed(2), +ag.days.toFixed(2), +ag.net.toFixed(2)]);
+        summary.push([cu.name, ag.name, +ag.hours.toFixed(2), +ag.days.toFixed(2), +ag.net.toFixed(2), cu.currency]);
       });
     });
-    summary.push(['', 'TOPLAM', +report.totalHours.toFixed(2), +(report.totalHours / 8).toFixed(2), +report.totalNet.toFixed(2)]);
     const ws2 = XLSX.utils.aoa_to_sheet(summary);
-    ws2['!cols'] = [{ wch: 22 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 14 }];
+    ws2['!cols'] = [{ wch: 22 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws2, 'Özet');
 
     XLSX.writeFile(wb, `rapor_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -165,7 +170,7 @@ export default function Reports() {
           <div className="grid grid-cols-3 gap-3">
             <MetricCard label="Toplam Saat" value={fmtHours(report.totalHours)} grad="grad-primary" />
             <MetricCard label="Kayıt Sayısı" value={String(report.count)} grad="" />
-            <MetricCard label="Toplam Tutar" value={`${fmtMoney(report.totalNet)} ₺`} grad="grad-mint" />
+            <MetricCard label="Toplam Tutar" value={fmtMoneyByCurrency(totalByCurrency)} grad="grad-mint" />
           </div>
 
           {Object.values(customerGroups).length === 0 && (
@@ -185,7 +190,7 @@ export default function Reports() {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-xs font-mono text-white/70">{fmtHours(cu.hours)}</span>
-                  <span className="font-mono font-bold text-brand-emerald">{fmtMoney(cu.net)} ₺</span>
+                  <span className="font-mono font-bold text-brand-emerald">{fmtMoney(cu.net)} {curSymbol(cu.currency)}</span>
                   <button
                     onClick={() => downloadPdf(cu.id, cu.name)}
                     className="text-white hover:bg-white/10 px-2 py-1 rounded-md transition flex items-center gap-1 text-[11px] font-semibold border border-white/20"
@@ -200,7 +205,7 @@ export default function Reports() {
                   <span className="text-ink-2 flex-1">{ag.name}</span>
                   <span className="tag mr-3 hidden sm:inline-block">{ag.days.toFixed(2)} gün</span>
                   <span className="tag mr-3">{fmtHours(ag.hours)}</span>
-                  <span className="font-mono font-bold min-w-24 text-right">{fmtMoney(ag.net)} ₺</span>
+                  <span className="font-mono font-bold min-w-24 text-right">{fmtMoney(ag.net)} {curSymbol(cu.currency)}</span>
                 </div>
               ))}
             </div>

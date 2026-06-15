@@ -20,6 +20,7 @@ const schema = z.object({
   contractorId: z.number().int(),
   contact: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
+  currency: z.enum(['TRY', 'USD', 'EUR']).optional(),
   rates: z.record(z.string(), z.number()).optional(), // activityId → rate
 });
 

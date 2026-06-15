@@ -22,8 +22,16 @@ function trNow(): Date {
   return new Date(Date.now() + 3 * 60 * 60 * 1000);
 }
 
-function fmtMoney(n: number): string {
-  return n.toLocaleString('tr-TR', { maximumFractionDigits: 0 }) + ' TL';
+const CUR_LABEL: Record<string, string> = { TRY: 'TL', USD: 'USD', EUR: 'EUR' };
+function fmtCur(n: number, currency = 'TRY'): string {
+  return n.toLocaleString('tr-TR', { maximumFractionDigits: 0 }) + ' ' + (CUR_LABEL[currency] || 'TL');
+}
+// {TRY: 1200, USD: 400} → "1.200 TL · 400 USD"
+function fmtByCurrency(byCur: Record<string, number>): string {
+  const parts = Object.entries(byCur)
+    .filter(([, v]) => Math.abs(v) > 0.5)
+    .map(([c, v]) => fmtCur(v, c));
+  return parts.length ? parts.join(' · ') : '0 TL';
 }
 
 async function buildSummary(): Promise<string | null> {
@@ -44,30 +52,31 @@ async function buildSummary(): Promise<string | null> {
   if (!entries.length) return `${SUMMARY_PREFIX} — ${label}\n\nGeçen ay hiç kayıt girilmemiş.`;
 
   let totalHours = 0;
-  let totalNet = 0;
-  const byCustomer: Record<string, { hours: number; net: number }> = {};
+  const totalByCurrency: Record<string, number> = {};
+  const byCustomer: Record<string, { hours: number; net: number; currency: string }> = {};
 
   for (const e of entries) {
     const rate = e.customer.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
     const disc = e.customer.contractor.discount || 0;
     const net = (hours / 8) * rate * (1 - disc / 100);
+    const cur = e.customer.currency || 'TRY';
     totalHours += hours;
-    totalNet += net;
-    const c = (byCustomer[e.customer.name] ??= { hours: 0, net: 0 });
+    totalByCurrency[cur] = (totalByCurrency[cur] || 0) + net;
+    const c = (byCustomer[e.customer.name] ??= { hours: 0, net: 0, currency: cur });
     c.hours += hours;
     c.net += net;
   }
 
   const customerLines = Object.entries(byCustomer)
     .sort((a, b) => b[1].hours - a[1].hours)
-    .map(([name, v]) => `• ${name}: ${v.hours.toFixed(1)}s · ${fmtMoney(v.net)}`)
+    .map(([name, v]) => `• ${name}: ${v.hours.toFixed(1)}s · ${fmtCur(v.net, v.currency)}`)
     .join('\n');
 
   return (
     `${SUMMARY_PREFIX} — ${label}\n\n` +
     `⏱ Toplam: ${totalHours.toFixed(1)} saat (${entries.length} kayıt)\n` +
-    `💰 Tutar: ${fmtMoney(totalNet)}\n\n` +
+    `💰 Tutar: ${fmtByCurrency(totalByCurrency)}\n\n` +
     `Müşteri dağılımı:\n${customerLines}\n\n` +
     `Detay için: activity.tdevco.com → Raporlar`
   );

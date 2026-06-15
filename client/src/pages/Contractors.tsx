@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil } from 'lucide-react';
+import { Plus, Trash2, Pencil, Loader2, Check } from 'lucide-react';
 import { api, type Contractor } from '../api/client';
 import { useAuth, isAdmin } from '../store/auth';
 import { useToast } from '../components/Toast';
@@ -52,6 +52,7 @@ export default function Contractors() {
             </div>
           </div>
           <button className="btn btn-primary w-full mt-4" disabled={!form.name || addMut.isPending} onClick={() => addMut.mutate()}>
+            {addMut.isPending && <Loader2 size={15} className="animate-spin" />}
             <Plus size={16} /> Yüklenici Ekle
           </button>
         </div>
@@ -94,7 +95,7 @@ export default function Contractors() {
 
       {editing && (
         <Modal open onClose={() => setEditing(null)} title="Yüklenici Düzenle" size="md"
-          footer={<><button className="btn" onClick={() => setEditing(null)}>İptal</button><button className="btn btn-primary" onClick={() => updMut.mutate(editing)}>Kaydet</button></>}>
+          footer={<><button className="btn" onClick={() => setEditing(null)}>İptal</button><button className="btn btn-primary" disabled={updMut.isPending} onClick={() => updMut.mutate(editing)}>{updMut.isPending ? <><Loader2 size={14} className="animate-spin" /> Kaydediliyor...</> : <><Check size={14} /> Kaydet</>}</button></>}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2"><label className="label">Şirket adı</label><input className="input" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
             <div><label className="label">Yetkili</label><input className="input" value={editing.contact || ''} onChange={(e) => setEditing({ ...editing, contact: e.target.value })} /></div>

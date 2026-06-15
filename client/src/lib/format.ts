@@ -7,6 +7,25 @@ export function fmtMoney(n: number): string {
   });
 }
 
+// Para birimi — müşteri bazında fiyatlar farklı para biriminde olabilir.
+export const CURRENCIES = [
+  { code: 'TRY', symbol: '₺', label: '₺ TL' },
+  { code: 'USD', symbol: '$', label: '$ Dolar' },
+  { code: 'EUR', symbol: '€', label: '€ Euro' },
+];
+
+export function curSymbol(code?: string | null): string {
+  return CURRENCIES.find((c) => c.code === code)?.symbol || '₺';
+}
+
+// {TRY: 1200, USD: 400} → "1.200,00 ₺ · 400,00 $" (sıfır olanlar atlanır)
+export function fmtMoneyByCurrency(byCur: Record<string, number>): string {
+  const parts = Object.entries(byCur)
+    .filter(([, v]) => Math.abs(v) > 0.001)
+    .map(([code, v]) => `${fmtMoney(v)} ${curSymbol(code)}`);
+  return parts.length ? parts.join(' · ') : '0,00 ₺';
+}
+
 export function fmtHours(h: number): string {
   return parseFloat(h.toFixed(4)) % 1 === 0 ? `${h.toFixed(0)}s` : `${h.toFixed(1)}s`;
 }
