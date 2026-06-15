@@ -99,6 +99,13 @@ export default function TeamCalendar() {
   );
   const grandTotal = dayTotals.reduce((s, h) => s + h, 0);
 
+  function cellColor(h: number): string {
+    if (h <= 0) return '';
+    if (h < 8) return 'bg-brand-amber/20 text-[#92400E]';
+    if (h <= 8.5) return 'bg-brand-emerald/20 text-brand-emerald';
+    return 'bg-brand-indigo/20 text-brand-indigo';
+  }
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Üst bar: ay gezintisi */}
@@ -194,7 +201,7 @@ export default function TeamCalendar() {
                             key={d.day}
                             className={clsx(
                               'text-center border-b border-l border-paper-3 font-mono font-semibold tabular-nums',
-                              h > 0 ? 'bg-brand-indigo/10 text-brand-indigo' : d.nonwork ? 'bg-paper-3/30' : ''
+                              d.nonwork && h <= 0 ? 'bg-paper-3/30' : cellColor(h)
                             )}
                             title={`${u.fullname} · ${d.day} ${MONTHS[Number(period.split('-')[1]) - 1]} · ${h}s`}
                           >
@@ -209,7 +216,7 @@ export default function TeamCalendar() {
                         <div className="flex items-center gap-1">
                           <div className="flex-1 h-1.5 rounded-full bg-paper-2 overflow-hidden">
                             <div
-                              className="h-full rounded-full bg-brand-indigo"
+                              className={clsx('h-full rounded-full', fillPct >= 90 ? 'bg-brand-emerald' : fillPct >= 50 ? 'bg-brand-amber' : 'bg-brand-rose')}
                               style={{ width: `${Math.min(fillPct, 100)}%` }}
                             />
                           </div>
@@ -237,12 +244,6 @@ export default function TeamCalendar() {
         )}
       </div>
 
-      {/* Açıklama */}
-      <div className="flex flex-wrap items-center gap-4 text-[11px] text-ink-3 px-1">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-brand-indigo/10 border border-brand-indigo/20" /> Saat girişi olan gün</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-paper-3/60 border border-paper-3" /> Hafta sonu / tatil</span>
-        <span className="ml-auto italic">Doluluk = girilen saat ÷ (iş günü × 8) · bu ay {workdayCount} iş günü</span>
-      </div>
     </div>
   );
 }
