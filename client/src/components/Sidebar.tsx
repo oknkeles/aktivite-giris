@@ -13,6 +13,11 @@ const ENTRY_ITEMS = [
   { to: '/entries', icon: List, label: 'Tüm Aktiviteler' },
 ];
 
+// Giriş bölümünde ama sadece admin görür (Timesheet'in hemen altında)
+const ENTRY_ADMIN_ITEMS = [
+  { to: '/team', icon: CalendarRange, label: 'Ekip Takvimi' },
+];
+
 const ADMIN_ITEMS = [
   { to: '/activities', icon: CheckSquare, label: 'Aktivite Türleri' },
   { to: '/contractors', icon: Briefcase, label: 'Yükleniciler' },
@@ -24,7 +29,6 @@ const ADMIN_ITEMS = [
 
 const FINANCE_ITEMS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/team', icon: CalendarRange, label: 'Ekip Takvimi' },
   { to: '/reports', icon: BarChart3, label: 'Raporlar' },
 ];
 
@@ -114,6 +118,9 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
               Giriş
             </div>
             {ENTRY_ITEMS.map((it) => (
+              <NavItem key={it.to} {...it} onNav={() => setMobileOpen(false)} />
+            ))}
+            {admin && ENTRY_ADMIN_ITEMS.map((it) => (
               <NavItem key={it.to} {...it} onNav={() => setMobileOpen(false)} />
             ))}
           </div>
