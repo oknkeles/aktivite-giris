@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileDown, FileUp, Trash2, Edit3, X, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -18,9 +18,14 @@ export default function Entries() {
   const admin = isAdmin(me);
 
   const [cusFilter, setCusFilter] = useState('');
-  const [monthFilter, setMonthFilter] = useState('');
+  // Varsayılan: içinde bulunulan ay
+  const [monthFilter, setMonthFilter] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
   // Admin için kullanıcı filtresi: '' (kendi) | 'all' (hepsi) | userId string
-  const [userFilter, setUserFilter] = useState<string>('');
+  // Varsayılan: admin ise herkes, normal kullanıcı ise kendisi
+  const [userFilter, setUserFilter] = useState<string>(admin ? 'all' : '');
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   // Bulk selection
@@ -107,8 +112,26 @@ export default function Entries() {
 
   const months = useMemo(() => {
     const set = new Set(entries.map(e => e.date.substring(0, 7)));
+    // İçinde bulunulan ay listede yoksa (o aya kayıt yoksa) yine de seçilebilsin
+    const cur = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    set.add(cur);
     return [...set].sort().reverse();
   }, [entries]);
+
+  // Kişi kişi kırılım — kullanıcıya göre grupla, ada göre sıralı; her grup içinde gün (tarih) azalan
+  const personGroups = useMemo(() => {
+    const map = new Map<number, { user: { id: number; fullname: string }; entries: Entry[]; hours: number }>();
+    for (const e of filtered) {
+      const g = map.get(e.userId) ?? map.set(e.userId, { user: e.user, entries: [], hours: 0 }).get(e.userId)!;
+      g.entries.push(e);
+      g.hours += entryHours(e);
+    }
+    const groups = [...map.values()];
+    groups.forEach((g) => g.entries.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id)));
+    return groups.sort((a, b) => a.user.fullname.localeCompare(b.user.fullname, 'tr'));
+  }, [filtered]);
+
+  const showGroups = personGroups.length > 1;
 
   function exportExcel() {
     if (!filtered.length) return toast.show('Aktarılacak kayıt yok', 'error');
@@ -265,79 +288,95 @@ export default function Entries() {
                   <th className="text-left py-3">Talep ID</th>
                   <th className="text-left py-3">Açıklama</th>
                   <th className="text-right py-3">Saat</th>
-                  <th className="text-right py-3">Giren</th>
                   <th className="px-5 sm:px-6 py-3"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-paper-3">
-                {filtered.map((e) => {
-                  const d = new Date(e.date + 'T00:00:00');
-                  const isSelected = selectedIds.has(e.id);
-                  return (
-                    <tr key={e.id} className={clsx('hover:bg-paper transition-colors', isSelected && 'bg-brand-indigo/5')}>
-                      <td className="px-5 sm:px-6 py-3">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(ev) => {
-                            setSelectedIds((prev) => {
-                              const next = new Set(prev);
-                              if (ev.target.checked) next.add(e.id);
-                              else next.delete(e.id);
-                              return next;
-                            });
-                          }}
-                          className="w-4 h-4 accent-brand-indigo cursor-pointer"
-                        />
-                      </td>
-                      <td className="py-3 font-mono text-[11px] text-ink-3 whitespace-nowrap">
-                        {d.getDate()} {MONTHS[d.getMonth()].substring(0, 3)} {d.getFullYear()}
-                      </td>
-                      <td className="py-3 font-semibold">{e.customer.name}</td>
-                      <td className="py-3 text-ink-2">{e.activity.name}</td>
-                      <td className="py-3">
-                        {e.ticketId ? (
-                          <span className="badge bg-brand-violet/15 text-brand-violet font-mono !text-[10.5px]">
-                            🎫 {e.ticketId}
-                          </span>
-                        ) : <span className="text-ink-4 text-[11px]">—</span>}
-                      </td>
-                      <td className="py-3 text-[11.5px] text-ink-3 max-w-[280px]">
-                        {e.note ? (
-                          <span className="line-clamp-2 whitespace-pre-wrap" title={e.note}>{e.note}</span>
-                        ) : <span className="text-ink-4">—</span>}
-                      </td>
-                      <td className="py-3 text-right"><span className="tag font-bold">{fmtHours(entryHours(e))}</span></td>
-                      <td className="py-3 text-right text-[11px] text-ink-3">{e.user.fullname}</td>
-                      <td className="px-5 sm:px-6 py-3 text-right">
-                        {confirmDeleteId === e.id ? (
-                          <div className="inline-flex items-center gap-1">
-                            <button
-                              onClick={() => delMut.mutate(e.id)}
-                              className="text-[11px] font-bold bg-brand-rose text-white px-2.5 py-1 rounded-lg hover:bg-brand-rose/90"
-                            >
-                              Sil
-                            </button>
-                            <button
-                              onClick={() => setConfirmDeleteId(null)}
-                              className="text-[11px] font-semibold text-ink-2 px-2 py-1 rounded-lg hover:bg-paper-2"
-                            >
-                              Vazgeç
-                            </button>
+                {personGroups.map((g) => (
+                  <Fragment key={g.user.id}>
+                    {showGroups && (
+                      <tr className="bg-paper-2/70">
+                        <td colSpan={8} className="px-5 sm:px-6 py-2">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-6 h-6 rounded-full bg-grad-primary text-white text-[10px] font-extrabold flex items-center justify-center flex-shrink-0">
+                              {g.user.fullname.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="font-extrabold text-ink text-[13px]">{g.user.fullname}</span>
+                            <span className="text-[11px] text-ink-3">{g.entries.length} kayıt</span>
+                            <span className="ml-auto tag font-bold">{fmtHours(g.hours)}</span>
                           </div>
-                        ) : (
-                          <button
-                            onClick={() => setConfirmDeleteId(e.id)}
-                            className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg transition"
-                            title="Sil"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+                      </tr>
+                    )}
+                    {g.entries.map((e) => {
+                      const d = new Date(e.date + 'T00:00:00');
+                      const isSelected = selectedIds.has(e.id);
+                      return (
+                        <tr key={e.id} className={clsx('hover:bg-paper transition-colors', isSelected && 'bg-brand-indigo/5')}>
+                          <td className="px-5 sm:px-6 py-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(ev) => {
+                                setSelectedIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (ev.target.checked) next.add(e.id);
+                                  else next.delete(e.id);
+                                  return next;
+                                });
+                              }}
+                              className="w-4 h-4 accent-brand-indigo cursor-pointer"
+                            />
+                          </td>
+                          <td className="py-3 font-mono text-[11px] text-ink-3 whitespace-nowrap">
+                            {d.getDate()} {MONTHS[d.getMonth()].substring(0, 3)} {d.getFullYear()}
+                          </td>
+                          <td className="py-3 font-semibold">{e.customer.name}</td>
+                          <td className="py-3 text-ink-2">{e.activity.name}</td>
+                          <td className="py-3">
+                            {e.ticketId ? (
+                              <span className="badge bg-brand-violet/15 text-brand-violet font-mono !text-[10.5px]">
+                                🎫 {e.ticketId}
+                              </span>
+                            ) : <span className="text-ink-4 text-[11px]">—</span>}
+                          </td>
+                          <td className="py-3 text-[11.5px] text-ink-3 max-w-[280px]">
+                            {e.note ? (
+                              <span className="line-clamp-2 whitespace-pre-wrap" title={e.note}>{e.note}</span>
+                            ) : <span className="text-ink-4">—</span>}
+                          </td>
+                          <td className="py-3 text-right"><span className="tag font-bold">{fmtHours(entryHours(e))}</span></td>
+                          <td className="px-5 sm:px-6 py-3 text-right">
+                            {confirmDeleteId === e.id ? (
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  onClick={() => delMut.mutate(e.id)}
+                                  className="text-[11px] font-bold bg-brand-rose text-white px-2.5 py-1 rounded-lg hover:bg-brand-rose/90"
+                                >
+                                  Sil
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteId(null)}
+                                  className="text-[11px] font-semibold text-ink-2 px-2 py-1 rounded-lg hover:bg-paper-2"
+                                >
+                                  Vazgeç
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmDeleteId(e.id)}
+                                className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg transition"
+                                title="Sil"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </Fragment>
+                ))}
               </tbody>
             </table>
           </div>

@@ -54,6 +54,9 @@ export default function Reports() {
     totalByCurrency[c] = (totalByCurrency[c] || 0) + e.net;
   });
 
+  // Müşteriler saate göre azalan sıralı
+  const groupList = Object.values(customerGroups).sort((a: any, b: any) => b.hours - a.hours);
+
   function downloadPdf(customerId: number, customerName: string) {
     const token = localStorage.getItem('aktivite_token') || '';
     const params = new URLSearchParams();
@@ -173,43 +176,44 @@ export default function Reports() {
             <MetricCard label="Toplam Tutar" value={fmtMoneyByCurrency(totalByCurrency)} grad="grad-mint" />
           </div>
 
-          {Object.values(customerGroups).length === 0 && (
+          {groupList.length === 0 ? (
             <div className="card text-center py-12 text-ink-3">
               <div className="text-4xl mb-3 animate-pulse-slow">📊</div>
               <div className="text-sm">Bu dönemde kayıt bulunamadı</div>
             </div>
-          )}
-
-          {/* Müşteri bazlı kartlar — yüklenici grubu kaldırıldı, sadece net tutar */}
-          {Object.values(customerGroups).map((cu: any) => (
-            <div key={cu.name} className="bg-white border border-paper-3 rounded-2xl overflow-hidden shadow-soft">
-              <div className="bg-ink text-white px-5 py-3 flex flex-wrap justify-between items-center gap-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Müşteri</span>
-                  <span className="font-extrabold">{cu.name}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-xs font-mono text-white/70">{fmtHours(cu.hours)}</span>
-                  <span className="font-mono font-bold text-brand-emerald">{fmtMoney(cu.net)} {curSymbol(cu.currency)}</span>
-                  <button
-                    onClick={() => downloadPdf(cu.id, cu.name)}
-                    className="text-white hover:bg-white/10 px-2 py-1 rounded-md transition flex items-center gap-1 text-[11px] font-semibold border border-white/20"
-                    title={`${cu.name} için PDF rapor`}
-                  >
-                    <FileText size={12} /> PDF
-                  </button>
-                </div>
-              </div>
-              {Object.values(cu.acts).map((ag: any) => (
-                <div key={ag.name} className="flex items-center justify-between px-5 py-2.5 border-b border-paper-3 last:border-b-0 text-sm hover:bg-paper">
-                  <span className="text-ink-2 flex-1">{ag.name}</span>
-                  <span className="tag mr-3 hidden sm:inline-block">{ag.days.toFixed(2)} gün</span>
-                  <span className="tag mr-3">{fmtHours(ag.hours)}</span>
-                  <span className="font-mono font-bold min-w-24 text-right">{fmtMoney(ag.net)} {curSymbol(cu.currency)}</span>
+          ) : (
+            /* Müşteri bazlı temiz liste — saate göre sıralı, alt toplam ayrımlı */
+            <div className="card !p-0 overflow-hidden divide-y divide-paper-3">
+              {groupList.map((cu: any) => (
+                <div key={cu.name}>
+                  {/* Müşteri başlığı (alt toplam) */}
+                  <div className="flex items-center gap-3 px-4 sm:px-5 py-3 bg-paper-2/60">
+                    <span className="font-extrabold text-ink truncate flex-1">{cu.name}</span>
+                    <span className="text-[12px] font-mono text-ink-3">{fmtHours(cu.hours)}</span>
+                    <span className="text-[13px] font-mono font-bold text-ink min-w-[110px] text-right">{fmtMoney(cu.net)} {curSymbol(cu.currency)}</span>
+                    <button
+                      onClick={() => downloadPdf(cu.id, cu.name)}
+                      className="text-brand-indigo hover:bg-brand-indigo/10 px-2 py-1 rounded-md transition flex items-center gap-1 text-[11px] font-semibold border border-brand-indigo/30 flex-shrink-0"
+                      title={`${cu.name} için PDF rapor`}
+                    >
+                      <FileText size={12} /> PDF
+                    </button>
+                  </div>
+                  {/* Aktivite satırları — saate göre sıralı */}
+                  {Object.values(cu.acts)
+                    .sort((a: any, b: any) => b.hours - a.hours)
+                    .map((ag: any) => (
+                      <div key={ag.name} className="flex items-center gap-3 pl-7 sm:pl-9 pr-4 sm:pr-5 py-2 border-t border-paper-2 text-sm hover:bg-paper">
+                        <span className="text-ink-2 flex-1 truncate">{ag.name}</span>
+                        <span className="tag hidden sm:inline-block">{ag.days.toFixed(2)} gün</span>
+                        <span className="text-[12px] font-mono text-ink-3">{fmtHours(ag.hours)}</span>
+                        <span className="font-mono font-semibold min-w-[110px] text-right">{fmtMoney(ag.net)} {curSymbol(cu.currency)}</span>
+                      </div>
+                    ))}
                 </div>
               ))}
             </div>
-          ))}
+          )}
         </>
       )}
     </div>

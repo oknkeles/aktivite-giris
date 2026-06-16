@@ -123,6 +123,13 @@ router.delete('/:id', async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   if (id === req.user!.id) return res.status(400).json({ error: 'Kendi hesabınızı silemezsiniz.' });
   const target = await prisma.user.findUnique({ where: { id }, select: { username: true, fullname: true } });
+  // Kaydı olan kullanıcı silinemez — geçmiş aktivite verisi (cascade ile) kaybolmasın.
+  const entryCount = await prisma.entry.count({ where: { userId: id } });
+  if (entryCount > 0) {
+    return res.status(409).json({
+      error: `Bu kullanıcının ${entryCount} aktivite kaydı var, silinemez. Kayıtlar korunmalı.`,
+    });
+  }
   await prisma.user.delete({ where: { id } });
   await audit({
     action: 'delete',
