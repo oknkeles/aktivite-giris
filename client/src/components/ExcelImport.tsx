@@ -197,8 +197,8 @@ export default function ExcelImport({
   const warnCount = rows.length - okCount;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-ink/60 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-6 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-6 animate-fade-in">
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="bg-grad-primary text-white px-5 py-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2.5">
@@ -212,7 +212,7 @@ export default function ExcelImport({
               </div>
             </div>
           </div>
-          <button onClick={handleClose} className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10">
+          <button onClick={handleClose} className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-surface/10">
             <X size={18} />
           </button>
         </div>

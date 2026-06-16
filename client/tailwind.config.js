@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
@@ -8,8 +9,20 @@ export default {
         mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {
-        ink: { DEFAULT: '#0F172A', 2: '#334155', 3: '#64748B', 4: '#94A3B8' },
-        paper: { DEFAULT: '#F8FAFC', 2: '#F1F5F9', 3: '#E2E8F0', 4: '#CBD5E1' },
+        // Tema değişkenleri — .dark sınıfıyla flip olur (index.css)
+        ink: {
+          DEFAULT: 'rgb(var(--ink) / <alpha-value>)',
+          2: 'rgb(var(--ink-2) / <alpha-value>)',
+          3: 'rgb(var(--ink-3) / <alpha-value>)',
+          4: 'rgb(var(--ink-4) / <alpha-value>)',
+        },
+        paper: {
+          DEFAULT: 'rgb(var(--paper) / <alpha-value>)',
+          2: 'rgb(var(--paper-2) / <alpha-value>)',
+          3: 'rgb(var(--paper-3) / <alpha-value>)',
+          4: 'rgb(var(--paper-4) / <alpha-value>)',
+        },
+        surface: 'rgb(var(--surface) / <alpha-value>)',
         brand: {
           indigo: '#2563EB',
           violet: '#1E40AF',

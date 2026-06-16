@@ -188,13 +188,13 @@ export default function Timesheet() {
           <div className="flex items-center gap-3 mb-4 px-4 py-2.5 rounded-xl bg-brand-indigo text-white animate-fade-in flex-wrap">
             <Sparkles size={15} />
             <div className="text-sm flex-1 flex items-center gap-2">
-              <span className="bg-white/20 px-2 py-0.5 rounded font-mono font-bold text-xs">{selected.size}</span>
+              <span className="bg-surface/20 px-2 py-0.5 rounded font-mono font-bold text-xs">{selected.size}</span>
               <span className="font-medium">gün seçildi</span>
             </div>
-            <button className="bg-white/15 rounded-md px-2.5 py-1 text-xs font-semibold hover:bg-white/25 transition" onClick={clearAll}>
+            <button className="bg-surface/15 rounded-md px-2.5 py-1 text-xs font-semibold hover:bg-surface/25 transition" onClick={clearAll}>
               Temizle
             </button>
-            <button className="bg-white text-brand-indigo rounded-md px-3 py-1 text-xs font-bold hover:bg-paper-2 transition" onClick={() => setBulkOpen(true)}>
+            <button className="bg-surface text-brand-indigo rounded-md px-3 py-1 text-xs font-bold hover:bg-paper-2 transition" onClick={() => setBulkOpen(true)}>
               Toplu Ekle
             </button>
           </div>
@@ -206,7 +206,7 @@ export default function Timesheet() {
 
 
         {/* Calendar — macOS Calendar style clean grid, viewport'a göre esner */}
-        <div className="rounded-xl bg-white border border-paper-3 overflow-hidden flex-1 flex flex-col min-h-0">
+        <div className="rounded-xl bg-surface border border-paper-3 overflow-hidden flex-1 flex flex-col min-h-0">
           {/* Day headers — hafta sonu renkli */}
           <div className="grid grid-cols-7 border-b border-paper-3 flex-shrink-0">
             {DAYS_SHORT.map((d, i) => (
@@ -249,7 +249,7 @@ export default function Timesheet() {
                     c.cur ? 'cursor-pointer' : 'bg-paper-2/40 cursor-default',
                     !c.cur && 'opacity-60',
                     // Arka plan öncelik sırası: seçili > drag > tatil > hafta sonu > normal
-                    c.cur && !isSelected && !isDragPrev && !isHoliday && !isWeekend && 'bg-white hover:bg-paper-2/60',
+                    c.cur && !isSelected && !isDragPrev && !isHoliday && !isWeekend && 'bg-surface hover:bg-paper-2/60',
                     c.cur && !isSelected && !isDragPrev && isWeekend && !isHoliday && 'bg-paper-2/40 hover:bg-paper-2/70',
                     c.cur && !isSelected && !isDragPrev && isHoliday && 'bg-brand-amber/[0.07] hover:bg-brand-amber/[0.12]',
                     isSelected && 'bg-brand-indigo/10 ring-1 ring-brand-indigo/40 ring-inset z-[2]',
@@ -348,7 +348,7 @@ export default function Timesheet() {
 
 function MetricCard({ label, value, variant }: { label: string; value: string; variant: 'indigo' | 'emerald' | 'neutral' }) {
   return (
-    <div className="bg-white border border-paper-3 rounded-xl px-3 py-2.5 transition-colors hover:border-paper-4">
+    <div className="bg-surface border border-paper-3 rounded-xl px-3 py-2.5 transition-colors hover:border-paper-4">
       <div className="text-[10px] font-semibold text-ink-3 uppercase tracking-wider mb-0.5">{label}</div>
       <div className={clsx(
         'text-xl sm:text-[22px] font-bold font-mono tracking-tight leading-tight',
@@ -377,7 +377,7 @@ function TimesheetActions() {
       </button>
       <button
         onClick={openBulkAI}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border-2 border-brand-indigo text-brand-indigo text-xs font-bold hover:bg-brand-indigo hover:text-white transition"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border-2 border-brand-indigo text-brand-indigo text-xs font-bold hover:bg-brand-indigo hover:text-white transition"
       >
         <Wand2 size={13} />
         AI ile Toplu Giriş
@@ -397,7 +397,7 @@ function LastEntryCard({ entries }: { entries: Entry[] }) {
   );
 
   return (
-    <div className="bg-white border border-paper-3 rounded-xl px-3 py-2.5 transition-colors hover:border-paper-4 flex flex-col">
+    <div className="bg-surface border border-paper-3 rounded-xl px-3 py-2.5 transition-colors hover:border-paper-4 flex flex-col">
       <div className="text-[10px] font-semibold text-ink-3 uppercase tracking-wider mb-0.5">
         Son Kayıt
       </div>

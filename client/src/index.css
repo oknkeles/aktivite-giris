@@ -2,10 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --surface: 255 255 255;
+  --paper: 248 250 252;
+  --paper-2: 241 245 249;
+  --paper-3: 226 232 240;
+  --paper-4: 203 213 225;
+  --ink: 15 23 42;
+  --ink-2: 51 65 85;
+  --ink-3: 100 116 139;
+  --ink-4: 148 163 184;
+}
+
+.dark {
+  --surface: 17 26 46;     /* kart yüzeyi */
+  --paper: 9 15 30;        /* sayfa arka planı */
+  --paper-2: 23 33 54;
+  --paper-3: 38 50 74;
+  --paper-4: 56 70 98;
+  --ink: 226 232 240;
+  --ink-2: 191 203 219;
+  --ink-3: 148 163 184;
+  --ink-4: 110 124 148;
+}
+
 @layer base {
   body {
-    @apply font-sans text-ink antialiased;
-    background: #F8FAFC;
+    @apply font-sans text-ink antialiased bg-paper;
     background-image:
       radial-gradient(ellipse at 0% 0%, rgba(37, 99, 235, 0.05) 0%, transparent 50%),
       radial-gradient(ellipse at 100% 100%, rgba(8, 145, 178, 0.04) 0%, transparent 50%);
@@ -24,7 +47,7 @@
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm
-           border-2 border-paper-3 bg-white text-ink transition-all
+           border-2 border-paper-3 bg-surface text-ink transition-all
            hover:border-brand-indigo/40 hover:-translate-y-0.5 hover:shadow-md active:scale-95
            disabled:opacity-50 disabled:pointer-events-none;
   }
@@ -46,7 +69,7 @@
   }
 
   .input {
-    @apply w-full px-3.5 py-2.5 rounded-xl border-2 border-paper-3 bg-white text-sm text-ink outline-none
+    @apply w-full px-3.5 py-2.5 rounded-xl border-2 border-paper-3 bg-surface text-sm text-ink outline-none
            transition-all hover:border-paper-4
            focus:border-brand-indigo focus:ring-4 focus:ring-brand-indigo/10;
   }
@@ -56,7 +79,7 @@
   }
 
   .card {
-    @apply bg-white border border-paper-3 rounded-2xl p-5 sm:p-6 shadow-soft;
+    @apply bg-surface border border-paper-3 rounded-2xl p-5 sm:p-6 shadow-soft;
   }
 
   .clabel {
@@ -73,6 +96,12 @@
 
   .grad-text {
     background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 50%, #0891B2 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .dark .grad-text {
+    background: linear-gradient(135deg, #60A5FA 0%, #38BDF8 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;

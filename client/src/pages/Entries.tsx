@@ -202,18 +202,18 @@ export default function Entries() {
         {/* Bulk selection toolbar */}
         {selectedIds.size > 0 && (
           <div className="flex items-center gap-3 mb-4 px-4 py-2.5 rounded-xl bg-brand-indigo text-white animate-fade-in flex-wrap">
-            <span className="bg-white/20 px-2 py-0.5 rounded font-mono font-bold text-xs">
+            <span className="bg-surface/20 px-2 py-0.5 rounded font-mono font-bold text-xs">
               {selectedIds.size}
             </span>
             <span className="text-sm font-medium flex-1">kayıt seçili</span>
             <button
-              className="bg-white/15 rounded-md px-2.5 py-1 text-xs font-semibold hover:bg-white/25 transition flex items-center gap-1"
+              className="bg-surface/15 rounded-md px-2.5 py-1 text-xs font-semibold hover:bg-surface/25 transition flex items-center gap-1"
               onClick={() => setSelectedIds(new Set())}
             >
               <X size={11} /> Temizle
             </button>
             <button
-              className="bg-white/15 rounded-md px-3 py-1 text-xs font-bold hover:bg-white/25 transition flex items-center gap-1"
+              className="bg-surface/15 rounded-md px-3 py-1 text-xs font-bold hover:bg-surface/25 transition flex items-center gap-1"
               onClick={() => setBulkEditOpen(true)}
             >
               <Edit3 size={12} /> Toplu Düzenle
@@ -223,13 +223,13 @@ export default function Entries() {
                 <button
                   onClick={() => bulkDelMut.mutate(Array.from(selectedIds))}
                   disabled={bulkDelMut.isPending}
-                  className="bg-white text-brand-rose rounded-md px-3 py-1 text-xs font-bold hover:bg-paper-2 transition"
+                  className="bg-surface text-brand-rose rounded-md px-3 py-1 text-xs font-bold hover:bg-paper-2 transition"
                 >
                   {bulkDelMut.isPending ? 'Siliniyor...' : 'Evet, Sil'}
                 </button>
                 <button
                   onClick={() => setBulkConfirmDelete(false)}
-                  className="bg-white/15 rounded-md px-2 py-1 text-xs font-semibold hover:bg-white/25 transition"
+                  className="bg-surface/15 rounded-md px-2 py-1 text-xs font-semibold hover:bg-surface/25 transition"
                 >
                   Vazgeç
                 </button>
@@ -459,8 +459,8 @@ function BulkEditModal({
   const anySelected = updateCustomer || updateActivity || updateTicket || updateNote;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-ink/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+    <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
         <div className="px-5 py-4 border-b border-paper-3 flex items-center justify-between">
           <div>
             <div className="font-extrabold text-base">Toplu Düzenle</div>

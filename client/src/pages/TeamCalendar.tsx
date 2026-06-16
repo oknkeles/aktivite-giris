@@ -120,8 +120,8 @@ export default function TeamCalendar() {
           )}
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => setPeriod(shiftPeriod(period, -1))} className="w-9 h-9 rounded-xl bg-white border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition" title="Önceki ay"><ChevronLeft size={16} /></button>
-          <button onClick={() => setPeriod(shiftPeriod(period, 1))} className="w-9 h-9 rounded-xl bg-white border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition" title="Sonraki ay"><ChevronRight size={16} /></button>
+          <button onClick={() => setPeriod(shiftPeriod(period, -1))} className="w-9 h-9 rounded-xl bg-surface border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition" title="Önceki ay"><ChevronLeft size={16} /></button>
+          <button onClick={() => setPeriod(shiftPeriod(period, 1))} className="w-9 h-9 rounded-xl bg-surface border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition" title="Sonraki ay"><ChevronRight size={16} /></button>
         </div>
       </div>
 
@@ -139,7 +139,7 @@ export default function TeamCalendar() {
                   'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold border transition',
                   on
                     ? 'bg-brand-indigo/10 border-brand-indigo/30 text-brand-indigo'
-                    : 'bg-white border-paper-3 text-ink-3 hover:bg-paper-2'
+                    : 'bg-surface border-paper-3 text-ink-3 hover:bg-paper-2'
                 )}
               >
                 <span className={clsx('w-3.5 h-3.5 rounded flex items-center justify-center', on ? 'bg-brand-indigo text-white' : 'border border-paper-3')}>
@@ -193,7 +193,7 @@ export default function TeamCalendar() {
                   const fillPct = workdayCount > 0 ? Math.round((totalH / (workdayCount * 8)) * 100) : 0;
                   return (
                     <tr key={u.id} className="hover:bg-paper/50">
-                      <td className="sticky left-0 z-10 bg-white px-3 py-1.5 font-semibold text-ink border-b border-paper-3 truncate">
+                      <td className="sticky left-0 z-10 bg-surface px-3 py-1.5 font-semibold text-ink border-b border-paper-3 truncate">
                         {u.fullname}
                       </td>
                       {days.map((d) => {

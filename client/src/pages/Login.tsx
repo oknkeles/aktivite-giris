@@ -92,7 +92,7 @@ export default function Login() {
         <div className="w-full max-w-sm">
           {/* Mobilde logo (sol panel gizliyken) */}
           <div className="lg:hidden flex items-center gap-3 mb-10">
-            <div className="bg-ink rounded-xl px-3.5 py-2.5 flex items-center justify-center">
+            <div className="bg-white rounded-xl px-3.5 py-2.5 flex items-center justify-center shadow-sm border border-paper-3">
               <img src="/logo.png" alt="TDev Consulting" className="h-7 w-auto object-contain" />
             </div>
             <div className="text-[13px] font-bold text-ink leading-tight">Aktivite Giriş Sistemi</div>

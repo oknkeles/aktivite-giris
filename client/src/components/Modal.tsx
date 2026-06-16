@@ -36,13 +36,13 @@ export default function Modal({ open, onClose, title, children, size = 'md', foo
   // Backdrop tıklaması kapatmaz — yanlışlıkla veri kaybı olmasın. Sadece X veya ESC.
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in"
     >
       <div
-        className={clsx('bg-white rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-y-auto animate-fade-in', sizes[size])}
+        className={clsx('bg-surface rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-y-auto animate-fade-in', sizes[size])}
       >
         {title && (
-          <div className="sticky top-0 bg-white/90 backdrop-blur-sm flex items-center justify-between p-5 sm:p-6 border-b border-paper-3 z-10">
+          <div className="sticky top-0 bg-surface/90 backdrop-blur-sm flex items-center justify-between p-5 sm:p-6 border-b border-paper-3 z-10">
             <div className="text-lg sm:text-xl font-extrabold tracking-tight">{title}</div>
             <button
               onClick={onClose}
@@ -54,7 +54,7 @@ export default function Modal({ open, onClose, title, children, size = 'md', foo
         )}
         <div className="p-5 sm:p-6">{children}</div>
         {footer && (
-          <div className="sticky bottom-0 bg-white/90 backdrop-blur-sm flex flex-wrap justify-end gap-2 p-4 sm:p-5 border-t border-paper-3">
+          <div className="sticky bottom-0 bg-surface/90 backdrop-blur-sm flex flex-wrap justify-end gap-2 p-4 sm:p-5 border-t border-paper-3">
             {footer}
           </div>
         )}

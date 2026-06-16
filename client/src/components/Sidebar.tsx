@@ -1,11 +1,12 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   Calendar, List, CheckSquare, Users, UserCog, BarChart3, LogOut, Menu, X,
-  ShieldCheck, ChevronDown, Briefcase, ScrollText, LayoutDashboard, Lock, CalendarRange
+  ShieldCheck, ChevronDown, Briefcase, ScrollText, LayoutDashboard, Lock, CalendarRange, Sun, Moon
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { useAuth, isAdmin } from '../store/auth';
+import { useTheme } from '../store/theme';
 import { useQueryClient } from '@tanstack/react-query';
 
 const ENTRY_ITEMS = [
@@ -38,6 +39,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
   const loc = useLocation();
   const admin = isAdmin(user);
   const qc = useQueryClient();
+  const { theme, toggle: toggleTheme } = useTheme();
 
   // Auto-open admin panel if currently on an admin route
   const isOnAdminPage = ADMIN_ITEMS.some(i => i.to === loc.pathname);
@@ -58,7 +60,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
     <>
       {mobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-ink/50 backdrop-blur-sm z-40"
+          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -101,6 +103,13 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
               {admin ? 'YÖNETİCİ' : 'KULLANICI'}
             </div>
           </div>
+          <button
+            onClick={toggleTheme}
+            className="text-white/40 hover:text-white text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-2.5 py-1.5 transition"
+            title={theme === 'dark' ? 'Açık moda geç' : 'Koyu moda geç'}
+          >
+            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
           <button
             onClick={doLogout}
             className="text-white/40 hover:text-white text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-2.5 py-1.5 transition"

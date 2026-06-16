@@ -148,8 +148,8 @@ function ActivityModal({ activity, onClose }: { activity: Activity | null; onClo
           <div>
             <label className="label">Durum</label>
             <div className="flex gap-2">
-              <button type="button" onClick={() => setForm({ ...form, active: true })} className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition ${form.active ? 'bg-brand-emerald/10 border-brand-emerald/40 text-brand-emerald' : 'bg-white border-paper-3 text-ink-3 hover:bg-paper-2'}`}>Aktif</button>
-              <button type="button" onClick={() => setForm({ ...form, active: false })} className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition ${!form.active ? 'bg-ink/5 border-ink/30 text-ink' : 'bg-white border-paper-3 text-ink-3 hover:bg-paper-2'}`}>Pasif</button>
+              <button type="button" onClick={() => setForm({ ...form, active: true })} className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition ${form.active ? 'bg-brand-emerald/10 border-brand-emerald/40 text-brand-emerald' : 'bg-surface border-paper-3 text-ink-3 hover:bg-paper-2'}`}>Aktif</button>
+              <button type="button" onClick={() => setForm({ ...form, active: false })} className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition ${!form.active ? 'bg-ink/5 border-ink/30 text-ink' : 'bg-surface border-paper-3 text-ink-3 hover:bg-paper-2'}`}>Pasif</button>
             </div>
           </div>
         </div>

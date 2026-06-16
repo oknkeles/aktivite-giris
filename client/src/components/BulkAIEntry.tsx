@@ -138,9 +138,9 @@ export default function BulkAIEntry({ open, onClose }: { open: boolean; onClose:
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-ink/60 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-6 animate-fade-in"
+      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-6 animate-fade-in"
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="bg-grad-primary text-white px-5 py-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2.5">
@@ -154,7 +154,7 @@ export default function BulkAIEntry({ open, onClose }: { open: boolean; onClose:
               </div>
             </div>
           </div>
-          <button onClick={handleClose} className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10">
+          <button onClick={handleClose} className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-surface/10">
             <X size={18} />
           </button>
         </div>
@@ -170,7 +170,7 @@ export default function BulkAIEntry({ open, onClose }: { open: boolean; onClose:
               onChange={(e) => setText(e.target.value)}
               placeholder={`Her satıra bir aktivite yaz. Örnek:\n\n${EXAMPLE}`}
               rows={14}
-              className="w-full px-3 py-2.5 rounded-xl border-2 border-paper-3 bg-white text-sm font-mono leading-relaxed text-ink outline-none focus:border-brand-indigo focus:ring-4 focus:ring-brand-indigo/10 transition-all resize-y"
+              className="w-full px-3 py-2.5 rounded-xl border-2 border-paper-3 bg-surface text-sm font-mono leading-relaxed text-ink outline-none focus:border-brand-indigo focus:ring-4 focus:ring-brand-indigo/10 transition-all resize-y"
             />
             <div className="flex items-center justify-between mt-2 text-[11px] text-ink-3">
               <span>{text.split('\n').filter((l) => l.trim()).length} satır</span>
@@ -200,7 +200,7 @@ export default function BulkAIEntry({ open, onClose }: { open: boolean; onClose:
                   key={i}
                   className={clsx(
                     'border rounded-xl p-3 transition',
-                    e.ok ? 'border-paper-3 bg-white' : 'border-brand-amber/40 bg-brand-amber/5'
+                    e.ok ? 'border-paper-3 bg-surface' : 'border-brand-amber/40 bg-brand-amber/5'
                   )}
                 >
                   <div className="flex items-start gap-2 mb-2">

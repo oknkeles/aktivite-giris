@@ -71,7 +71,7 @@ export default function PeriodLocks() {
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setYear((y) => y - 1)}
-              className="w-8 h-8 rounded-xl bg-white border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition"
+              className="w-8 h-8 rounded-xl bg-surface border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition"
               title="Önceki yıl"
             >
               <ChevronLeft size={15} />
@@ -79,7 +79,7 @@ export default function PeriodLocks() {
             <span className="font-extrabold text-base font-mono w-14 text-center">{year}</span>
             <button
               onClick={() => setYear((y) => y + 1)}
-              className="w-8 h-8 rounded-xl bg-white border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition"
+              className="w-8 h-8 rounded-xl bg-surface border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition"
               title="Sonraki yıl"
             >
               <ChevronRight size={15} />
@@ -99,7 +99,7 @@ export default function PeriodLocks() {
                 key={p}
                 className={clsx(
                   'border rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 transition',
-                  lock ? 'border-brand-amber/40 bg-brand-amber/5' : 'border-paper-3 bg-white',
+                  lock ? 'border-brand-amber/40 bg-brand-amber/5' : 'border-paper-3 bg-surface',
                   p === thisPeriod && 'ring-2 ring-brand-indigo/20'
                 )}
               >

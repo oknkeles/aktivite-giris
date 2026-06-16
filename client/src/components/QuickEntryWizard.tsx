@@ -391,9 +391,9 @@ export default function QuickEntryWizard({
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-ink/60 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-6 animate-fade-in"
+      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-6 animate-fade-in"
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden">
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden">
         {/* Compact header — sadece ikon + sayaç + kapat */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-paper-3">
           <div className="flex items-center gap-2 text-ink-2">
@@ -472,7 +472,7 @@ export default function QuickEntryWizard({
             onChange={(e) => { setSearch(e.target.value); setHighlightIdx(0); setError(''); }}
             onKeyDown={handleKeyDown}
             placeholder={placeholder[step]}
-            className="w-full px-3 py-2.5 rounded-xl border-2 border-paper-3 bg-white text-[15px] text-ink outline-none focus:border-brand-indigo focus:ring-4 focus:ring-brand-indigo/10 transition-all"
+            className="w-full px-3 py-2.5 rounded-xl border-2 border-paper-3 bg-surface text-[15px] text-ink outline-none focus:border-brand-indigo focus:ring-4 focus:ring-brand-indigo/10 transition-all"
             autoFocus
           />
           {error && <div className="text-[11px] text-brand-rose mt-1.5 px-1">{error}</div>}

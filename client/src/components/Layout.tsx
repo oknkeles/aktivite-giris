@@ -36,11 +36,27 @@ const SECTIONS: Record<string, string> = {
   '/audit': 'Yönetim',
 };
 
+// Başlığın altındaki kısa açıklama
+const SUBTITLES: Record<string, string> = {
+  '/timesheet': 'Günlük çalışmanı takvim üzerinden kaydet',
+  '/entries': 'Tüm aktivite kayıtlarını gör ve yönet',
+  '/team': 'Ekibin aylık doluluğunu tek ekranda izle',
+  '/dashboard': 'Ayın özeti, müşteri dağılımı ve trend',
+  '/reports': 'Müşteri bazında saat ve tutar raporları',
+  '/activities': 'Aktivite türlerini ve birimlerini yönet',
+  '/contractors': 'Yüklenici bilgilerini ve iskontoları yönet',
+  '/customers': 'Müşteri, fiyat ve para birimi bilgileri',
+  '/users': 'Kullanıcıları ve yetkilerini yönet',
+  '/locks': 'Mutabakat gönderilen dönemleri kilitle',
+  '/audit': 'Önemli aksiyonların kim/ne zaman izi',
+};
+
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const loc = useLocation();
   const title = TITLES[loc.pathname] || 'Aktivite Giriş';
   const section = SECTIONS[loc.pathname];
+  const subtitle = SUBTITLES[loc.pathname];
   const extras = useHeader((s) => s.extras);
   const { wizardOpen, openWizard, closeWizard, bulkAIOpen, closeBulkAI } = useQuickEntry();
 
@@ -68,13 +84,16 @@ export default function Layout() {
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
 
       <main className="lg:pl-64 min-h-screen flex flex-col">
-        {/* Topbar — bölüm etiketi + başlık solda, sayfa aksiyonları sağda */}
-        <header className="sticky top-0 z-30 bg-white/85 backdrop-blur-xl border-b border-paper-3/80 h-16 sm:h-[68px] flex items-center justify-between gap-3 px-5 sm:px-7 lg:px-9 shadow-[0_1px_0_rgba(15,23,42,.02)]">
-          <div className="pl-12 lg:pl-0 flex-shrink-0 leading-none">
+        {/* Topbar — bölüm etiketi + başlık + açıklama solda, sayfa aksiyonları sağda */}
+        <header className="sticky top-0 z-30 bg-surface/85 backdrop-blur-xl border-b border-paper-3/80 min-h-16 sm:min-h-[72px] py-2.5 flex items-center justify-between gap-3 px-5 sm:px-7 lg:px-9 shadow-[0_1px_0_rgba(15,23,42,.02)]">
+          <div className="pl-12 lg:pl-0 flex-shrink-0 min-w-0">
             {section && (
-              <div className="text-[10px] font-bold tracking-[.14em] text-ink-4 uppercase mb-1">{section}</div>
+              <div className="text-[10px] font-bold tracking-[.14em] text-ink-4 uppercase leading-none mb-1">{section}</div>
             )}
-            <div className="text-lg sm:text-xl font-extrabold tracking-tight">{title}</div>
+            <div className="text-lg sm:text-xl font-extrabold tracking-tight leading-tight">{title}</div>
+            {subtitle && (
+              <div className="text-[12px] text-ink-3 mt-0.5 truncate hidden sm:block">{subtitle}</div>
+            )}
           </div>
           {extras && (
             <div className="flex items-center gap-2 min-w-0 overflow-x-auto">{extras}</div>

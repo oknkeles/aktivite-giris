@@ -4,6 +4,7 @@ import { FileDown, BarChart3, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { api, type ReportData, type Customer } from '../api/client';
 import { useToast } from '../components/Toast';
+import { CountUp, Skeleton } from '../components/ui';
 import { fmtHours, fmtMoney, curSymbol, fmtMoneyByCurrency } from '../lib/format';
 
 export default function Reports() {
@@ -168,11 +169,24 @@ export default function Reports() {
         </div>
       </div>
 
+      {!report && reportFetching && (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="card !p-4 space-y-2"><Skeleton className="h-3 w-24" /><Skeleton className="h-7 w-28" /></div>
+            ))}
+          </div>
+          <div className="card space-y-3">
+            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-9 w-full" />)}
+          </div>
+        </>
+      )}
+
       {report && (
         <>
           <div className="grid grid-cols-3 gap-3">
-            <MetricCard label="Toplam Saat" value={fmtHours(report.totalHours)} grad="grad-primary" />
-            <MetricCard label="Kayıt Sayısı" value={String(report.count)} grad="" />
+            <MetricCard label="Toplam Saat" value={<CountUp value={report.totalHours} format={fmtHours} />} grad="grad-primary" />
+            <MetricCard label="Kayıt Sayısı" value={<CountUp value={report.count} />} grad="" />
             <MetricCard label="Toplam Tutar" value={fmtMoneyByCurrency(totalByCurrency)} grad="grad-mint" />
           </div>
 
@@ -220,7 +234,7 @@ export default function Reports() {
   );
 }
 
-function MetricCard({ label, value, grad }: { label: string; value: string; grad: string }) {
+function MetricCard({ label, value, grad }: { label: string; value: React.ReactNode; grad: string }) {
   return (
     <div className="card !p-4">
       <div className="text-[11px] font-bold text-ink-3 uppercase tracking-wider mb-1.5">{label}</div>

@@ -3,9 +3,9 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Clock, Banknote, ListChecks, ChevronLeft, ChevronRight } from 'lucide-react';
-import clsx from 'clsx';
+import { TrendingUp, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../api/client';
+import { CountUp, Skeleton } from '../components/ui';
 import { fmtHours, fmtMoney, curSymbol, fmtMoneyByCurrency, MONTHS } from '../lib/format';
 
 interface DashboardData {
@@ -47,63 +47,59 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      {/* Dönem gezintisi */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-extrabold tracking-tight">{periodLabel(period)}</span>
-          {!isCurrent && (
-            <button
-              onClick={() => setPeriod(currentPeriod())}
-              className="btn !py-1 !px-2.5 text-[11px]"
-            >
-              Bugün
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setPeriod(shiftPeriod(period, -1))}
-            className="w-9 h-9 rounded-xl bg-white border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition"
-            title="Önceki ay"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <button
-            onClick={() => setPeriod(shiftPeriod(period, 1))}
-            className="w-9 h-9 rounded-xl bg-white border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition"
-            title="Sonraki ay"
-          >
-            <ChevronRight size={16} />
-          </button>
+      {/* Hero şeridi — ayın özeti, koyu zemin */}
+      <div
+        className="rounded-2xl p-5 sm:p-6 text-white relative overflow-hidden shadow-soft"
+        style={{
+          background: '#0B1224',
+          backgroundImage:
+            'radial-gradient(circle at 8% 20%, rgba(37,99,235,.32) 0%, transparent 45%),' +
+            'radial-gradient(circle at 95% 110%, rgba(8,145,178,.24) 0%, transparent 50%)',
+        }}
+      >
+        <div className="flex items-end justify-between gap-4 relative z-10">
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold tracking-[.14em] text-white/40 uppercase mb-1.5">Ay Özeti</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight">{periodLabel(period)}</div>
+            <div className="text-white/65 text-[13px] sm:text-sm mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
+              {isLoading ? (
+                <Skeleton className="h-4 w-64 !bg-surface/15" />
+              ) : data ? (
+                <>
+                  <span className="text-white font-bold"><CountUp value={data.month.hours} format={fmtHours} /></span> çalışma
+                  <span className="text-white/30">·</span>
+                  <span className="text-white font-bold"><CountUp value={data.customers.length} /></span> müşteri
+                  <span className="text-white/30">·</span>
+                  <span className="text-white font-bold"><CountUp value={data.month.count} /></span> kayıt
+                  <span className="text-white/30">·</span>
+                  <span className="text-brand-sky font-bold">{fmtMoneyByCurrency(data.month.byCurrency)}</span>
+                </>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {!isCurrent && (
+              <button onClick={() => setPeriod(currentPeriod())} className="text-[11px] font-semibold text-white/80 bg-surface/10 hover:bg-surface/20 border border-white/15 rounded-lg px-2.5 py-1.5 transition">Bugün</button>
+            )}
+            <button onClick={() => setPeriod(shiftPeriod(period, -1))} className="w-9 h-9 rounded-xl bg-surface/10 hover:bg-surface/20 border border-white/15 flex items-center justify-center text-white transition" title="Önceki ay"><ChevronLeft size={16} /></button>
+            <button onClick={() => setPeriod(shiftPeriod(period, 1))} className="w-9 h-9 rounded-xl bg-surface/10 hover:bg-surface/20 border border-white/15 flex items-center justify-center text-white transition" title="Sonraki ay"><ChevronRight size={16} /></button>
+          </div>
         </div>
       </div>
 
       {isLoading && (
-        <div className="card text-center py-12 text-ink-3 text-sm">Yükleniyor...</div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {[0, 1].map((i) => (
+            <div key={i} className="card space-y-3">
+              <Skeleton className="h-4 w-44" />
+              {[0, 1, 2, 3, 4].map((j) => <Skeleton key={j} className="h-7 w-full" />)}
+            </div>
+          ))}
+        </div>
       )}
 
       {data && (
         <>
-          {/* Seçili ay özet kartları */}
-          <div className="grid grid-cols-3 gap-3">
-            <MetricCard
-              icon={<Clock size={15} />}
-              label={`${periodLabel(data.period)} · Saat`}
-              value={fmtHours(data.month.hours)}
-            />
-            <MetricCard
-              icon={<ListChecks size={15} />}
-              label="Kayıt Sayısı"
-              value={String(data.month.count)}
-            />
-            <MetricCard
-              icon={<Banknote size={15} />}
-              label="Faturalanacak Tutar"
-              value={fmtMoneyByCurrency(data.month.byCurrency)}
-              accent
-            />
-          </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Müşteri bazında saat dağılımı */}
             <div className="card">
@@ -151,24 +147,6 @@ export default function Dashboard() {
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-function MetricCard({ icon, label, value, accent = false }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="card !p-4">
-      <div className="text-[11px] font-bold text-ink-3 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-        {icon} {label}
-      </div>
-      <div className={clsx('text-2xl font-extrabold font-mono', accent ? 'grad-text-mint' : 'text-ink')}>
-        {value}
-      </div>
     </div>
   );
 }

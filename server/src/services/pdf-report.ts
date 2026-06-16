@@ -158,30 +158,31 @@ function drawReport(
   const marginX = 40;
   const contentW = pageW - marginX * 2;
 
-  // ─── HEADER (sade) ─────────────────────────────────────
-  // Logo sol üst — varsa
+  // ─── MARKA BANDI (lacivert kapak) ──────────────────────
+  const bandH = 74;
+  doc.rect(0, 0, pageW, bandH).fillColor(COLORS.primary).fill();
+
+  // Logo beyaz kutu içinde (koyu logo lacivert bantta görünsün)
   if (logoBuffer) {
     try {
-      doc.image(logoBuffer, marginX, 40, { height: 30 });
+      const boxX = marginX, boxY = 21, boxH = 32, boxW = 78;
+      doc.roundedRect(boxX, boxY, boxW, boxH, 5).fillColor('#FFFFFF').fill();
+      doc.image(logoBuffer, boxX + 9, boxY + 7, { height: boxH - 14 });
     } catch (err) {
       console.warn('Logo PDF\'e gömülemedi:', (err as Error).message);
     }
   } else {
-    doc.font(FONT_BOLD).fillColor(COLORS.primary).fontSize(13)
-      .text('TDev Consulting', marginX, 44);
+    doc.font(FONT_BOLD).fillColor('#FFFFFF').fontSize(14).text('TDev Consulting', marginX, 30);
   }
 
-  // Başlık + dönem (sağ, düz metin)
-  doc.font(FONT_BOLD).fillColor(COLORS.ink).fontSize(15)
-    .text('Çalışma Raporu', marginX, 42, { width: contentW, align: 'right' });
-  doc.font(FONT_BODY).fillColor(COLORS.ink3).fontSize(10)
-    .text(ctx.periodLabel, marginX, 62, { width: contentW, align: 'right' });
+  // Başlık + dönem (sağ, beyaz)
+  doc.font(FONT_BOLD).fillColor('#FFFFFF').fontSize(16)
+    .text('Çalışma Raporu', marginX, 24, { width: contentW, align: 'right' });
+  doc.font(FONT_BODY).fillColor('#FFFFFF').opacity(0.7).fontSize(10)
+    .text(ctx.periodLabel, marginX, 47, { width: contentW, align: 'right' });
+  doc.opacity(1);
 
-  // İnce ayraç çizgisi
-  let y = 86;
-  doc.moveTo(marginX, y).lineTo(marginX + contentW, y)
-    .strokeColor(COLORS.paper3).lineWidth(1).stroke();
-  y += 16;
+  let y = bandH + 22;
 
   // ─── BİLGİ SATIRLARI (düz metin) ───────────────────────
   function infoRow(label: string, value: string): void {
@@ -192,14 +193,15 @@ function drawReport(
     y += 17;
   }
   infoRow('Müşteri', ctx.customerName);
-  infoRow('Dönem', ctx.periodLabel);
   infoRow(
     'Toplam',
     `${ctx.totalHours.toFixed(1)} saat · ${ctx.entries.length} kayıt · ${fmtMoney(ctx.totalNet)}`
   );
   if (ctx.generatedBy) infoRow('Hazırlayan', ctx.generatedBy);
 
-  y += 6;
+  y += 8;
+  doc.moveTo(marginX, y).lineTo(marginX + contentW, y).strokeColor(COLORS.paper3).lineWidth(1).stroke();
+  y += 14;
 
   // ─── DETAY TABLOSU ────────────────────────────────────
   // Sütunlar: Tarih · Aktivite · Kullanıcı · Talep · Açıklama · Saat · Tutar
