@@ -34,21 +34,21 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* SOL — marka paneli (lg ve üstü) */}
+    <div className="min-h-screen grid lg:grid-cols-2">
+      {/* SOL — Marka paneli (mobilde gizli) */}
       <div
-        className="hidden lg:flex lg:w-[46%] xl:w-[42%] flex-col justify-between p-12 xl:p-16 relative overflow-hidden"
+        className="hidden lg:flex flex-col justify-between p-12 xl:p-16 relative overflow-hidden"
         style={{
           background: '#0B1224',
           backgroundImage:
-            'radial-gradient(circle at 20% 25%, rgba(37,99,235,.30) 0%, transparent 50%),' +
-            'radial-gradient(circle at 85% 80%, rgba(8,145,178,.22) 0%, transparent 50%)',
+            'radial-gradient(circle at 12% 18%, rgba(37,99,235,.30) 0%, transparent 42%),' +
+            'radial-gradient(circle at 88% 88%, rgba(8,145,178,.22) 0%, transparent 45%)',
         }}
       >
         {/* Logo */}
         <div className="flex items-center gap-3 relative z-10">
           <div className="bg-white rounded-xl px-3.5 py-2.5 flex items-center justify-center shadow-lg">
-            <img src="/logo.png" alt="TDev Consulting" className="h-8 w-auto object-contain" />
+            <img src="/logo.png" alt="TDev Consulting" className="h-7 w-auto object-contain" />
           </div>
           <div className="pl-3 border-l border-white/15">
             <div className="text-[13px] font-bold text-white/90 leading-tight">Aktivite</div>
@@ -56,20 +56,21 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Değer önerileri */}
-        <div className="relative z-10">
-          <h2 className="text-3xl xl:text-4xl font-extrabold text-white tracking-tight leading-tight mb-3">
+        {/* Slogan + özellikler */}
+        <div className="relative z-10 max-w-md">
+          <h1 className="text-4xl xl:text-[42px] font-extrabold text-white tracking-tight leading-[1.1] mb-4">
             Danışmanlık ekibiniz için<br />
             <span className="grad-text" style={{ backgroundSize: '200% 200%' }}>tek merkez.</span>
-          </h2>
-          <p className="text-white/50 text-sm mb-10 max-w-sm">
+          </h1>
+          <p className="text-white/55 text-[15px] leading-relaxed mb-10">
             Çalışma kayıtları, müşteri raporları ve mutabakat belgeleri — hepsi düzenli ve güvenli.
           </p>
+
           <div className="space-y-5">
             {FEATURES.map((f) => (
               <div key={f.title} className="flex items-start gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-white/[.06] border border-white/10 flex items-center justify-center flex-shrink-0">
-                  <f.icon size={18} className="text-brand-indigo" strokeWidth={2.2} />
+                <div className="w-10 h-10 rounded-xl bg-white/[.07] border border-white/10 flex items-center justify-center flex-shrink-0">
+                  <f.icon size={18} className="text-brand-sky" />
                 </div>
                 <div>
                   <div className="text-white/90 font-semibold text-[14px] leading-tight">{f.title}</div>
@@ -80,32 +81,29 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Alt */}
-        <div className="relative z-10 text-white/30 text-[11px]">
+        {/* Footer */}
+        <div className="relative z-10 text-[11px] text-white/30">
           © {new Date().getFullYear()} TDev Consulting · activity.tdevco.com
         </div>
       </div>
 
-      {/* SAĞ — form paneli */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 bg-paper">
+      {/* SAĞ — Giriş formu */}
+      <div className="flex items-center justify-center p-6 sm:p-10 bg-paper">
         <div className="w-full max-w-sm">
-          {/* Mobil logo (sol panel gizliyken) */}
+          {/* Mobilde logo (sol panel gizliyken) */}
           <div className="lg:hidden flex items-center gap-3 mb-10">
-            <div className="bg-ink rounded-xl px-3 py-2 flex items-center justify-center">
-              <img src="/logo.png" alt="TDev Consulting" className="h-7 w-auto object-contain invert-0" style={{ filter: 'none' }} />
+            <div className="bg-ink rounded-xl px-3.5 py-2.5 flex items-center justify-center">
+              <img src="/logo.png" alt="TDev Consulting" className="h-7 w-auto object-contain" />
             </div>
-            <div>
-              <div className="text-[13px] font-bold text-ink leading-tight">Aktivite</div>
-              <div className="text-[10px] font-semibold text-ink-3 uppercase tracking-widest">Giriş Sistemi</div>
-            </div>
+            <div className="text-[13px] font-bold text-ink leading-tight">Aktivite Giriş Sistemi</div>
           </div>
 
-          <h1 className="text-3xl font-extrabold text-ink tracking-tight mb-1.5">Hoş geldiniz</h1>
+          <h2 className="text-3xl font-extrabold text-ink tracking-tight mb-1.5">Hoş geldiniz</h2>
           <p className="text-ink-3 text-sm mb-8">Devam etmek için giriş yapın.</p>
 
           <form onSubmit={submit} className="space-y-4">
             {error && (
-              <div className="bg-brand-rose/10 border border-brand-rose/25 text-brand-rose text-xs px-3 py-2.5 rounded-lg">
+              <div className="bg-brand-rose/10 border border-brand-rose/20 text-brand-rose text-xs px-3.5 py-2.5 rounded-xl">
                 {error}
               </div>
             )}
@@ -134,13 +132,13 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="btn btn-primary w-full !py-3 mt-2"
+              className="btn btn-primary w-full !py-3.5 mt-2"
             >
               {loading ? 'Giriş yapılıyor...' : (<>Giriş Yap <ArrowRight size={16} /></>)}
             </button>
           </form>
 
-          <div className="flex items-center justify-center gap-1.5 text-[11px] text-ink-3 mt-6">
+          <div className="flex items-center justify-center gap-1.5 text-[11px] text-ink-4 mt-6">
             <Lock size={11} />
             Hesabınız yoksa yöneticinizle iletişime geçin.
           </div>
