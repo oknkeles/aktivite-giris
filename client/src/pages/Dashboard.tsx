@@ -113,23 +113,26 @@ export default function Dashboard() {
               {data.customers.length === 0 ? (
                 <div className="text-center py-8 text-ink-3 text-sm">Bu ayda kayıt yok</div>
               ) : (
-                <div className="space-y-3">
-                  {data.customers.map((c) => {
+                <div className="space-y-2.5">
+                  {data.customers.map((c, i) => {
                     const max = data.customers[0].hours || 1;
                     const pct = Math.max((c.hours / max) * 100, 4);
                     return (
-                      <div key={c.id}>
-                        <div className="flex items-center justify-between text-[12px] mb-1">
-                          <span className="font-semibold text-ink">{c.name}</span>
-                          <span className="font-mono text-ink-2">
-                            {fmtHours(c.hours)} · {fmtMoney(c.net)} {curSymbol(c.currency)}
-                          </span>
-                        </div>
-                        <div className="h-2.5 rounded-full bg-paper-2 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-brand-indigo to-brand-violet transition-all"
-                            style={{ width: `${pct}%` }}
-                          />
+                      <div key={c.id} className="flex items-center gap-3">
+                        <span className="w-5 text-[11px] font-mono text-ink-3 text-right flex-shrink-0">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between text-[12px] mb-1 gap-2">
+                            <span className="font-semibold text-ink truncate">{c.name}</span>
+                            <span className="font-mono text-ink-3 flex-shrink-0">
+                              {fmtHours(c.hours)} · <span className="text-ink font-semibold">{fmtMoney(c.net)} {curSymbol(c.currency)}</span>
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-paper-2 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-brand-indigo to-brand-violet transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
                     );

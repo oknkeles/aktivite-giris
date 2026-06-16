@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Calendar, ArrowRight, Lock } from 'lucide-react';
+import { ArrowRight, Lock } from 'lucide-react';
 import { useAuth } from '../store/auth';
 
 export default function Login() {
@@ -37,11 +37,13 @@ export default function Login() {
              'radial-gradient(circle at 50% 100%, rgba(30,64,175,.22) 0%, transparent 50%)',
          }}>
       <div className="w-full max-w-md relative z-10">
-        <div className="inline-flex items-center gap-2.5 bg-white/[.06] border border-white/10 backdrop-blur-md rounded-full pl-2 pr-4 py-1.5 mb-6">
-          <div className="w-7 h-7 rounded-full bg-grad-primary flex items-center justify-center shadow-glow">
-            <Calendar size={14} className="text-white" strokeWidth={2.5} />
+        {/* TDev gerçek logosu (beyaz, koyu zemin için) */}
+        <div className="flex items-center gap-3 mb-8">
+          <img src="/logo.png" alt="TDev Consulting" className="h-10 w-auto" />
+          <div className="pl-3 border-l border-white/15">
+            <div className="text-[13px] font-bold text-white/90 leading-tight">Aktivite</div>
+            <div className="text-[10px] font-semibold text-white/40 uppercase tracking-widest">Giriş Sistemi</div>
           </div>
-          <span className="text-xs font-semibold text-white/85">Aktivite Giriş Sistemi</span>
         </div>
 
         <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight mb-2 leading-tight">

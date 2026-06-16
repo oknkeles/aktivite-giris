@@ -34,6 +34,7 @@ const TARGET_LABEL: Record<string, string> = {
   contractor: 'Yüklenici',
   activity: 'Aktivite',
   rate: 'Fiyat',
+  period: 'Dönem',
   session: 'Oturum',
 };
 
@@ -104,6 +105,8 @@ export default function AuditLog() {
               <option value="customer">Müşteri</option>
               <option value="contractor">Yüklenici</option>
               <option value="activity">Aktivite</option>
+              <option value="rate">Fiyat</option>
+              <option value="period">Dönem</option>
               <option value="session">Oturum</option>
             </select>
           </div>
