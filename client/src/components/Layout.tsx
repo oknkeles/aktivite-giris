@@ -21,10 +21,26 @@ const TITLES: Record<string, string> = {
   '/locks': 'Dönem Kilidi',
 };
 
+// Topbar'da başlığın üstünde gösterilen bölüm etiketi (eyebrow)
+const SECTIONS: Record<string, string> = {
+  '/timesheet': 'Giriş',
+  '/entries': 'Giriş',
+  '/team': 'Giriş',
+  '/dashboard': 'Finans',
+  '/reports': 'Finans',
+  '/activities': 'Yönetim',
+  '/contractors': 'Yönetim',
+  '/customers': 'Yönetim',
+  '/users': 'Yönetim',
+  '/locks': 'Yönetim',
+  '/audit': 'Yönetim',
+};
+
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const loc = useLocation();
   const title = TITLES[loc.pathname] || 'Aktivite Giriş';
+  const section = SECTIONS[loc.pathname];
   const extras = useHeader((s) => s.extras);
   const { wizardOpen, openWizard, closeWizard, bulkAIOpen, closeBulkAI } = useQuickEntry();
 
@@ -52,10 +68,13 @@ export default function Layout() {
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
 
       <main className="lg:pl-64 min-h-screen flex flex-col">
-        {/* Topbar — page title on left, page-specific actions on right */}
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-paper-3 h-14 sm:h-16 flex items-center justify-between gap-3 px-5 sm:px-7 lg:px-9">
-          <div className="text-lg sm:text-xl font-extrabold tracking-tight pl-12 lg:pl-0 flex-shrink-0">
-            {title}
+        {/* Topbar — bölüm etiketi + başlık solda, sayfa aksiyonları sağda */}
+        <header className="sticky top-0 z-30 bg-white/85 backdrop-blur-xl border-b border-paper-3/80 h-16 sm:h-[68px] flex items-center justify-between gap-3 px-5 sm:px-7 lg:px-9 shadow-[0_1px_0_rgba(15,23,42,.02)]">
+          <div className="pl-12 lg:pl-0 flex-shrink-0 leading-none">
+            {section && (
+              <div className="text-[10px] font-bold tracking-[.14em] text-ink-4 uppercase mb-1">{section}</div>
+            )}
+            <div className="text-lg sm:text-xl font-extrabold tracking-tight">{title}</div>
           </div>
           {extras && (
             <div className="flex items-center gap-2 min-w-0 overflow-x-auto">{extras}</div>

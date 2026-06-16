@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { ArrowRight, Lock } from 'lucide-react';
+import { ArrowRight, Lock, CalendarCheck, BarChart3, MessageCircle } from 'lucide-react';
 import { useAuth } from '../store/auth';
+
+const FEATURES = [
+  { icon: CalendarCheck, title: 'Hızlı aktivite girişi', desc: 'Takvim üzerinden tek tıkla, dakikalar içinde.' },
+  { icon: BarChart3, title: 'Anlık raporlar', desc: 'Müşteri bazında saat ve tutar, tek ekranda.' },
+  { icon: MessageCircle, title: 'WhatsApp ile kayıt', desc: 'Ofiste olmadan, yazarak aktivite ekle.' },
+];
 
 export default function Login() {
   const { user, login } = useAuth();
@@ -28,17 +34,19 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
-         style={{
-           background: '#0B1224',
-           backgroundImage:
-             'radial-gradient(circle at 15% 30%, rgba(37,99,235,.32) 0%, transparent 45%),' +
-             'radial-gradient(circle at 85% 70%, rgba(8,145,178,.25) 0%, transparent 45%),' +
-             'radial-gradient(circle at 50% 100%, rgba(30,64,175,.22) 0%, transparent 50%)',
-         }}>
-      <div className="w-full max-w-md relative z-10">
-        {/* TDev logosu — beyaz kutu içinde (logo koyu, kontrast için) */}
-        <div className="flex items-center gap-3 mb-8">
+    <div className="min-h-screen flex">
+      {/* SOL — marka paneli (lg ve üstü) */}
+      <div
+        className="hidden lg:flex lg:w-[46%] xl:w-[42%] flex-col justify-between p-12 xl:p-16 relative overflow-hidden"
+        style={{
+          background: '#0B1224',
+          backgroundImage:
+            'radial-gradient(circle at 20% 25%, rgba(37,99,235,.30) 0%, transparent 50%),' +
+            'radial-gradient(circle at 85% 80%, rgba(8,145,178,.22) 0%, transparent 50%)',
+        }}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-3 relative z-10">
           <div className="bg-white rounded-xl px-3.5 py-2.5 flex items-center justify-center shadow-lg">
             <img src="/logo.png" alt="TDev Consulting" className="h-8 w-auto object-contain" />
           </div>
@@ -48,56 +56,94 @@ export default function Login() {
           </div>
         </div>
 
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight mb-2 leading-tight">
-          Hoş <span className="grad-text" style={{ backgroundSize: '200% 200%' }}>geldiniz</span>
-        </h1>
-        <p className="text-white/55 mb-8">Aktivitenizi kaydetmek bir tık kadar kolay.</p>
+        {/* Değer önerileri */}
+        <div className="relative z-10">
+          <h2 className="text-3xl xl:text-4xl font-extrabold text-white tracking-tight leading-tight mb-3">
+            Danışmanlık ekibiniz için<br />
+            <span className="grad-text" style={{ backgroundSize: '200% 200%' }}>tek merkez.</span>
+          </h2>
+          <p className="text-white/50 text-sm mb-10 max-w-sm">
+            Çalışma kayıtları, müşteri raporları ve mutabakat belgeleri — hepsi düzenli ve güvenli.
+          </p>
+          <div className="space-y-5">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-white/[.06] border border-white/10 flex items-center justify-center flex-shrink-0">
+                  <f.icon size={18} className="text-brand-indigo" strokeWidth={2.2} />
+                </div>
+                <div>
+                  <div className="text-white/90 font-semibold text-[14px] leading-tight">{f.title}</div>
+                  <div className="text-white/45 text-[12.5px] mt-0.5">{f.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-        <form onSubmit={submit} className="bg-white/[.04] border border-white/10 backdrop-blur-md rounded-2xl p-6 sm:p-7 space-y-4">
-          {error && (
-            <div className="bg-brand-rose/15 border border-brand-rose/30 text-[#FF9090] text-xs px-3 py-2.5 rounded-lg">
-              {error}
+        {/* Alt */}
+        <div className="relative z-10 text-white/30 text-[11px]">
+          © {new Date().getFullYear()} TDev Consulting · activity.tdevco.com
+        </div>
+      </div>
+
+      {/* SAĞ — form paneli */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 bg-paper">
+        <div className="w-full max-w-sm">
+          {/* Mobil logo (sol panel gizliyken) */}
+          <div className="lg:hidden flex items-center gap-3 mb-10">
+            <div className="bg-ink rounded-xl px-3 py-2 flex items-center justify-center">
+              <img src="/logo.png" alt="TDev Consulting" className="h-7 w-auto object-contain invert-0" style={{ filter: 'none' }} />
             </div>
-          )}
-          <div>
-            <label className="block text-[11px] font-bold text-white/40 uppercase tracking-wide mb-2">
-              Kullanıcı adı
-            </label>
-            <input
-              autoFocus
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-white/[.06] border border-white/10 rounded-xl px-3.5 py-3 text-white outline-none focus:border-brand-indigo focus:bg-brand-indigo/10 transition placeholder-white/20"
-              placeholder="kullanici_adi"
-              autoComplete="username"
-            />
+            <div>
+              <div className="text-[13px] font-bold text-ink leading-tight">Aktivite</div>
+              <div className="text-[10px] font-semibold text-ink-3 uppercase tracking-widest">Giriş Sistemi</div>
+            </div>
           </div>
-          <div>
-            <label className="block text-[11px] font-bold text-white/40 uppercase tracking-wide mb-2">
-              Şifre
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-white/[.06] border border-white/10 rounded-xl px-3.5 py-3 text-white outline-none focus:border-brand-indigo focus:bg-brand-indigo/10 transition placeholder-white/20"
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-grad-primary text-white font-bold rounded-xl py-3.5 mt-2 hover:-translate-y-0.5 shadow-glow hover:shadow-[0_12px_32px_rgba(37,99,235,.5)] transition-all flex items-center justify-center gap-2"
-            style={{ backgroundSize: '200% 200%' }}
-          >
-            {loading ? 'Giriş yapılıyor...' : (<>Giriş Yap <ArrowRight size={16} /></>)}
-          </button>
-        </form>
 
-        <div className="flex items-center justify-center gap-1.5 text-[11px] text-white/30 mt-5">
-          <Lock size={11} />
-          Hesabınız yoksa yöneticinizle iletişime geçin.
+          <h1 className="text-3xl font-extrabold text-ink tracking-tight mb-1.5">Hoş geldiniz</h1>
+          <p className="text-ink-3 text-sm mb-8">Devam etmek için giriş yapın.</p>
+
+          <form onSubmit={submit} className="space-y-4">
+            {error && (
+              <div className="bg-brand-rose/10 border border-brand-rose/25 text-brand-rose text-xs px-3 py-2.5 rounded-lg">
+                {error}
+              </div>
+            )}
+            <div>
+              <label className="label">Kullanıcı adı</label>
+              <input
+                autoFocus
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="input"
+                placeholder="kullanici_adi"
+                autoComplete="username"
+              />
+            </div>
+            <div>
+              <label className="label">Şifre</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input"
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary w-full !py-3 mt-2"
+            >
+              {loading ? 'Giriş yapılıyor...' : (<>Giriş Yap <ArrowRight size={16} /></>)}
+            </button>
+          </form>
+
+          <div className="flex items-center justify-center gap-1.5 text-[11px] text-ink-3 mt-6">
+            <Lock size={11} />
+            Hesabınız yoksa yöneticinizle iletişime geçin.
+          </div>
         </div>
       </div>
     </div>

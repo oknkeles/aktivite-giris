@@ -56,7 +56,7 @@
   }
 
   .card {
-    @apply bg-white border border-paper-3 rounded-2xl p-5 sm:p-6 shadow-soft transition-shadow hover:shadow-md;
+    @apply bg-white border border-paper-3 rounded-2xl p-5 sm:p-6 shadow-soft;
   }
 
   .clabel {
@@ -100,19 +100,13 @@
   pointer-events: none;
   overflow: hidden;
 }
+/* Sabit, çok hafif arka plan tonu — kurumsal his (hareketli blob kaldırıldı) */
 .bg-blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: .12;
-  animation: floatBlob 24s ease-in-out infinite;
+  filter: blur(120px);
+  opacity: .045;
 }
-.bg-blob.b1 { width: 420px; height: 420px; background: #2563EB; top: -120px; left: -100px; }
-.bg-blob.b2 { width: 380px; height: 380px; background: #0891B2; bottom: -100px; right: -80px; animation-direction: reverse; animation-duration: 28s; }
-.bg-blob.b3 { width: 320px; height: 320px; background: #1E3A8A; top: 50%; left: 55%; opacity: .08; animation-duration: 32s; }
-
-@keyframes floatBlob {
-  0%, 100% { transform: translate(0,0) scale(1); }
-  33% { transform: translate(60px, 30px) scale(1.15); }
-  66% { transform: translate(-30px, 50px) scale(0.9); }
-}
+.bg-blob.b1 { width: 480px; height: 480px; background: #2563EB; top: -160px; left: -140px; }
+.bg-blob.b2 { width: 420px; height: 420px; background: #0891B2; bottom: -140px; right: -120px; }
+.bg-blob.b3 { display: none; }

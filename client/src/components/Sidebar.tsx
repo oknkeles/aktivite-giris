@@ -89,7 +89,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
 
         {/* User */}
         <div className="flex items-center gap-3 p-4 border-b border-white/5 bg-white/[.02]">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-indigo to-[#7C4DFF] flex items-center justify-center text-white text-sm font-extrabold shadow-md">
+          <div className="w-9 h-9 rounded-full bg-grad-primary flex items-center justify-center text-white text-sm font-extrabold shadow-md">
             {user?.fullname?.charAt(0).toUpperCase() || '?'}
           </div>
           <div className="flex-1 min-w-0">
@@ -206,7 +206,7 @@ function NavItem({ to, icon: Icon, label, indented = false, onNav }: {
       {({ isActive }) => (
         <>
           {isActive && !indented && (
-            <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r bg-grad-primary shadow-[0_0_14px_rgba(37,99,235,.7)]" />
+            <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r bg-grad-primary shadow-[0_0_8px_rgba(37,99,235,.4)]" />
           )}
           <Icon size={indented ? 14 : 16} className={isActive ? 'text-brand-violet/90' : ''} />
           {label}
