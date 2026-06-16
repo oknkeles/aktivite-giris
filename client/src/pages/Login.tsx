@@ -37,9 +37,11 @@ export default function Login() {
              'radial-gradient(circle at 50% 100%, rgba(30,64,175,.22) 0%, transparent 50%)',
          }}>
       <div className="w-full max-w-md relative z-10">
-        {/* TDev gerçek logosu (beyaz, koyu zemin için) */}
+        {/* TDev logosu — beyaz kutu içinde (logo koyu, kontrast için) */}
         <div className="flex items-center gap-3 mb-8">
-          <img src="/logo.png" alt="TDev Consulting" className="h-10 w-auto" />
+          <div className="bg-white rounded-xl px-3.5 py-2.5 flex items-center justify-center shadow-lg">
+            <img src="/logo.png" alt="TDev Consulting" className="h-8 w-auto object-contain" />
+          </div>
           <div className="pl-3 border-l border-white/15">
             <div className="text-[13px] font-bold text-white/90 leading-tight">Aktivite</div>
             <div className="text-[10px] font-semibold text-white/40 uppercase tracking-widest">Giriş Sistemi</div>
