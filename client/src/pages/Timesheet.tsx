@@ -515,11 +515,15 @@ function DayModal({ date, onClose, entries, customers, activities }: {
     else addMut.mutate();
   }
 
+  const busy = addMut.isPending || updateMut.isPending || delMut.isPending;
+
   return (
     <Modal
       open
       onClose={onClose}
       size="lg"
+      busy={busy}
+      busyLabel={editingId ? 'Güncelleniyor…' : 'Kaydediliyor…'}
       title={
         <div className="flex items-center gap-2">
           <span className="grad-text">{DAYS_LONG[d.getDay()]}</span>
@@ -530,10 +534,10 @@ function DayModal({ date, onClose, entries, customers, activities }: {
       footer={
         <>
           {editingId && (
-            <button className="btn" onClick={resetForm}>Düzenlemeyi İptal</button>
+            <button className="btn" onClick={resetForm} disabled={busy}>Düzenlemeyi İptal</button>
           )}
-          <button className="btn" onClick={onClose}>Kapat</button>
-          <button className="btn btn-primary" onClick={save}>
+          <button className="btn" onClick={onClose} disabled={busy}>Kapat</button>
+          <button className="btn btn-primary" onClick={save} disabled={busy}>
             {editingId ? 'Güncelle' : 'Kaydet'}
           </button>
         </>

@@ -219,6 +219,8 @@ function CustomerModal({
       open
       onClose={onClose}
       size="md"
+      busy={saveMut.isPending || delMut.isPending}
+      busyLabel={delMut.isPending ? 'Siliniyor…' : 'Kaydediliyor…'}
       title={isNew ? 'Yeni Müşteri' : <><strong>{customer!.name}</strong> <span className="text-ink-3 font-normal">düzenle</span></>}
       footer={
         <div className="flex items-center justify-between w-full gap-2">

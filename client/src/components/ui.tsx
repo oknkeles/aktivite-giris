@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 export function CountUp({
   value,
   format,
-  duration = 650,
+  duration = 900,
 }: {
   value: number;
   format?: (n: number) => string;

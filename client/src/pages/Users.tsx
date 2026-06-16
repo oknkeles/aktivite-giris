@@ -149,6 +149,8 @@ function UserModal({ user, me, activities, onClose }: { user: UserRow | null; me
       open
       onClose={onClose}
       size="md"
+      busy={saveMut.isPending || delMut.isPending}
+      busyLabel={delMut.isPending ? 'Siliniyor…' : 'Kaydediliyor…'}
       title={isNew ? 'Yeni Kullanıcı' : <><strong>{user!.fullname}</strong> <span className="text-ink-3 font-normal">düzenle</span></>}
       footer={
         <div className="flex items-center justify-between w-full gap-2">
