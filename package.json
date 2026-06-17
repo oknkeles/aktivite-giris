@@ -19,7 +19,7 @@
     "build:server": "rm -rf server/dist && npm --workspace=server run build",
     "build": "npm run build:client && npm run build:server && cd server && npx prisma generate",
     "postinstall": "cd server && npx prisma generate || true",
-    "start": "cd server && (npx prisma migrate deploy || npx prisma db push --accept-data-loss) && node dist/index.js"
+    "start": "cd server && node dist/index.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

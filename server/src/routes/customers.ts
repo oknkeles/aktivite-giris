@@ -112,7 +112,8 @@ router.patch('/:id', adminRequired, async (req: AuthRequest, res) => {
   if (Object.keys(data).length) {
     await prisma.customer.update({ where: { id }, data: data as any });
   }
-  if (projects) await syncProjects(id, projects);
+  // Güvenlik: boş proje listesiyle mevcut projeleri topluca silme/pasifleştirme
+  if (projects && projects.length) await syncProjects(id, projects);
 
   const updated = await prisma.customer.findUnique({ where: { id }, include: customerInclude });
   const changedFields = [...Object.keys(data), ...(projects ? ['proje/fiyat'] : [])];
