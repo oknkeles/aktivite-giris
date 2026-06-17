@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Search as SearchIcon } from 'lucide-react';
+import { Search as SearchIcon, Sparkles } from 'lucide-react';
 import Sidebar from './Sidebar';
 import { ToastHost } from './Toast';
 import { useHeader } from '../store/header';
 import { useQuickEntry } from '../store/quickEntry';
 import { useSpotlight } from '../store/spotlight';
+import { useAssistant } from '../store/assistant';
 import QuickEntryWizard from './QuickEntryWizard';
 import BulkAIEntry from './BulkAIEntry';
 import Spotlight from './Spotlight';
+import AssistantChat from './AssistantChat';
 
 const TITLES: Record<string, string> = {
   '/timesheet': 'Timesheet',
@@ -63,6 +65,7 @@ export default function Layout() {
   const extras = useHeader((s) => s.extras);
   const { wizardOpen, closeWizard, bulkAIOpen, closeBulkAI } = useQuickEntry();
   const toggleSpotlight = useSpotlight((s) => s.toggle);
+  const toggleAssistant = useAssistant((s) => s.toggle);
 
   // Cmd+K / Ctrl+K → Spotlight (komut paleti)
   useEffect(() => {
@@ -111,6 +114,15 @@ export default function Layout() {
               <span className="text-[12px] hidden md:inline">Ara…</span>
               <kbd className="text-[10px] font-mono bg-surface border border-paper-3 rounded px-1.5 py-0.5 hidden md:inline">⌘K</kbd>
             </button>
+            {/* AI Asistan */}
+            <button
+              onClick={toggleAssistant}
+              className="flex items-center gap-1.5 bg-grad-primary text-white rounded-xl px-2.5 sm:px-3 py-2 text-xs font-bold shadow-glow hover:-translate-y-0.5 transition flex-shrink-0"
+              title="AI Asistan"
+            >
+              <Sparkles size={15} />
+              <span className="hidden md:inline">Asistan</span>
+            </button>
           </div>
         </header>
 
@@ -125,6 +137,7 @@ export default function Layout() {
       <QuickEntryWizard open={wizardOpen} onClose={closeWizard} />
       <BulkAIEntry open={bulkAIOpen} onClose={closeBulkAI} />
       <Spotlight />
+      <AssistantChat />
 
       <ToastHost />
     </div>

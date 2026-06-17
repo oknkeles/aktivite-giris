@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useSpotlight } from '../store/spotlight';
+import { useAssistant } from '../store/assistant';
 import { useQuickEntry } from '../store/quickEntry';
 import { useTheme } from '../store/theme';
 import { useAuth, isAdmin } from '../store/auth';
@@ -37,6 +38,7 @@ export default function Spotlight() {
   const { user, logout } = useAuth();
   const admin = isAdmin(user);
   const { openWizard, openBulkAI } = useQuickEntry();
+  const openAssistant = useAssistant((s) => s.setOpen);
   const { theme, toggle: toggleTheme } = useTheme();
 
   const [q, setQ] = useState('');
@@ -66,6 +68,7 @@ export default function Spotlight() {
     const list: Item[] = [];
 
     // Aksiyonlar
+    list.push({ id: 'act-assistant', group: 'Aksiyon', label: 'AI Asistan', hint: 'Doğal dille kayıt/sorgu', icon: Wand2, keywords: 'sohbet chat asistan yapay zeka doldur rapor', run: () => { close(); openAssistant(true); } });
     list.push({ id: 'act-quick', group: 'Aksiyon', label: 'Hızlı Kayıt', hint: 'Aktivite ekle', icon: Zap, keywords: 'ekle giris yeni', run: () => { close(); openWizard(); } });
     list.push({ id: 'act-bulk', group: 'Aksiyon', label: 'AI ile Toplu Giriş', hint: 'Metinden kayıt', icon: Wand2, keywords: 'yapay zeka metin', run: () => { close(); openBulkAI(); } });
     list.push({ id: 'act-theme', group: 'Aksiyon', label: theme === 'dark' ? 'Açık moda geç' : 'Koyu moda geç', icon: theme === 'dark' ? Sun : Moon, keywords: 'tema dark light renk', run: () => { toggleTheme(); close(); } });

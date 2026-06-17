@@ -14,6 +14,7 @@ import reportsRouter from './routes/reports.js';
 import whatsappRouter from './routes/whatsapp.js';
 import auditRouter from './routes/audit.js';
 import locksRouter from './routes/locks.js';
+import assistantRouter from './routes/assistant.js';
 import { startReminderCron } from './services/reminders.js';
 import { startMonthlySummaryCron } from './services/monthly-summary.js';
 
@@ -49,6 +50,7 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/locks', locksRouter);
+app.use('/api/assistant', assistantRouter);
 
 // In production: serve the built React client from server/dist
 if (isProd) {
