@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { Search as SearchIcon } from 'lucide-react';
 import Sidebar from './Sidebar';
 import { ToastHost } from './Toast';
 import { useHeader } from '../store/header';
 import { useQuickEntry } from '../store/quickEntry';
+import { useSpotlight } from '../store/spotlight';
 import QuickEntryWizard from './QuickEntryWizard';
 import BulkAIEntry from './BulkAIEntry';
+import Spotlight from './Spotlight';
 
 const TITLES: Record<string, string> = {
   '/timesheet': 'Timesheet',
@@ -58,19 +61,20 @@ export default function Layout() {
   const section = SECTIONS[loc.pathname];
   const subtitle = SUBTITLES[loc.pathname];
   const extras = useHeader((s) => s.extras);
-  const { wizardOpen, openWizard, closeWizard, bulkAIOpen, closeBulkAI } = useQuickEntry();
+  const { wizardOpen, closeWizard, bulkAIOpen, closeBulkAI } = useQuickEntry();
+  const toggleSpotlight = useSpotlight((s) => s.toggle);
 
-  // Cmd+K / Ctrl+K → Hızlı kayıt
+  // Cmd+K / Ctrl+K → Spotlight (komut paleti)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        openWizard();
+        toggleSpotlight();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [openWizard]);
+  }, [toggleSpotlight]);
 
   return (
     <div className="min-h-screen">
@@ -95,9 +99,19 @@ export default function Layout() {
               <div className="text-[12px] text-ink-3 mt-0.5 truncate hidden sm:block">{subtitle}</div>
             )}
           </div>
-          {extras && (
-            <div className="flex items-center gap-2 min-w-0 overflow-x-auto">{extras}</div>
-          )}
+          <div className="flex items-center gap-2 min-w-0">
+            {extras && <div className="flex items-center gap-2 min-w-0 overflow-x-auto">{extras}</div>}
+            {/* Spotlight tetikleyici */}
+            <button
+              onClick={toggleSpotlight}
+              className="hidden sm:flex items-center gap-2 text-ink-3 hover:text-ink bg-paper-2 hover:bg-paper-3/60 border border-paper-3 rounded-xl pl-3 pr-2 py-2 transition flex-shrink-0"
+              title="Komut paleti (⌘K)"
+            >
+              <SearchIcon size={15} />
+              <span className="text-[12px] hidden md:inline">Ara…</span>
+              <kbd className="text-[10px] font-mono bg-surface border border-paper-3 rounded px-1.5 py-0.5 hidden md:inline">⌘K</kbd>
+            </button>
+          </div>
         </header>
 
         {/* Content fills available width — max constrained to 1600px for ultra-wide screens */}
@@ -110,6 +124,7 @@ export default function Layout() {
 
       <QuickEntryWizard open={wizardOpen} onClose={closeWizard} />
       <BulkAIEntry open={bulkAIOpen} onClose={closeBulkAI} />
+      <Spotlight />
 
       <ToastHost />
     </div>

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { FileDown, BarChart3, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -9,6 +10,7 @@ import { fmtHours, fmtMoney, curSymbol, fmtMoneyByCurrency } from '../lib/format
 
 export default function Reports() {
   const toast = useToast();
+  const [searchParams] = useSearchParams();
   const now = new Date();
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -16,7 +18,14 @@ export default function Reports() {
 
   const [from, setFrom] = useState(`${yyyy}-${mm}-01`);
   const [to, setTo] = useState(`${yyyy}-${mm}-${String(last).padStart(2, '0')}`);
-  const [cusId, setCusId] = useState('');
+  // Spotlight'tan müşteri seçilerek gelinmiş olabilir (?customerId=)
+  const [cusId, setCusId] = useState(searchParams.get('customerId') || '');
+
+  // Aynı sayfadayken Spotlight'tan başka müşteri seçilirse senkronla
+  useEffect(() => {
+    const p = searchParams.get('customerId');
+    if (p) setCusId(p);
+  }, [searchParams]);
 
   const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => api.get<Customer[]>('/customers') });
 
