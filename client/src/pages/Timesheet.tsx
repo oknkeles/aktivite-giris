@@ -369,11 +369,10 @@ function TimesheetActions() {
       <button
         onClick={openWizard}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-grad-primary text-white text-xs font-bold hover:-translate-y-0.5 transition-all shadow-glow"
-        title="⌘K"
+        title="Hızlı Kayıt"
       >
         <Zap size={13} />
         Hızlı Kayıt
-        <span className="text-[10px] font-mono opacity-70 ml-1">⌘K</span>
       </button>
       <button
         onClick={openBulkAI}
