@@ -70,11 +70,17 @@ export interface Contractor {
   _count?: { customers: number };
 }
 
-export interface CustomerRate {
-  id: number;
-  customerId: number;
+export interface ProjectRate {
+  id?: number;
   activityId: number;
   rate: number;
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  active?: boolean;
+  rates: ProjectRate[];
 }
 
 export interface Customer {
@@ -86,7 +92,7 @@ export interface Customer {
   currency?: string | null;
   active?: boolean;
   contractor: Contractor;
-  rates: CustomerRate[];
+  projects: Project[];
 }
 
 export interface Entry {
@@ -96,9 +102,11 @@ export interface Entry {
   ticketId?: string | null;
   note?: string | null;
   customerId: number;
+  projectId?: number | null;
   activityId: number;
   userId: number;
   customer: Customer;
+  project?: { id: number; name: string } | null;
   activity: Activity;
   user: { id: number; username: string; fullname: string };
 }
@@ -115,6 +123,8 @@ export interface ReportData {
     note: string | null;
     customerId: number;
     customerName: string;
+    projectId: number | null;
+    projectName: string | null;
     contractorId: number;
     contractorName: string;
     discount: number;

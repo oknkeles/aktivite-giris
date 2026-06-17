@@ -44,7 +44,8 @@ async function buildSummary(): Promise<string | null> {
   const entries = await prisma.entry.findMany({
     where: { date: { startsWith: period } },
     include: {
-      customer: { include: { contractor: true, rates: true } },
+      customer: { include: { contractor: true } },
+      project: { include: { rates: true } },
       activity: true,
     },
   });
@@ -56,7 +57,7 @@ async function buildSummary(): Promise<string | null> {
   const byCustomer: Record<string, { hours: number; net: number; currency: string }> = {};
 
   for (const e of entries) {
-    const rate = e.customer.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
+    const rate = e.project?.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
     const disc = e.customer.contractor.discount || 0;
     const net = (hours / 8) * rate * (1 - disc / 100);

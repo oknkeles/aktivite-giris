@@ -442,6 +442,7 @@ function DayModal({ date, onClose, entries, customers, activities }: {
   const { user: me } = useAuth();
   const defaultAct = me?.defaultActivityId || '';
   const [cusId, setCusId] = useState<number | ''>('');
+  const [projId, setProjId] = useState<number | ''>('');
   const [actId, setActId] = useState<number | ''>(defaultAct);
   const [qty, setQty] = useState('');
   const [ticketId, setTicketId] = useState('');
@@ -451,14 +452,24 @@ function DayModal({ date, onClose, entries, customers, activities }: {
   const toast = useToast();
   const qc = useQueryClient();
 
+  const activeCustomers = customers.filter((c) => c.active !== false);
+  const projOptions = (customers.find((c) => c.id === cusId)?.projects || []).filter((p) => p.active !== false);
+
+  function chooseCustomer(id: number | '') {
+    setCusId(id);
+    const ap = (customers.find((c) => c.id === id)?.projects || []).filter((p) => p.active !== false);
+    setProjId(ap.length === 1 ? ap[0].id : ''); // tek proje → otomatik
+  }
+
   function resetForm() {
-    setQty(''); setTicketId(''); setNote(''); setCusId(''); setActId(defaultAct);
+    setQty(''); setTicketId(''); setNote(''); setCusId(''); setProjId(''); setActId(defaultAct);
     setEditingId(null);
   }
 
   function startEdit(e: Entry) {
     setEditingId(e.id);
     setCusId(e.customerId);
+    setProjId(e.projectId || '');
     setActId(e.activityId);
     setQty(String(e.qty));
     setTicketId(e.ticketId || '');
@@ -466,7 +477,7 @@ function DayModal({ date, onClose, entries, customers, activities }: {
   }
 
   const addMut = useMutation({
-    mutationFn: () => api.post('/entries', { date, qty: parseFloat(qty), customerId: cusId, activityId: actId, ticketId: ticketId || null, note: note || null }),
+    mutationFn: () => api.post('/entries', { date, qty: parseFloat(qty), customerId: cusId, projectId: projId || undefined, activityId: actId, ticketId: ticketId || null, note: note || null }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['entries'] });
       resetForm();
@@ -485,6 +496,7 @@ function DayModal({ date, onClose, entries, customers, activities }: {
     mutationFn: () => api.put(`/entries/${editingId}`, {
       qty: parseFloat(qty),
       customerId: cusId,
+      projectId: projId || undefined,
       activityId: actId,
       ticketId: ticketId || null,
       note: note || null,
@@ -509,6 +521,7 @@ function DayModal({ date, onClose, entries, customers, activities }: {
 
   function save() {
     if (!cusId) return toast.show('Müşteri seçin', 'error');
+    if (projOptions.length > 1 && !projId) return toast.show('Proje seçin', 'error');
     if (!actId) return toast.show('Aktivite seçin', 'error');
     if (!qty || parseFloat(qty) <= 0) return toast.show('Geçerli süre girin', 'error');
     if (editingId) updateMut.mutate();
@@ -621,12 +634,27 @@ function DayModal({ date, onClose, entries, customers, activities }: {
       <div className="clabel mb-3">{editingId ? 'Kaydı Düzenle' : 'Yeni Kayıt Ekle'}</div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div>
-          <label className="label">Müşteri / Proje</label>
-          <select className="input" value={cusId} onChange={(e) => setCusId(e.target.value ? +e.target.value : '')}>
+          <label className="label">Müşteri</label>
+          <select className="input" value={cusId} onChange={(e) => chooseCustomer(e.target.value ? +e.target.value : '')}>
             <option value="">— Seçin —</option>
-            {customers.filter((c) => c.active !== false).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {activeCustomers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
+        {/* Proje — tek projede otomatik (gizli), birden fazlaysa seçim */}
+        {projOptions.length > 1 ? (
+          <div>
+            <label className="label">Proje <span className="text-brand-rose">*</span></label>
+            <select className="input" value={projId} onChange={(e) => setProjId(e.target.value ? +e.target.value : '')}>
+              <option value="">— Proje seçin —</option>
+              {projOptions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        ) : (
+          <div>
+            <label className="label">Proje</label>
+            <input className="input bg-paper-2 text-ink-3" disabled value={projOptions[0]?.name || (cusId ? '—' : 'Önce müşteri seçin')} />
+          </div>
+        )}
         <div>
           <label className="label">Aktivite Türü</label>
           <select className="input" value={actId} onChange={(e) => setActId(e.target.value ? +e.target.value : '')}>

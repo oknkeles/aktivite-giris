@@ -20,15 +20,16 @@ router.get('/', async (req, res) => {
   const entries = await prisma.entry.findMany({
     where,
     include: {
-      customer: { include: { contractor: true, rates: true } },
+      customer: { include: { contractor: true } },
+      project: { include: { rates: true } },
       activity: true,
     },
     orderBy: { date: 'asc' },
   });
 
-  // Calculate amounts
+  // Calculate amounts — rate artık proje seviyesinden
   const data = entries.map((e) => {
-    const rateRow = e.customer.rates.find((r) => r.activityId === e.activityId);
+    const rateRow = e.project?.rates.find((r) => r.activityId === e.activityId);
     const dayRate = rateRow?.rate || 0;
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
     const days = hours / 8;
@@ -46,6 +47,8 @@ router.get('/', async (req, res) => {
       note: e.note,
       customerId: e.customer.id,
       customerName: e.customer.name,
+      projectId: e.projectId,
+      projectName: e.project?.name || null,
       contractorId: e.customer.contractor.id,
       contractorName: e.customer.contractor.name,
       discount: disc,
@@ -82,7 +85,8 @@ router.get('/dashboard', async (req, res) => {
   const entries = await prisma.entry.findMany({
     where: { date: { gte: windowStart, lte: windowEnd } },
     include: {
-      customer: { include: { contractor: true, rates: true } },
+      customer: { include: { contractor: true } },
+      project: { include: { rates: true } },
       activity: true,
     },
   });
@@ -104,7 +108,7 @@ router.get('/dashboard', async (req, res) => {
   const monthByCurrency: Record<string, number> = {}; // para birimi → net toplam
 
   for (const e of entries) {
-    const rate = e.customer.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
+    const rate = e.project?.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
     const disc = e.customer.contractor.discount || 0;
     const net = (hours / 8) * rate * (1 - disc / 100);
@@ -146,7 +150,7 @@ router.get('/pdf', async (req: AuthRequest, res) => {
 
   const customer = await prisma.customer.findUnique({
     where: { id: Number(customerId) },
-    include: { contractor: true, rates: true },
+    include: { contractor: true },
   });
   if (!customer) return res.status(404).json({ error: 'Müşteri bulunamadı' });
 
@@ -157,13 +161,14 @@ router.get('/pdf', async (req: AuthRequest, res) => {
     },
     include: {
       activity: true,
+      project: { include: { rates: true } },
       user: { select: { fullname: true } },
     },
     orderBy: { date: 'asc' },
   });
 
   const reportEntries: ReportEntry[] = entries.map((e) => {
-    const rate = customer.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
+    const rate = e.project?.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
     const days = hours / 8;
     const gross = days * rate;

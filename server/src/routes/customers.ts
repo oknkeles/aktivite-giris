@@ -7,12 +7,25 @@ import { audit } from '../services/audit.js';
 const router = Router();
 router.use(authRequired);
 
+const customerInclude = {
+  contractor: true,
+  projects: { include: { rates: true }, orderBy: { name: 'asc' as const } },
+};
+
 router.get('/', async (_req, res) => {
   const list = await prisma.customer.findMany({
     orderBy: { name: 'asc' },
-    include: { contractor: true, rates: true },
+    include: customerInclude,
   });
   res.json(list);
+});
+
+// Proje şeması — id varsa güncelle, yoksa oluştur. rates: activityId → rate
+const projectSchema = z.object({
+  id: z.number().int().optional(),
+  name: z.string().min(1),
+  active: z.boolean().optional(),
+  rates: z.record(z.string(), z.number()).optional(),
 });
 
 const schema = z.object({
@@ -22,36 +35,72 @@ const schema = z.object({
   phone: z.string().optional().nullable(),
   currency: z.enum(['TRY', 'USD', 'EUR']).optional(),
   active: z.boolean().optional(),
-  rates: z.record(z.string(), z.number()).optional(), // activityId → rate
+  projects: z.array(projectSchema).optional(),
 });
+
+// Bir müşterinin projelerini payload'a göre senkronla (ekle/güncelle/çıkar).
+async function syncProjects(customerId: number, projects: z.infer<typeof projectSchema>[]) {
+  const existing = await prisma.project.findMany({ where: { customerId }, select: { id: true } });
+  const keepIds = new Set<number>();
+
+  for (const p of projects) {
+    let projectId = p.id;
+    if (projectId) {
+      await prisma.project.update({
+        where: { id: projectId },
+        data: { name: p.name, ...(p.active !== undefined ? { active: p.active } : {}) },
+      });
+    } else {
+      const created = await prisma.project.create({ data: { customerId, name: p.name, active: p.active ?? true } });
+      projectId = created.id;
+    }
+    keepIds.add(projectId);
+
+    if (p.rates) {
+      await Promise.all(
+        Object.entries(p.rates).map(([actId, rate]) =>
+          prisma.projectRate.upsert({
+            where: { projectId_activityId: { projectId: projectId!, activityId: Number(actId) } },
+            update: { rate },
+            create: { projectId: projectId!, activityId: Number(actId), rate },
+          })
+        )
+      );
+    }
+  }
+
+  // Payload'da olmayan projeler: kaydı yoksa sil, varsa pasife çek (veri kaybı olmasın)
+  for (const ex of existing) {
+    if (keepIds.has(ex.id)) continue;
+    const cnt = await prisma.entry.count({ where: { projectId: ex.id } });
+    if (cnt > 0) {
+      await prisma.project.update({ where: { id: ex.id }, data: { active: false } });
+    } else {
+      await prisma.project.delete({ where: { id: ex.id } });
+    }
+  }
+}
 
 router.post('/', adminRequired, async (req: AuthRequest, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid' });
-  const { rates, ...data } = parsed.data;
+  const { projects, ...data } = parsed.data;
   const customer = await prisma.customer.create({ data });
-  if (rates) {
-    await Promise.all(
-      Object.entries(rates).map(([actId, rate]) =>
-        prisma.customerRate.create({
-          data: { customerId: customer.id, activityId: Number(actId), rate },
-        })
-      )
-    );
-  }
+
+  // Proje verilmemişse müşteri adıyla varsayılan bir proje aç
+  const projectList = projects && projects.length ? projects : [{ name: customer.name }];
+  await syncProjects(customer.id, projectList);
+
   await audit({
     action: 'create',
     target: 'customer',
     targetId: customer.id,
     userId: req.user!.id,
     username: req.user!.username,
-    summary: `Müşteri eklendi: ${customer.name}${rates ? ` (+${Object.keys(rates).length} fiyat)` : ''}`,
+    summary: `Müşteri eklendi: ${customer.name} (${projectList.length} proje)`,
     req,
   });
-  const full = await prisma.customer.findUnique({
-    where: { id: customer.id },
-    include: { contractor: true, rates: true },
-  });
+  const full = await prisma.customer.findUnique({ where: { id: customer.id }, include: customerInclude });
   res.json(full);
 });
 
@@ -59,33 +108,17 @@ router.patch('/:id', adminRequired, async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   const parsed = schema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid' });
-  const { rates, ...data } = parsed.data;
+  const { projects, ...data } = parsed.data;
   if (Object.keys(data).length) {
     await prisma.customer.update({ where: { id }, data: data as any });
   }
-  if (rates) {
-    await Promise.all(
-      Object.entries(rates).map(([actId, rate]) =>
-        prisma.customerRate.upsert({
-          where: { customerId_activityId: { customerId: id, activityId: Number(actId) } },
-          update: { rate },
-          create: { customerId: id, activityId: Number(actId), rate },
-        })
-      )
-    );
-  }
-  const updated = await prisma.customer.findUnique({
-    where: { id },
-    include: { contractor: true, rates: true },
-  });
-  // Fiyat değişiklikleri faturayı doğrudan etkiler — ayrı audit hedefi 'rate'.
-  const changedFields = [
-    ...Object.keys(data),
-    ...(rates ? ['fiyat'] : []),
-  ];
+  if (projects) await syncProjects(id, projects);
+
+  const updated = await prisma.customer.findUnique({ where: { id }, include: customerInclude });
+  const changedFields = [...Object.keys(data), ...(projects ? ['proje/fiyat'] : [])];
   await audit({
     action: 'update',
-    target: rates ? 'rate' : 'customer',
+    target: projects ? 'rate' : 'customer',
     targetId: id,
     userId: req.user!.id,
     username: req.user!.username,
@@ -98,7 +131,6 @@ router.patch('/:id', adminRequired, async (req: AuthRequest, res) => {
 router.delete('/:id', adminRequired, async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   const existing = await prisma.customer.findUnique({ where: { id } });
-  // Kaydı olan müşteri silinemez — geçmiş veri kaybolmasın. Pasife çekilebilir.
   const entryCount = await prisma.entry.count({ where: { customerId: id } });
   if (entryCount > 0) {
     return res.status(409).json({

@@ -250,11 +250,25 @@ router.post('/webhook', async (req, res) => {
         );
         return;
       }
+      // Proje çöz — müşterinin tek aktif projesi varsa otomatik, çoksa web'e yönlendir
+      const projs = await prisma.project.findMany({
+        where: { customerId: e.customerId, active: true },
+        select: { id: true },
+      });
+      if (projs.length === 0) {
+        await sendWhatsApp(from, '❓ Bu müşterinin aktif projesi yok. Yöneticiden proje eklemesini iste.', user.id);
+        return;
+      }
+      if (projs.length > 1) {
+        await sendWhatsApp(from, '⚠️ Bu müşterinin birden fazla projesi var. Lütfen bu kaydı web üzerinden gir.', user.id);
+        return;
+      }
       const created = await prisma.entry.create({
         data: {
           date: e.date,
           qty: e.qty,
           customerId: e.customerId,
+          projectId: projs[0].id,
           activityId: e.activityId,
           ticketId: e.ticketId,
           note: e.note,

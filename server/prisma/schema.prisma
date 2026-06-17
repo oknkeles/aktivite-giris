@@ -30,7 +30,7 @@ model Activity {
   desc   String?
   active Boolean @default(true) // pasife çekilince yeni kayıtta seçilemez, geçmiş korunur
 
-  rates           CustomerRate[]
+  rates           ProjectRate[]
   entries         Entry[]
   defaultForUsers User[]
 }
@@ -56,21 +56,37 @@ model Customer {
   currency     String  @default("TRY") // TRY | USD | EUR — fiyatların para birimi
   active       Boolean @default(true) // pasife çekilince yeni kayıtta seçilemez, geçmiş korunur
 
-  contractor Contractor     @relation(fields: [contractorId], references: [id], onDelete: Cascade)
-  rates      CustomerRate[]
+  contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  projects   Project[]
   entries    Entry[]
 }
 
-model CustomerRate {
-  id         Int   @id @default(autoincrement())
+// Proje — bir müşterinin altında. Rate'ler proje seviyesinde tutulur
+// (aynı müşterinin farklı ratelerde projeleri olabilir).
+model Project {
+  id         Int     @id @default(autoincrement())
   customerId Int
+  name       String
+  active     Boolean @default(true)
+  createdAt  DateTime @default(now())
+
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  rates    ProjectRate[]
+  entries  Entry[]
+
+  @@index([customerId])
+}
+
+model ProjectRate {
+  id         Int   @id @default(autoincrement())
+  projectId  Int
   activityId Int
   rate       Float
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
-  @@unique([customerId, activityId])
+  @@unique([projectId, activityId])
 }
 
 model Entry {
@@ -79,17 +95,20 @@ model Entry {
   qty        Float
   ticketId   String?  // Müşteri talep/ticket ID (örn. JIRA-1234, ZBT-5678)
   note       String?
-  customerId Int
+  customerId Int      // = project.customerId (gruplamada kolaylık için tutuluyor)
+  projectId  Int?     // proje seviyesi — migration sonrası tüm kayıtlarda dolu
   activityId Int
   userId     Int
   createdAt  DateTime @default(now())
 
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  project  Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([date])
   @@index([customerId])
+  @@index([projectId])
   @@index([userId])
   @@index([userId, date])
 }
