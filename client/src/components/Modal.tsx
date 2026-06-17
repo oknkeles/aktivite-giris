@@ -42,30 +42,33 @@ export default function Modal({ open, onClose, title, children, size = 'md', foo
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in"
     >
       <div
-        className={clsx('relative bg-surface rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-y-auto animate-fade-in', sizes[size])}
+        className={clsx('relative bg-surface rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-hidden animate-fade-in', sizes[size])}
       >
-        {title && (
-          <div className="sticky top-0 bg-surface/90 backdrop-blur-sm flex items-center justify-between p-5 sm:p-6 border-b border-paper-3 z-10">
-            <div className="text-lg sm:text-xl font-extrabold tracking-tight">{title}</div>
-            <button
-              onClick={onClose}
-              disabled={busy}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-ink-3 hover:bg-paper-2 hover:text-ink transition disabled:opacity-40"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        )}
-        <div className="p-5 sm:p-6">{children}</div>
-        {footer && (
-          <div className="sticky bottom-0 bg-surface/90 backdrop-blur-sm flex flex-wrap justify-end gap-2 p-4 sm:p-5 border-t border-paper-3">
-            {footer}
-          </div>
-        )}
+        {/* Kaydırılabilir içerik — overlay bu kapsayıcının DIŞINDA, böylece tüm modalı örter */}
+        <div className="max-h-[90vh] overflow-y-auto">
+          {title && (
+            <div className="sticky top-0 bg-surface/90 backdrop-blur-sm flex items-center justify-between p-5 sm:p-6 border-b border-paper-3 z-10">
+              <div className="text-lg sm:text-xl font-extrabold tracking-tight">{title}</div>
+              <button
+                onClick={onClose}
+                disabled={busy}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-ink-3 hover:bg-paper-2 hover:text-ink transition disabled:opacity-40"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          )}
+          <div className="p-5 sm:p-6">{children}</div>
+          {footer && (
+            <div className="sticky bottom-0 bg-surface/90 backdrop-blur-sm flex flex-wrap justify-end gap-2 p-4 sm:p-5 border-t border-paper-3">
+              {footer}
+            </div>
+          )}
+        </div>
 
-        {/* İşlem kilidi — kaydet/güncelle sürerken tüm modalı bloke eder */}
+        {/* İşlem kilidi — kaydet/güncelle sürerken TÜM modalı bloke eder (scroll'dan bağımsız) */}
         {busy && (
-          <div className="absolute inset-0 z-20 bg-surface/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3 rounded-3xl">
+          <div className="absolute inset-0 z-30 bg-surface/75 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3">
             <Loader2 size={30} className="animate-spin text-brand-indigo" />
             <span className="text-sm font-semibold text-ink-2">{busyLabel}</span>
           </div>
