@@ -49,12 +49,12 @@ export default function AssistantChat() {
   async function send(text: string) {
     const q = text.trim();
     if (!q || sending) return;
-    const next = [...msgs, { role: 'user' as const, text: q }];
-    setMsgs(next);
+    // Geçmiş = ŞU ANKİ mesaj HARİÇ önceki turlar (current mesajı ayrıca gönderiyoruz)
+    const history = msgs.slice(-10).map((m) => ({ role: m.role, body: m.text }));
+    setMsgs([...msgs, { role: 'user' as const, text: q }]);
     setInput('');
     setSending(true);
     try {
-      const history = next.slice(-10).map((m) => ({ role: m.role, body: m.text }));
       const res = await api.post<any>('/assistant', { message: q, history });
       if (res.kind === 'fill_preview') {
         setMsgs((m) => [...m, { role: 'bot', text: res.reply, fill: { entries: res.entries, meta: res.meta } }]);

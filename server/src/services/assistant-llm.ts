@@ -136,7 +136,18 @@ export async function parseAssistant(text: string, ctx: AsstContext): Promise<As
   if (!genAI) return { status: 'chat', reply: 'Asistan şu an aktif değil (LLM yapılandırılmamış).' };
 
   const modelPriority = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash-lite'];
-  const history = (ctx.conversation || []).map((t) => ({ role: t.role === 'user' ? 'user' : 'model', parts: [{ text: t.body }] }));
+  // Gemini startChat geçmişi 'user' ile başlamalı ve user/model dönüşümlü olmalı.
+  let conv = ctx.conversation || [];
+  const firstUser = conv.findIndex((t) => t.role === 'user');
+  conv = firstUser >= 0 ? conv.slice(firstUser) : [];
+  // Ardışık aynı-rol turlarını birleştir (alternation garantisi)
+  const merged: { role: 'user' | 'bot'; body: string }[] = [];
+  for (const t of conv) {
+    const last = merged[merged.length - 1];
+    if (last && last.role === t.role) last.body += '\n' + t.body;
+    else merged.push({ role: t.role, body: t.body });
+  }
+  const history = merged.map((t) => ({ role: t.role === 'user' ? 'user' : 'model', parts: [{ text: t.body }] }));
 
   let json: any = null;
   for (const modelName of modelPriority) {
