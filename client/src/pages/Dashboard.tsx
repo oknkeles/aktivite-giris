@@ -6,7 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../api/client';
 import { CountUp, Skeleton } from '../components/ui';
-import { fmtHours, fmtMoney, curSymbol, fmtMoneyByCurrency, MONTHS } from '../lib/format';
+import { fmtHours, maskMoney, maskMoneyByCurrency, MONTHS } from '../lib/format';
+import { usePrivacy } from '../store/privacy';
 
 interface DashboardData {
   period: string;
@@ -38,6 +39,7 @@ function shiftPeriod(p: string, delta: number): string {
 
 export default function Dashboard() {
   const [period, setPeriod] = useState(currentPeriod());
+  const masked = usePrivacy((s) => s.masked);
   const isCurrent = period === currentPeriod();
 
   const { data, isLoading } = useQuery({
@@ -72,7 +74,7 @@ export default function Dashboard() {
                   <span className="text-white/30">·</span>
                   <span className="text-white font-bold"><CountUp value={data.month.count} /></span> kayıt
                   <span className="text-white/30">·</span>
-                  <span className="text-brand-sky font-bold">{fmtMoneyByCurrency(data.month.byCurrency)}</span>
+                  <span className="text-brand-sky font-bold">{maskMoneyByCurrency(data.month.byCurrency, masked)}</span>
                 </>
               ) : null}
             </div>
@@ -120,7 +122,7 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between text-[12px] mb-1 gap-2">
                             <span className="font-semibold text-ink truncate">{c.name}</span>
                             <span className="font-mono text-ink-3 flex-shrink-0">
-                              {fmtHours(c.hours)} · <span className="text-ink font-semibold">{fmtMoney(c.net)} {curSymbol(c.currency)}</span>
+                              {fmtHours(c.hours)} · <span className="text-ink font-semibold">{maskMoney(c.net, c.currency, masked)}</span>
                             </span>
                           </div>
                           <div className="h-2 rounded-full bg-paper-2 overflow-hidden">

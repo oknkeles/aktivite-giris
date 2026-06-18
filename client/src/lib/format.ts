@@ -26,6 +26,15 @@ export function fmtMoneyByCurrency(byCur: Record<string, number>): string {
   return parts.length ? parts.join(' · ') : '0,00 ₺';
 }
 
+// Maskeleme — gizlilik anahtarı açıkken tutarlar "•••• ₺" görünür
+const MASK = '••••';
+export function maskMoney(n: number, code: string | undefined, masked: boolean): string {
+  return masked ? `${MASK} ${curSymbol(code)}` : `${fmtMoney(n)} ${curSymbol(code)}`;
+}
+export function maskMoneyByCurrency(byCur: Record<string, number>, masked: boolean): string {
+  return masked ? MASK : fmtMoneyByCurrency(byCur);
+}
+
 export function fmtHours(h: number): string {
   return parseFloat(h.toFixed(4)) % 1 === 0 ? `${h.toFixed(0)}s` : `${h.toFixed(1)}s`;
 }

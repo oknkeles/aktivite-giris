@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Search as SearchIcon, Sparkles } from 'lucide-react';
+import { Search as SearchIcon, Sparkles, Eye, EyeOff } from 'lucide-react';
+import clsx from 'clsx';
 import Sidebar from './Sidebar';
+import { useAuth, isAdmin } from '../store/auth';
+import { usePrivacy } from '../store/privacy';
 import { ToastHost } from './Toast';
 import { useHeader } from '../store/header';
 import { useQuickEntry } from '../store/quickEntry';
@@ -66,6 +69,8 @@ export default function Layout() {
   const { wizardOpen, closeWizard, bulkAIOpen, closeBulkAI } = useQuickEntry();
   const toggleSpotlight = useSpotlight((s) => s.toggle);
   const toggleAssistant = useAssistant((s) => s.toggle);
+  const admin = isAdmin(useAuth((s) => s.user));
+  const { masked, toggle: toggleMask } = usePrivacy();
 
   // Cmd+K / Ctrl+K → Spotlight (komut paleti)
   useEffect(() => {
@@ -104,6 +109,22 @@ export default function Layout() {
           </div>
           <div className="flex items-center gap-2 min-w-0">
             {extras && <div className="flex items-center gap-2 min-w-0 overflow-x-auto">{extras}</div>}
+            {/* Tutar maskeleme anahtarı (admin) */}
+            {admin && (
+              <button
+                onClick={toggleMask}
+                className={clsx(
+                  'flex items-center gap-1.5 rounded-xl pl-2.5 pr-3 py-2 text-xs font-bold border transition flex-shrink-0',
+                  masked
+                    ? 'bg-paper-2 border-paper-3 text-ink-3 hover:text-ink'
+                    : 'bg-brand-emerald/10 border-brand-emerald/30 text-brand-emerald'
+                )}
+                title={masked ? 'Tutarları göster' : 'Tutarları gizle'}
+              >
+                {masked ? <EyeOff size={15} /> : <Eye size={15} />}
+                <span className="hidden lg:inline">{masked ? 'Tutarlar gizli' : 'Tutarlar açık'}</span>
+              </button>
+            )}
             {/* Spotlight tetikleyici */}
             <button
               onClick={toggleSpotlight}

@@ -6,10 +6,12 @@ import * as XLSX from 'xlsx';
 import { api, type ReportData, type Customer } from '../api/client';
 import { useToast } from '../components/Toast';
 import { CountUp, Skeleton } from '../components/ui';
-import { fmtHours, fmtMoney, curSymbol, fmtMoneyByCurrency } from '../lib/format';
+import { fmtHours, curSymbol, maskMoney, maskMoneyByCurrency } from '../lib/format';
+import { usePrivacy } from '../store/privacy';
 
 export default function Reports() {
   const toast = useToast();
+  const masked = usePrivacy((s) => s.masked);
   const [searchParams] = useSearchParams();
   const now = new Date();
   const yyyy = now.getFullYear();
@@ -196,7 +198,7 @@ export default function Reports() {
           <div className="grid grid-cols-3 gap-3">
             <MetricCard label="Toplam Saat" value={<CountUp value={report.totalHours} format={fmtHours} />} grad="grad-primary" />
             <MetricCard label="Kayıt Sayısı" value={<CountUp value={report.count} />} grad="" />
-            <MetricCard label="Toplam Tutar" value={fmtMoneyByCurrency(totalByCurrency)} grad="grad-mint" />
+            <MetricCard label="Toplam Tutar" value={maskMoneyByCurrency(totalByCurrency, masked)} grad="grad-mint" />
           </div>
 
           {groupList.length === 0 ? (
@@ -213,7 +215,7 @@ export default function Reports() {
                   <div className="flex items-center gap-3 px-4 sm:px-5 py-3 bg-paper-2/60">
                     <span className="font-extrabold text-ink truncate flex-1">{cu.name}</span>
                     <span className="text-[12px] font-mono text-ink-3">{fmtHours(cu.hours)}</span>
-                    <span className="text-[13px] font-mono font-bold text-ink min-w-[110px] text-right">{fmtMoney(cu.net)} {curSymbol(cu.currency)}</span>
+                    <span className="text-[13px] font-mono font-bold text-ink min-w-[110px] text-right">{maskMoney(cu.net, cu.currency, masked)}</span>
                     <button
                       onClick={() => downloadPdf(cu.id, cu.name)}
                       className="text-brand-indigo hover:bg-brand-indigo/10 px-2 py-1 rounded-md transition flex items-center gap-1 text-[11px] font-semibold border border-brand-indigo/30 flex-shrink-0"
@@ -230,7 +232,7 @@ export default function Reports() {
                         <span className="text-ink-2 flex-1 truncate">{ag.name}</span>
                         <span className="tag hidden sm:inline-block">{ag.days.toFixed(2)} gün</span>
                         <span className="text-[12px] font-mono text-ink-3">{fmtHours(ag.hours)}</span>
-                        <span className="font-mono font-semibold min-w-[110px] text-right">{fmtMoney(ag.net)} {curSymbol(cu.currency)}</span>
+                        <span className="font-mono font-semibold min-w-[110px] text-right">{maskMoney(ag.net, cu.currency, masked)}</span>
                       </div>
                     ))}
                 </div>
