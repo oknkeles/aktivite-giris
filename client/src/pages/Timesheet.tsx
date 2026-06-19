@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, CheckSquare, Sparkles, Trash2, Pencil, Zap, Wand2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckSquare, Sparkles, Trash2, Pencil, Zap, Wand2, Plus, Check, X } from 'lucide-react';
 import clsx from 'clsx';
 import { api, type Entry, type Customer, type Activity } from '../api/client';
 import { useAuth } from '../store/auth';
@@ -439,95 +439,44 @@ function DayModal({ date, onClose, entries, customers, activities }: {
 }) {
   const d = new Date(date + 'T00:00:00');
   const { user: me } = useAuth();
-  const defaultAct = me?.defaultActivityId || '';
-  const [cusId, setCusId] = useState<number | ''>('');
-  const [projId, setProjId] = useState<number | ''>('');
-  const [actId, setActId] = useState<number | ''>(defaultAct);
-  const [qty, setQty] = useState('');
-  const [ticketId, setTicketId] = useState('');
-  const [note, setNote] = useState('');
+  const defaultAct = (me?.defaultActivityId || '') as number | '';
   const [editingId, setEditingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [adding, setAdding] = useState(entries.length === 0);
+  const [addKey, setAddKey] = useState(0); // başarılı eklemede formu sıfırla
   const toast = useToast();
   const qc = useQueryClient();
 
-  const activeCustomers = customers.filter((c) => c.active !== false);
-  const projOptions = (customers.find((c) => c.id === cusId)?.projects || []).filter((p) => p.active !== false);
-
-  function chooseCustomer(id: number | '') {
-    setCusId(id);
-    const ap = (customers.find((c) => c.id === id)?.projects || []).filter((p) => p.active !== false);
-    setProjId(ap.length === 1 ? ap[0].id : ''); // tek proje → otomatik
-  }
-
-  function resetForm() {
-    setQty(''); setTicketId(''); setNote(''); setCusId(''); setProjId(''); setActId(defaultAct);
-    setEditingId(null);
-  }
-
-  function startEdit(e: Entry) {
-    setEditingId(e.id);
-    setCusId(e.customerId);
-    setProjId(e.projectId || '');
-    setActId(e.activityId);
-    setQty(String(e.qty));
-    setTicketId(e.ticketId || '');
-    setNote(e.note || '');
-  }
+  type Payload = { cusId: number; projId: number | ''; actId: number; qty: number; ticketId: string | null; note: string | null };
 
   const addMut = useMutation({
-    mutationFn: () => api.post('/entries', { date, qty: parseFloat(qty), customerId: cusId, projectId: projId || undefined, activityId: actId, ticketId: ticketId || null, note: note || null }),
-    onSuccess: () => {
+    mutationFn: (p: Payload) => api.post('/entries', { date, qty: p.qty, customerId: p.cusId, projectId: p.projId || undefined, activityId: p.actId, ticketId: p.ticketId, note: p.note }),
+    onSuccess: (_data, p) => {
       qc.invalidateQueries({ queryKey: ['entries'] });
-      resetForm();
+      setAddKey((k) => k + 1);
       const prevHours = entries.reduce((s, e) => s + entryHours(e), 0);
-      const act = activities.find((a) => a.id === actId);
-      const newH = prevHours + (act?.unit === 'saat' ? parseFloat(qty) : parseFloat(qty) * 8);
-      if (prevHours < 8 && newH >= 8) {
-        confettiBurst();
-        toast.show('🔥 8 saati tamamladın!');
-      } else toast.show(`✓ Kayıt eklendi · ${fmtHours(newH)} bugün`);
+      const act = activities.find((a) => a.id === p.actId);
+      const newH = prevHours + (act?.unit === 'saat' ? p.qty : p.qty * 8);
+      if (prevHours < 8 && newH >= 8) { confettiBurst(); toast.show('🔥 8 saati tamamladın!'); }
+      else toast.show(`✓ Kayıt eklendi · ${fmtHours(newH)} bugün`);
     },
     onError: (e: any) => toast.show(e.message || 'Hata', 'error'),
   });
 
   const updateMut = useMutation({
-    mutationFn: () => api.put(`/entries/${editingId}`, {
-      qty: parseFloat(qty),
-      customerId: cusId,
-      projectId: projId || undefined,
-      activityId: actId,
-      ticketId: ticketId || null,
-      note: note || null,
-    }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['entries'] });
-      resetForm();
-      toast.show('✓ Kayıt güncellendi');
-    },
+    mutationFn: ({ id, p }: { id: number; p: Payload }) => api.put(`/entries/${id}`, { qty: p.qty, customerId: p.cusId, projectId: p.projId || undefined, activityId: p.actId, ticketId: p.ticketId, note: p.note }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['entries'] }); setEditingId(null); toast.show('✓ Güncellendi'); },
     onError: (e: any) => toast.show(e.message || 'Hata', 'error'),
   });
 
   const delMut = useMutation({
     mutationFn: (id: number) => api.delete(`/entries/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['entries'] });
-      setConfirmDeleteId(null);
-      toast.show('Kayıt silindi');
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['entries'] }); setConfirmDeleteId(null); toast.show('Kayıt silindi'); },
     onError: (e: any) => toast.show(e.message || 'Hata', 'error'),
   });
 
-  function save() {
-    if (!cusId) return toast.show('Müşteri seçin', 'error');
-    if (projOptions.length > 1 && !projId) return toast.show('Proje seçin', 'error');
-    if (!actId) return toast.show('Aktivite seçin', 'error');
-    if (!qty || parseFloat(qty) <= 0) return toast.show('Geçerli süre girin', 'error');
-    if (editingId) updateMut.mutate();
-    else addMut.mutate();
-  }
-
   const busy = addMut.isPending || updateMut.isPending || delMut.isPending;
+  const dayTotal = entries.reduce((s, e) => s + entryHours(e), 0);
 
   return (
     <Modal
@@ -537,164 +486,180 @@ function DayModal({ date, onClose, entries, customers, activities }: {
       busy={busy}
       busyLabel={editingId ? 'Güncelleniyor…' : 'Kaydediliyor…'}
       title={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <span className="grad-text">{DAYS_LONG[d.getDay()]}</span>
           <span className="text-ink-3 font-bold">·</span>
           <span>{d.getDate()} {MONTHS[d.getMonth()]} {d.getFullYear()}</span>
+          {dayTotal > 0 && <span className="ml-1 tag font-bold">{fmtHours(dayTotal)}</span>}
         </div>
       }
-      footer={
-        <>
-          {editingId && (
-            <button className="btn" onClick={resetForm} disabled={busy}>Düzenlemeyi İptal</button>
-          )}
-          <button className="btn" onClick={onClose} disabled={busy}>Kapat</button>
-          <button className="btn btn-primary" onClick={save} disabled={busy}>
-            {editingId ? 'Güncelle' : 'Kaydet'}
-          </button>
-        </>
-      }
+      footer={<button className="btn" onClick={onClose}>Kapat</button>}
     >
-      {entries.length > 0 && (
-        <div className="mb-5">
-          <div className="clabel mb-2.5">Bu Güne Ait Kayıtlar</div>
-          <div className="space-y-2">
-            {entries.map((e) => {
-              const isEditing = editingId === e.id;
-              const isConfirmingDelete = confirmDeleteId === e.id;
-              return (
-                <div
-                  key={e.id}
-                  className={clsx(
-                    'flex items-start gap-2.5 p-3 rounded-xl transition-colors',
-                    isEditing ? 'bg-brand-indigo/10 ring-1 ring-brand-indigo/30 ring-inset' : 'bg-paper-2'
-                  )}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold flex flex-wrap items-center gap-1.5">
-                      {e.customer.name}
-                      <span className="text-ink-3 font-normal">— {e.activity.name}</span>
-                      {e.ticketId && (
-                        <span className="badge bg-brand-violet/15 text-brand-violet font-mono !text-[10px]">
-                          🎫 {e.ticketId}
-                        </span>
-                      )}
-                      {isEditing && (
-                        <span className="badge bg-brand-indigo/15 text-brand-indigo !text-[10px]">
-                          Düzenleniyor
-                        </span>
-                      )}
-                    </div>
-                    {e.note && <div className="text-[11.5px] text-ink-3 mt-1 whitespace-pre-wrap leading-relaxed">{e.note}</div>}
-                  </div>
-                  <span className="tag font-bold flex-shrink-0">{fmtHours(entryHours(e))}</span>
-
-                  {isConfirmingDelete ? (
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => delMut.mutate(e.id)}
-                        className="text-[11px] font-bold bg-brand-rose text-white px-2.5 py-1 rounded-lg hover:bg-brand-rose/90"
-                      >
-                        Sil
-                      </button>
-                      <button
-                        onClick={() => setConfirmDeleteId(null)}
-                        className="text-[11px] font-semibold text-ink-2 px-2 py-1 rounded-lg hover:bg-paper-3"
-                      >
-                        Vazgeç
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => startEdit(e)}
-                        className="text-brand-indigo hover:bg-brand-indigo/10 p-1.5 rounded-lg flex-shrink-0"
-                        title="Düzenle"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDeleteId(e.id)}
-                        className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg flex-shrink-0"
-                        title="Sil"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </>
-                  )}
+      {/* Bugünün kayıtları */}
+      <div className="space-y-2">
+        {entries.length === 0 && !adding && (
+          <div className="text-center py-8 text-ink-3 text-sm">Bu güne henüz kayıt yok.</div>
+        )}
+        {entries.map((e) =>
+          editingId === e.id ? (
+            <div key={e.id} className="rounded-2xl ring-1 ring-brand-indigo/30 bg-brand-indigo/[.04] p-4">
+              <div className="clabel mb-3 text-brand-indigo">Kaydı Düzenle</div>
+              <EntryForm
+                entry={e}
+                customers={customers}
+                activities={activities}
+                defaultActivityId={defaultAct}
+                submitLabel="Güncelle"
+                submitting={updateMut.isPending}
+                onCancel={() => setEditingId(null)}
+                onSubmit={(p) => updateMut.mutate({ id: e.id, p })}
+              />
+            </div>
+          ) : (
+            <div key={e.id} className="group flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-paper-2 hover:bg-paper-3/40 transition">
+              <div className="w-1 self-stretch rounded-full bg-brand-indigo/30 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-[13.5px] truncate">{e.customer.name}</span>
+                  <span className="text-ink-3 text-[12.5px]">{e.activity.name}</span>
+                  {e.ticketId && <span className="font-mono text-[10.5px] text-ink-3 bg-surface border border-paper-3 rounded px-1.5 py-0.5">{e.ticketId}</span>}
                 </div>
-              );
-            })}
-          </div>
-          <hr className="my-5 border-paper-3" />
-        </div>
-      )}
+                {e.note && <div className="text-[11.5px] text-ink-3 mt-0.5 truncate">{e.note}</div>}
+              </div>
+              <span className="font-mono font-bold text-sm text-ink flex-shrink-0">{fmtHours(entryHours(e))}</span>
+              {confirmDeleteId === e.id ? (
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={() => delMut.mutate(e.id)} className="text-[11px] font-bold bg-brand-rose text-white px-2.5 py-1 rounded-lg hover:bg-brand-rose/90">Sil</button>
+                  <button onClick={() => setConfirmDeleteId(null)} className="text-[11px] font-semibold text-ink-2 px-2 py-1 rounded-lg hover:bg-paper-3">Vazgeç</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-0.5 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => { setEditingId(e.id); setAdding(false); }} className="text-brand-indigo hover:bg-brand-indigo/10 p-1.5 rounded-lg" title="Düzenle"><Pencil size={14} /></button>
+                  <button onClick={() => setConfirmDeleteId(e.id)} className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg" title="Sil"><Trash2 size={14} /></button>
+                </div>
+              )}
+            </div>
+          )
+        )}
+      </div>
 
-      <div className="clabel mb-3">{editingId ? 'Kaydı Düzenle' : 'Yeni Kayıt Ekle'}</div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+      {/* Yeni kayıt */}
+      <div className="mt-4">
+        {adding ? (
+          <div className="rounded-2xl border border-paper-3 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="clabel">Yeni Kayıt</div>
+              {entries.length > 0 && (
+                <button onClick={() => setAdding(false)} className="text-ink-3 hover:text-ink p-1 rounded-lg" title="Kapat"><X size={15} /></button>
+              )}
+            </div>
+            <EntryForm
+              key={addKey}
+              customers={customers}
+              activities={activities}
+              defaultActivityId={defaultAct}
+              submitLabel="Kaydet"
+              submitting={addMut.isPending}
+              onSubmit={(p) => addMut.mutate(p)}
+            />
+          </div>
+        ) : (
+          <button
+            onClick={() => { setAdding(true); setEditingId(null); }}
+            className="w-full border-2 border-dashed border-paper-3 hover:border-brand-indigo/50 rounded-2xl py-3.5 flex items-center justify-center gap-2 text-ink-3 hover:text-brand-indigo font-semibold text-sm transition"
+          >
+            <Plus size={16} /> Yeni Kayıt Ekle
+          </button>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+// Tek bir kayıt formu — hem yeni kayıt hem inline düzenleme için kullanılır
+function EntryForm({ entry, customers, activities, defaultActivityId, submitLabel, submitting, onSubmit, onCancel }: {
+  entry?: Entry;
+  customers: Customer[];
+  activities: Activity[];
+  defaultActivityId: number | '';
+  submitLabel: string;
+  submitting: boolean;
+  onSubmit: (p: { cusId: number; projId: number | ''; actId: number; qty: number; ticketId: string | null; note: string | null }) => void;
+  onCancel?: () => void;
+}) {
+  const toast = useToast();
+  const [cusId, setCusId] = useState<number | ''>(entry?.customerId ?? '');
+  const [projId, setProjId] = useState<number | ''>(entry?.projectId ?? '');
+  const [actId, setActId] = useState<number | ''>(entry?.activityId ?? defaultActivityId);
+  const [qty, setQty] = useState(entry ? String(entry.qty) : '');
+  const [ticketId, setTicketId] = useState(entry?.ticketId || '');
+  const [note, setNote] = useState(entry?.note || '');
+
+  const activeCustomers = customers.filter((c) => c.active !== false);
+  const projOptions = (customers.find((c) => c.id === cusId)?.projects || []).filter((p) => p.active !== false);
+
+  function chooseCustomer(id: number | '') {
+    setCusId(id);
+    const ap = (customers.find((c) => c.id === id)?.projects || []).filter((p) => p.active !== false);
+    setProjId(ap.length === 1 ? ap[0].id : '');
+  }
+  function submit() {
+    if (!cusId) return toast.show('Müşteri seçin', 'error');
+    if (projOptions.length > 1 && !projId) return toast.show('Proje seçin', 'error');
+    if (!actId) return toast.show('Aktivite seçin', 'error');
+    const q = parseFloat(qty);
+    if (!q || q <= 0) return toast.show('Geçerli süre girin', 'error');
+    onSubmit({ cusId: cusId as number, projId, actId: actId as number, qty: q, ticketId: ticketId.trim() || null, note: note.trim() || null });
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="label">Müşteri</label>
-          <select className="input" value={cusId} onChange={(e) => chooseCustomer(e.target.value ? +e.target.value : '')}>
+          <select className="input" value={cusId} onChange={(e) => chooseCustomer(e.target.value ? +e.target.value : '')} autoFocus={!entry}>
             <option value="">— Seçin —</option>
             {activeCustomers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
-        {/* Proje — tek projede otomatik (gizli), birden fazlaysa seçim */}
-        {projOptions.length > 1 ? (
-          <div>
-            <label className="label">Proje <span className="text-brand-rose">*</span></label>
+        <div>
+          <label className="label">Proje{projOptions.length > 1 && <span className="text-brand-rose"> *</span>}</label>
+          {projOptions.length > 1 ? (
             <select className="input" value={projId} onChange={(e) => setProjId(e.target.value ? +e.target.value : '')}>
               <option value="">— Proje seçin —</option>
               {projOptions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-          </div>
-        ) : (
-          <div>
-            <label className="label">Proje</label>
-            <input className="input bg-paper-2 text-ink-3" disabled value={projOptions[0]?.name || (cusId ? '—' : 'Önce müşteri seçin')} />
-          </div>
-        )}
+          ) : (
+            <input className="input !bg-paper-2 text-ink-3" disabled value={projOptions[0]?.name || (cusId ? '—' : 'Önce müşteri seçin')} />
+          )}
+        </div>
         <div>
-          <label className="label">Aktivite Türü</label>
+          <label className="label">Aktivite</label>
           <select className="input" value={actId} onChange={(e) => setActId(e.target.value ? +e.target.value : '')}>
             <option value="">— Seçin —</option>
             {activities.filter((a) => a.active !== false).map((a) => <option key={a.id} value={a.id}>{a.name} ({a.unit})</option>)}
           </select>
         </div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-3 mb-3">
         <div>
-          <label className="label">Süre (Saat)</label>
-          <input className="input font-mono" type="number" step="0.25" min="0" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="0.00" />
-        </div>
-        <div>
-          <label className="label flex items-center gap-1.5">
-            🎫 Talep ID
-            <span className="text-[10px] font-normal text-ink-3">(isteğe bağlı)</span>
-          </label>
-          <input
-            className="input font-mono"
-            value={ticketId}
-            onChange={(e) => setTicketId(e.target.value)}
-            placeholder="ör. JIRA-1234, ZBT-5678, TICKET-9012..."
-          />
+          <label className="label">Süre</label>
+          <input className="input font-mono" type="number" step="0.25" min="0" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="0" />
         </div>
       </div>
-      <div className="mb-2">
-        <label className="label flex items-center gap-1.5">
-          📝 Açıklama / Talep Detayı
-          <span className="text-[10px] font-normal text-ink-3">(isteğe bağlı)</span>
-        </label>
-        <textarea
-          className="input min-h-[120px] resize-y leading-relaxed"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Proje modülü, yapılan iş, çözülen problem, talep detayları..."
-          rows={5}
-        />
-        <div className="text-[10.5px] text-ink-3 mt-1.5 text-right">{note.length} karakter</div>
+      <div>
+        <label className="label">Talep ID</label>
+        <input className="input font-mono" value={ticketId} onChange={(e) => setTicketId(e.target.value)} />
       </div>
-    </Modal>
+      <div>
+        <label className="label">Açıklama</label>
+        <textarea className="input min-h-[84px] resize-y leading-relaxed" value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Yapılan iş…" />
+      </div>
+      <div className="flex items-center justify-end gap-2 pt-0.5">
+        {onCancel && <button className="btn btn-sm" onClick={onCancel} disabled={submitting}>Vazgeç</button>}
+        <button className="btn btn-primary btn-sm" onClick={submit} disabled={submitting}>
+          <Check size={14} /> {submitLabel}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -745,11 +710,11 @@ function BulkModal({ dates, onClose, customers, activities, onDone }: {
       open
       onClose={onClose}
       size="lg"
-      title={<span className="grad-text">✨ Toplu Aktivite Girişi</span>}
+      title={<span className="grad-text">Toplu Aktivite Girişi</span>}
       footer={
         <>
           <button className="btn" onClick={onClose}>İptal</button>
-          <button className="btn btn-primary" onClick={save}>🚀 Hepsine Ekle</button>
+          <button className="btn btn-primary" onClick={save}><Check size={15} /> Hepsine Ekle</button>
         </>
       }
     >
@@ -785,35 +750,23 @@ function BulkModal({ dates, onClose, customers, activities, onDone }: {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-3 mb-3">
         <div>
-          <label className="label">Günlük Süre (Saat)</label>
+          <label className="label">Günlük Süre</label>
           <input className="input font-mono" type="number" step="0.25" min="0" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="8" />
         </div>
         <div>
-          <label className="label flex items-center gap-1.5">
-            🎫 Talep ID
-            <span className="text-[10px] font-normal text-ink-3">(isteğe bağlı · tüm günlere aynı uygulanır)</span>
-          </label>
-          <input
-            className="input font-mono"
-            value={ticketId}
-            onChange={(e) => setTicketId(e.target.value)}
-            placeholder="ör. JIRA-1234"
-          />
+          <label className="label">Talep ID</label>
+          <input className="input font-mono" value={ticketId} onChange={(e) => setTicketId(e.target.value)} />
         </div>
       </div>
       <div>
-        <label className="label flex items-center gap-1.5">
-          📝 Açıklama / Talep Detayı
-          <span className="text-[10px] font-normal text-ink-3">(isteğe bağlı)</span>
-        </label>
+        <label className="label">Açıklama</label>
         <textarea
-          className="input min-h-[120px] resize-y leading-relaxed"
+          className="input min-h-[84px] resize-y leading-relaxed"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Proje modülü, yapılan iş, çözülen problem, talep detayları..."
-          rows={5}
+          placeholder="Yapılan iş…"
+          rows={3}
         />
-        <div className="text-[10.5px] text-ink-3 mt-1.5 text-right">{note.length} karakter</div>
       </div>
     </Modal>
   );
