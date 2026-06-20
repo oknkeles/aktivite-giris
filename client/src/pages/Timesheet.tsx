@@ -612,27 +612,33 @@ function EntryForm({ entry, customers, activities, defaultActivityId, submitLabe
     onSubmit({ cusId: cusId as number, projId, actId: actId as number, qty: q, ticketId: ticketId.trim() || null, note: note.trim() || null });
   }
 
+  const autoProject = projOptions.length === 1 ? projOptions[0] : null;
+
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Müşteri — tam genişlik; tek projede altta minik bilgi, çoklu projede select */}
+      <div>
+        <label className="label">Müşteri</label>
+        <select className="input" value={cusId} onChange={(e) => chooseCustomer(e.target.value ? +e.target.value : '')} autoFocus={!entry}>
+          <option value="">— Seçin —</option>
+          {activeCustomers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        {autoProject && (
+          <div className="text-[11px] text-ink-3 mt-1.5 pl-0.5">Proje: <span className="font-semibold text-ink-2">{autoProject.name}</span></div>
+        )}
+      </div>
+
+      {projOptions.length > 1 && (
         <div>
-          <label className="label">Müşteri</label>
-          <select className="input" value={cusId} onChange={(e) => chooseCustomer(e.target.value ? +e.target.value : '')} autoFocus={!entry}>
-            <option value="">— Seçin —</option>
-            {activeCustomers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          <label className="label">Proje <span className="text-brand-rose">*</span></label>
+          <select className="input" value={projId} onChange={(e) => setProjId(e.target.value ? +e.target.value : '')}>
+            <option value="">— Proje seçin —</option>
+            {projOptions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
-        <div>
-          <label className="label">Proje{projOptions.length > 1 && <span className="text-brand-rose"> *</span>}</label>
-          {projOptions.length > 1 ? (
-            <select className="input" value={projId} onChange={(e) => setProjId(e.target.value ? +e.target.value : '')}>
-              <option value="">— Proje seçin —</option>
-              {projOptions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          ) : (
-            <input className="input !bg-paper-2 text-ink-3" disabled value={projOptions[0]?.name || (cusId ? '—' : 'Önce müşteri seçin')} />
-          )}
-        </div>
+      )}
+
+      <div className="grid grid-cols-[1fr_120px] gap-3">
         <div>
           <label className="label">Aktivite</label>
           <select className="input" value={actId} onChange={(e) => setActId(e.target.value ? +e.target.value : '')}>
@@ -642,7 +648,7 @@ function EntryForm({ entry, customers, activities, defaultActivityId, submitLabe
         </div>
         <div>
           <label className="label">Süre</label>
-          <input className="input font-mono" type="number" step="0.25" min="0" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="0" />
+          <input className="input font-mono text-center" type="number" step="0.25" min="0" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="0" />
         </div>
       </div>
       <div>
