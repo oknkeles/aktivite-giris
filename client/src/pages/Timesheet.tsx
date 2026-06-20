@@ -440,12 +440,36 @@ function DayModal({ date, onClose, entries, customers, activities }: {
   const d = new Date(date + 'T00:00:00');
   const { user: me } = useAuth();
   const defaultAct = (me?.defaultActivityId || '') as number | '';
+
+  // Form state — yeni + düzenleme ortak; tek aksiyon barı footer'da
+  const [cusId, setCusId] = useState<number | ''>('');
+  const [projId, setProjId] = useState<number | ''>('');
+  const [actId, setActId] = useState<number | ''>(defaultAct);
+  const [qty, setQty] = useState('');
+  const [ticketId, setTicketId] = useState('');
+  const [note, setNote] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [adding, setAdding] = useState(entries.length === 0);
-  const [addKey, setAddKey] = useState(0); // başarılı eklemede formu sıfırla
   const toast = useToast();
   const qc = useQueryClient();
+
+  const activeCustomers = customers.filter((c) => c.active !== false);
+  const projOptions = (customers.find((c) => c.id === cusId)?.projects || []).filter((p) => p.active !== false);
+  const autoProject = projOptions.length === 1 ? projOptions[0] : null;
+
+  function chooseCustomer(id: number | '') {
+    setCusId(id);
+    const ap = (customers.find((c) => c.id === id)?.projects || []).filter((p) => p.active !== false);
+    setProjId(ap.length === 1 ? ap[0].id : '');
+  }
+  function resetFields() { setCusId(''); setProjId(''); setActId(defaultAct); setQty(''); setTicketId(''); setNote(''); }
+  function startEdit(e: Entry) {
+    setCusId(e.customerId); setProjId(e.projectId || ''); setActId(e.activityId);
+    setQty(String(e.qty)); setTicketId(e.ticketId || ''); setNote(e.note || '');
+    setEditingId(e.id); setAdding(false);
+  }
+  function cancelEdit() { setEditingId(null); resetFields(); }
 
   type Payload = { cusId: number; projId: number | ''; actId: number; qty: number; ticketId: string | null; note: string | null };
 
@@ -453,7 +477,7 @@ function DayModal({ date, onClose, entries, customers, activities }: {
     mutationFn: (p: Payload) => api.post('/entries', { date, qty: p.qty, customerId: p.cusId, projectId: p.projId || undefined, activityId: p.actId, ticketId: p.ticketId, note: p.note }),
     onSuccess: (_data, p) => {
       qc.invalidateQueries({ queryKey: ['entries'] });
-      setAddKey((k) => k + 1);
+      resetFields();
       const prevHours = entries.reduce((s, e) => s + entryHours(e), 0);
       const act = activities.find((a) => a.id === p.actId);
       const newH = prevHours + (act?.unit === 'saat' ? p.qty : p.qty * 8);
@@ -465,7 +489,7 @@ function DayModal({ date, onClose, entries, customers, activities }: {
 
   const updateMut = useMutation({
     mutationFn: ({ id, p }: { id: number; p: Payload }) => api.put(`/entries/${id}`, { qty: p.qty, customerId: p.cusId, projectId: p.projId || undefined, activityId: p.actId, ticketId: p.ticketId, note: p.note }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['entries'] }); setEditingId(null); toast.show('✓ Güncellendi'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['entries'] }); setEditingId(null); resetFields(); toast.show('✓ Güncellendi'); },
     onError: (e: any) => toast.show(e.message || 'Hata', 'error'),
   });
 
@@ -475,159 +499,30 @@ function DayModal({ date, onClose, entries, customers, activities }: {
     onError: (e: any) => toast.show(e.message || 'Hata', 'error'),
   });
 
-  const busy = addMut.isPending || updateMut.isPending || delMut.isPending;
-  const dayTotal = entries.reduce((s, e) => s + entryHours(e), 0);
-
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      size="lg"
-      busy={busy}
-      busyLabel={editingId ? 'Güncelleniyor…' : 'Kaydediliyor…'}
-      title={
-        <div className="flex items-center gap-2.5">
-          <span className="grad-text">{DAYS_LONG[d.getDay()]}</span>
-          <span className="text-ink-3 font-bold">·</span>
-          <span>{d.getDate()} {MONTHS[d.getMonth()]} {d.getFullYear()}</span>
-          {dayTotal > 0 && <span className="ml-1 tag font-bold">{fmtHours(dayTotal)}</span>}
-        </div>
-      }
-      footer={<button className="btn" onClick={onClose}>Kapat</button>}
-    >
-      {/* Bugünün kayıtları */}
-      <div className="space-y-2">
-        {entries.length === 0 && !adding && (
-          <div className="text-center py-8 text-ink-3 text-sm">Bu güne henüz kayıt yok.</div>
-        )}
-        {entries.map((e) =>
-          editingId === e.id ? (
-            <div key={e.id} className="rounded-2xl ring-1 ring-brand-indigo/30 bg-brand-indigo/[.04] p-4">
-              <div className="clabel mb-3 text-brand-indigo">Kaydı Düzenle</div>
-              <EntryForm
-                entry={e}
-                customers={customers}
-                activities={activities}
-                defaultActivityId={defaultAct}
-                submitLabel="Güncelle"
-                submitting={updateMut.isPending}
-                onCancel={() => setEditingId(null)}
-                onSubmit={(p) => updateMut.mutate({ id: e.id, p })}
-              />
-            </div>
-          ) : (
-            <div key={e.id} className="group flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-paper-2 hover:bg-paper-3/40 transition">
-              <div className="w-1 self-stretch rounded-full bg-brand-indigo/30 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-[13.5px] truncate">{e.customer.name}</span>
-                  <span className="text-ink-3 text-[12.5px]">{e.activity.name}</span>
-                  {e.ticketId && <span className="font-mono text-[10.5px] text-ink-3 bg-surface border border-paper-3 rounded px-1.5 py-0.5">{e.ticketId}</span>}
-                </div>
-                {e.note && <div className="text-[11.5px] text-ink-3 mt-0.5 truncate">{e.note}</div>}
-              </div>
-              <span className="font-mono font-bold text-sm text-ink flex-shrink-0">{fmtHours(entryHours(e))}</span>
-              {confirmDeleteId === e.id ? (
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => delMut.mutate(e.id)} className="text-[11px] font-bold bg-brand-rose text-white px-2.5 py-1 rounded-lg hover:bg-brand-rose/90">Sil</button>
-                  <button onClick={() => setConfirmDeleteId(null)} className="text-[11px] font-semibold text-ink-2 px-2 py-1 rounded-lg hover:bg-paper-3">Vazgeç</button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-0.5 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => { setEditingId(e.id); setAdding(false); }} className="text-brand-indigo hover:bg-brand-indigo/10 p-1.5 rounded-lg" title="Düzenle"><Pencil size={14} /></button>
-                  <button onClick={() => setConfirmDeleteId(e.id)} className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg" title="Sil"><Trash2 size={14} /></button>
-                </div>
-              )}
-            </div>
-          )
-        )}
-      </div>
-
-      {/* Yeni kayıt */}
-      <div className="mt-4">
-        {adding ? (
-          <div className="rounded-2xl border border-paper-3 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="clabel">Yeni Kayıt</div>
-              {entries.length > 0 && (
-                <button onClick={() => setAdding(false)} className="text-ink-3 hover:text-ink p-1 rounded-lg" title="Kapat"><X size={15} /></button>
-              )}
-            </div>
-            <EntryForm
-              key={addKey}
-              customers={customers}
-              activities={activities}
-              defaultActivityId={defaultAct}
-              submitLabel="Kaydet"
-              submitting={addMut.isPending}
-              onSubmit={(p) => addMut.mutate(p)}
-            />
-          </div>
-        ) : (
-          <button
-            onClick={() => { setAdding(true); setEditingId(null); }}
-            className="w-full border-2 border-dashed border-paper-3 hover:border-brand-indigo/50 rounded-2xl py-3.5 flex items-center justify-center gap-2 text-ink-3 hover:text-brand-indigo font-semibold text-sm transition"
-          >
-            <Plus size={16} /> Yeni Kayıt Ekle
-          </button>
-        )}
-      </div>
-    </Modal>
-  );
-}
-
-// Tek bir kayıt formu — hem yeni kayıt hem inline düzenleme için kullanılır
-function EntryForm({ entry, customers, activities, defaultActivityId, submitLabel, submitting, onSubmit, onCancel }: {
-  entry?: Entry;
-  customers: Customer[];
-  activities: Activity[];
-  defaultActivityId: number | '';
-  submitLabel: string;
-  submitting: boolean;
-  onSubmit: (p: { cusId: number; projId: number | ''; actId: number; qty: number; ticketId: string | null; note: string | null }) => void;
-  onCancel?: () => void;
-}) {
-  const toast = useToast();
-  const [cusId, setCusId] = useState<number | ''>(entry?.customerId ?? '');
-  const [projId, setProjId] = useState<number | ''>(entry?.projectId ?? '');
-  const [actId, setActId] = useState<number | ''>(entry?.activityId ?? defaultActivityId);
-  const [qty, setQty] = useState(entry ? String(entry.qty) : '');
-  const [ticketId, setTicketId] = useState(entry?.ticketId || '');
-  const [note, setNote] = useState(entry?.note || '');
-
-  const activeCustomers = customers.filter((c) => c.active !== false);
-  const projOptions = (customers.find((c) => c.id === cusId)?.projects || []).filter((p) => p.active !== false);
-
-  function chooseCustomer(id: number | '') {
-    setCusId(id);
-    const ap = (customers.find((c) => c.id === id)?.projects || []).filter((p) => p.active !== false);
-    setProjId(ap.length === 1 ? ap[0].id : '');
-  }
-  function submit() {
+  function save() {
     if (!cusId) return toast.show('Müşteri seçin', 'error');
     if (projOptions.length > 1 && !projId) return toast.show('Proje seçin', 'error');
     if (!actId) return toast.show('Aktivite seçin', 'error');
     const q = parseFloat(qty);
     if (!q || q <= 0) return toast.show('Geçerli süre girin', 'error');
-    onSubmit({ cusId: cusId as number, projId, actId: actId as number, qty: q, ticketId: ticketId.trim() || null, note: note.trim() || null });
+    const p: Payload = { cusId: cusId as number, projId, actId: actId as number, qty: q, ticketId: ticketId.trim() || null, note: note.trim() || null };
+    if (editingId) updateMut.mutate({ id: editingId, p });
+    else addMut.mutate(p);
   }
 
-  const autoProject = projOptions.length === 1 ? projOptions[0] : null;
+  const busy = addMut.isPending || updateMut.isPending || delMut.isPending;
+  const dayTotal = entries.reduce((s, e) => s + entryHours(e), 0);
 
-  return (
+  const fields = (
     <div className="space-y-3">
-      {/* Müşteri — tam genişlik; tek projede altta minik bilgi, çoklu projede select */}
       <div>
         <label className="label">Müşteri</label>
-        <select className="input" value={cusId} onChange={(e) => chooseCustomer(e.target.value ? +e.target.value : '')} autoFocus={!entry}>
+        <select className="input" value={cusId} onChange={(e) => chooseCustomer(e.target.value ? +e.target.value : '')}>
           <option value="">— Seçin —</option>
           {activeCustomers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        {autoProject && (
-          <div className="text-[11px] text-ink-3 mt-1.5 pl-0.5">Proje: <span className="font-semibold text-ink-2">{autoProject.name}</span></div>
-        )}
+        {autoProject && <div className="text-[11px] text-ink-3 mt-1.5 pl-0.5">Proje: <span className="font-semibold text-ink-2">{autoProject.name}</span></div>}
       </div>
-
       {projOptions.length > 1 && (
         <div>
           <label className="label">Proje <span className="text-brand-rose">*</span></label>
@@ -637,7 +532,6 @@ function EntryForm({ entry, customers, activities, defaultActivityId, submitLabe
           </select>
         </div>
       )}
-
       <div className="grid grid-cols-[1fr_120px] gap-3">
         <div>
           <label className="label">Aktivite</label>
@@ -659,13 +553,103 @@ function EntryForm({ entry, customers, activities, defaultActivityId, submitLabe
         <label className="label">Açıklama</label>
         <textarea className="input min-h-[84px] resize-y leading-relaxed" value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Yapılan iş…" />
       </div>
-      <div className="flex items-center justify-end gap-2 pt-0.5">
-        {onCancel && <button className="btn btn-sm" onClick={onCancel} disabled={submitting}>Vazgeç</button>}
-        <button className="btn btn-primary btn-sm" onClick={submit} disabled={submitting}>
-          <Check size={14} /> {submitLabel}
-        </button>
-      </div>
     </div>
+  );
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      busy={busy}
+      busyLabel={editingId ? 'Güncelleniyor…' : 'Kaydediliyor…'}
+      title={
+        <div className="flex items-center gap-2.5">
+          <span className="grad-text">{DAYS_LONG[d.getDay()]}</span>
+          <span className="text-ink-3 font-bold">·</span>
+          <span>{d.getDate()} {MONTHS[d.getMonth()]} {d.getFullYear()}</span>
+          {dayTotal > 0 && <span className="ml-1 tag font-bold">{fmtHours(dayTotal)}</span>}
+        </div>
+      }
+      footer={
+        editingId !== null ? (
+          <>
+            <button className="btn" onClick={cancelEdit} disabled={busy}>Vazgeç</button>
+            <button className="btn btn-primary" onClick={save} disabled={busy}><Check size={15} /> Güncelle</button>
+          </>
+        ) : adding ? (
+          <>
+            <button className="btn" onClick={onClose} disabled={busy}>Kapat</button>
+            <button className="btn btn-primary" onClick={save} disabled={busy}><Check size={15} /> Kaydet</button>
+          </>
+        ) : (
+          <button className="btn" onClick={onClose}>Kapat</button>
+        )
+      }
+    >
+      {/* Bugünün kayıtları */}
+      <div className="space-y-2">
+        {entries.length === 0 && !adding && (
+          <div className="text-center py-8 text-ink-3 text-sm">Bu güne henüz kayıt yok.</div>
+        )}
+        {entries.map((e) =>
+          editingId === e.id ? (
+            <div key={e.id} className="rounded-2xl ring-1 ring-brand-indigo/30 bg-brand-indigo/[.04] p-4">
+              <div className="clabel mb-3 text-brand-indigo">Kaydı Düzenle</div>
+              {fields}
+            </div>
+          ) : (
+            <div key={e.id} className="group flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-paper-2 hover:bg-paper-3/40 transition">
+              <div className="w-1 self-stretch rounded-full bg-brand-indigo/30 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-[13.5px] truncate">{e.customer.name}</span>
+                  <span className="text-ink-3 text-[12.5px]">{e.activity.name}</span>
+                  {e.ticketId && <span className="font-mono text-[10.5px] text-ink-3 bg-surface border border-paper-3 rounded px-1.5 py-0.5">{e.ticketId}</span>}
+                </div>
+                {e.note && <div className="text-[11.5px] text-ink-3 mt-0.5 truncate">{e.note}</div>}
+              </div>
+              <span className="font-mono font-bold text-sm text-ink flex-shrink-0">{fmtHours(entryHours(e))}</span>
+              {confirmDeleteId === e.id ? (
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={() => delMut.mutate(e.id)} className="text-[11px] font-bold bg-brand-rose text-white px-2.5 py-1 rounded-lg hover:bg-brand-rose/90">Sil</button>
+                  <button onClick={() => setConfirmDeleteId(null)} className="text-[11px] font-semibold text-ink-2 px-2 py-1 rounded-lg hover:bg-paper-3">Vazgeç</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-0.5 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => startEdit(e)} className="text-brand-indigo hover:bg-brand-indigo/10 p-1.5 rounded-lg" title="Düzenle"><Pencil size={14} /></button>
+                  <button onClick={() => setConfirmDeleteId(e.id)} className="text-brand-rose hover:bg-brand-rose/10 p-1.5 rounded-lg" title="Sil"><Trash2 size={14} /></button>
+                </div>
+              )}
+            </div>
+          )
+        )}
+      </div>
+
+      {/* Yeni kayıt — düzenleme yokken */}
+      {editingId === null && (
+        <div className="mt-4">
+          {adding ? (
+            <div className="rounded-2xl border border-paper-3 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="clabel">Yeni Kayıt</div>
+                {entries.length > 0 && (
+                  <button onClick={() => { setAdding(false); resetFields(); }} className="text-ink-3 hover:text-ink p-1 rounded-lg" title="Kapat"><X size={15} /></button>
+                )}
+              </div>
+              {fields}
+            </div>
+          ) : (
+            <button
+              onClick={() => { setAdding(true); }}
+              className="w-full border-2 border-dashed border-paper-3 hover:border-brand-indigo/50 rounded-2xl py-3.5 flex items-center justify-center gap-2 text-ink-3 hover:text-brand-indigo font-semibold text-sm transition"
+            >
+              <Plus size={16} /> Yeni Kayıt Ekle
+            </button>
+          )}
+        </div>
+      )}
+    </Modal>
   );
 }
 
