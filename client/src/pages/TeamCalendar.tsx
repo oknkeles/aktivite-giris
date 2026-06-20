@@ -280,7 +280,7 @@ export default function TeamCalendar() {
                         {fmtHours(qtyToHours(e.qty, e.activity.unit))}
                       </span>
                     </div>
-                    {e.ticketId && <div className="text-[11px] font-mono text-ink-3 mb-0.5">🎫 {e.ticketId}</div>}
+                    {e.ticketId && <div className="text-[11px] font-mono text-ink-3 mb-0.5">{e.ticketId}</div>}
                     {e.note && <div className="text-[12px] text-ink-2">{e.note}</div>}
                   </div>
                 ))}

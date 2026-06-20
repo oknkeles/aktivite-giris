@@ -335,8 +335,8 @@ export default function Entries() {
                           <td className="py-3 text-ink-2">{e.activity.name}</td>
                           <td className="py-3">
                             {e.ticketId ? (
-                              <span className="badge bg-brand-violet/15 text-brand-violet font-mono !text-[10.5px]">
-                                🎫 {e.ticketId}
+                              <span className="font-mono text-[10.5px] text-ink-3 bg-paper-2 border border-paper-3 rounded px-1.5 py-0.5">
+                                {e.ticketId}
                               </span>
                             ) : <span className="text-ink-4 text-[11px]">—</span>}
                           </td>
