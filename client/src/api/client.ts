@@ -74,6 +74,8 @@ export interface ProjectRate {
   id?: number;
   activityId: number;
   rate: number;
+  effectiveFrom?: string;
+  effectiveTo?: string | null;
 }
 
 export interface Project {

@@ -77,16 +77,21 @@ model Project {
   @@index([customerId])
 }
 
+// Tarih-bazlı rate: aynı proje+aktivite için birden çok dönem olabilir.
+// effectiveTo null = sonsuz (açık dönem). Bir kayda uygulanacak rate,
+// kaydın tarihini kapsayan dönemdir.
 model ProjectRate {
-  id         Int   @id @default(autoincrement())
-  projectId  Int
-  activityId Int
-  rate       Float
+  id            Int     @id @default(autoincrement())
+  projectId     Int
+  activityId    Int
+  rate          Float
+  effectiveFrom String  @default("2000-01-01") // YYYY-MM-DD, dahil
+  effectiveTo   String?                         // YYYY-MM-DD, dahil; null = sonsuz
 
   project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
-  @@unique([projectId, activityId])
+  @@index([projectId, activityId])
 }
 
 model Entry {

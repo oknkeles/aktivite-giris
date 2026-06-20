@@ -8,6 +8,7 @@ import { authRequired, type AuthRequest } from '../middleware/auth.js';
 import { audit } from '../services/audit.js';
 import { lockedPeriodsAmong, periodOf } from '../services/period-lock.js';
 import { parseAssistant, type AsstContext } from '../services/assistant-llm.js';
+import { rateForDate } from '../services/rates.js';
 
 const router = Router();
 router.use(authRequired);
@@ -147,7 +148,7 @@ router.post('/', async (req: AuthRequest, res) => {
       let hours = 0; const byCur: Record<string, number> = {};
       for (const e of list) {
         const h = e.activity.unit === 'saat' ? e.qty : e.qty * 8; hours += h;
-        const rate = e.project?.rates.find((x) => x.activityId === e.activityId)?.rate || 0;
+        const rate = rateForDate(e.project?.rates, e.activityId, e.date);
         const disc = e.customer.contractor.discount || 0;
         const cur = e.customer.currency || 'TRY';
         byCur[cur] = (byCur[cur] || 0) + (h / 8) * rate * (1 - disc / 100);

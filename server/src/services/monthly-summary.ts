@@ -4,6 +4,7 @@
 
 import twilio from 'twilio';
 import { prisma } from '../db.js';
+import { rateForDate } from './rates.js';
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -57,7 +58,7 @@ async function buildSummary(): Promise<string | null> {
   const byCustomer: Record<string, { hours: number; net: number; currency: string }> = {};
 
   for (const e of entries) {
-    const rate = e.project?.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
+    const rate = rateForDate(e.project?.rates, e.activityId, e.date);
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
     const disc = e.customer.contractor.discount || 0;
     const net = (hours / 8) * rate * (1 - disc / 100);

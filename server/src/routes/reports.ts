@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../db.js';
 import { authRequired, adminRequired, type AuthRequest } from '../middleware/auth.js';
 import { buildPdfReport, type ReportEntry } from '../services/pdf-report.js';
+import { rateForDate } from '../services/rates.js';
 
 const router = Router();
 router.use(authRequired, adminRequired);
@@ -29,8 +30,7 @@ router.get('/', async (req, res) => {
 
   // Calculate amounts — rate artık proje seviyesinden
   const data = entries.map((e) => {
-    const rateRow = e.project?.rates.find((r) => r.activityId === e.activityId);
-    const dayRate = rateRow?.rate || 0;
+    const dayRate = rateForDate(e.project?.rates, e.activityId, e.date);
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
     const days = hours / 8;
     const gross = days * dayRate;
@@ -108,7 +108,7 @@ router.get('/dashboard', async (req, res) => {
   const monthByCurrency: Record<string, number> = {}; // para birimi → net toplam
 
   for (const e of entries) {
-    const rate = e.project?.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
+    const rate = rateForDate(e.project?.rates, e.activityId, e.date);
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
     const disc = e.customer.contractor.discount || 0;
     const net = (hours / 8) * rate * (1 - disc / 100);
@@ -168,7 +168,7 @@ router.get('/pdf', async (req: AuthRequest, res) => {
   });
 
   const reportEntries: ReportEntry[] = entries.map((e) => {
-    const rate = e.project?.rates.find((r) => r.activityId === e.activityId)?.rate || 0;
+    const rate = rateForDate(e.project?.rates, e.activityId, e.date);
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
     const days = hours / 8;
     const gross = days * rate;

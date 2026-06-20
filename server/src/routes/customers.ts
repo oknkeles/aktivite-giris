@@ -57,15 +57,18 @@ async function syncProjects(customerId: number, projects: z.infer<typeof project
     keepIds.add(projectId);
 
     if (p.rates) {
-      await Promise.all(
-        Object.entries(p.rates).map(([actId, rate]) =>
-          prisma.projectRate.upsert({
-            where: { projectId_activityId: { projectId: projectId!, activityId: Number(actId) } },
-            update: { rate },
-            create: { projectId: projectId!, activityId: Number(actId), rate },
-          })
-        )
-      );
+      // Tarih-bazlı rate: modalden gelen değer "açık dönem" (effectiveTo=null) rate'i günceller.
+      // Tarihli yeni dönem açma işi ayrı bir akış (script/ileride UI) ile yapılır.
+      for (const [actId, rate] of Object.entries(p.rates)) {
+        const open = await prisma.projectRate.findFirst({
+          where: { projectId: projectId!, activityId: Number(actId), effectiveTo: null },
+        });
+        if (open) {
+          await prisma.projectRate.update({ where: { id: open.id }, data: { rate } });
+        } else {
+          await prisma.projectRate.create({ data: { projectId: projectId!, activityId: Number(actId), rate } });
+        }
+      }
     }
   }
 

@@ -134,7 +134,11 @@ function CustomerModal({ customer, contractors, activities, onClose }: {
     if (customer && customer.projects?.length) {
       return customer.projects.map((p) => {
         const rates: Record<number, number> = {};
-        activities.forEach((a) => { rates[a.id] = p.rates.find((r) => r.activityId === a.id)?.rate || 0; });
+        // Açık dönem (effectiveTo=null) rate'i göster; yoksa herhangi biri
+        activities.forEach((a) => {
+          const rs = p.rates.filter((r) => r.activityId === a.id);
+          rates[a.id] = (rs.find((r) => r.effectiveTo == null) || rs[0])?.rate || 0;
+        });
         return { id: p.id, name: p.name, active: p.active !== false, rates };
       });
     }
