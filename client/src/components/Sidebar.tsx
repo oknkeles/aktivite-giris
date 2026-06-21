@@ -1,6 +1,6 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Calendar, List, CheckSquare, Users, UserCog, BarChart3, LogOut, Menu, X,
+  Calendar, List, CheckSquare, Users, UserCog, BarChart3, LogOut, X,
   ShieldCheck, ChevronDown, Briefcase, ScrollText, LayoutDashboard, Lock, CalendarRange, Sun, Moon
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -181,14 +181,6 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
           )}
         </nav>
       </aside>
-
-      <button
-        className="lg:hidden fixed top-3 left-3 z-30 w-10 h-10 rounded-xl bg-white border border-paper-3 shadow-md flex items-center justify-center text-ink-2"
-        onClick={() => setMobileOpen(true)}
-        aria-label="Menüyü aç"
-      >
-        <Menu size={18} />
-      </button>
     </>
   );
 }

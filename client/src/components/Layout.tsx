@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Search as SearchIcon, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Search as SearchIcon, Sparkles, Eye, EyeOff, Menu } from 'lucide-react';
 import clsx from 'clsx';
 import Sidebar from './Sidebar';
 import { useAuth, isAdmin } from '../store/auth';
@@ -98,14 +98,24 @@ export default function Layout() {
       <main className="lg:pl-64 min-h-screen flex flex-col">
         {/* Topbar — bölüm etiketi + başlık + açıklama solda, sayfa aksiyonları sağda */}
         <header className="sticky top-0 z-30 bg-surface/85 backdrop-blur-xl border-b border-paper-3/80 min-h-16 sm:min-h-[72px] py-2.5 flex items-center justify-between gap-3 px-5 sm:px-7 lg:px-9 shadow-[0_1px_0_rgba(15,23,42,.02)]">
-          <div className="pl-12 lg:pl-0 flex-shrink-0 min-w-0">
-            {section && (
-              <div className="text-[10px] font-bold tracking-[.14em] text-ink-4 uppercase leading-none mb-1">{section}</div>
-            )}
-            <div className="text-lg sm:text-xl font-extrabold tracking-tight leading-tight">{title}</div>
-            {subtitle && (
-              <div className="text-[12px] text-ink-3 mt-0.5 truncate hidden sm:block">{subtitle}</div>
-            )}
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Mobil menü tetikleyici */}
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="lg:hidden w-9 h-9 rounded-xl bg-paper-2 border border-paper-3 flex items-center justify-center text-ink-2 flex-shrink-0"
+              aria-label="Menüyü aç"
+            >
+              <Menu size={18} />
+            </button>
+            <div className="flex-shrink-0 min-w-0">
+              {section && (
+                <div className="text-[10px] font-bold tracking-[.14em] text-ink-4 uppercase leading-none mb-1 hidden sm:block">{section}</div>
+              )}
+              <div className="text-base sm:text-xl font-extrabold tracking-tight leading-tight truncate">{title}</div>
+              {subtitle && (
+                <div className="text-[12px] text-ink-3 mt-0.5 truncate hidden lg:block">{subtitle}</div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 min-w-0">
             {extras && <div className="flex items-center gap-2 min-w-0 overflow-x-auto">{extras}</div>}

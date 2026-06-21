@@ -15,10 +15,23 @@ function entryHours(e: Entry): number {
   return qtyToHours(e.qty, e.activity.unit);
 }
 
+function mondayOf(d: Date): Date {
+  const x = new Date(d);
+  const dow = (x.getDay() + 6) % 7;
+  x.setDate(x.getDate() - dow);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
 export default function Timesheet() {
   const today = new Date();
+  // Görünüm: web varsayılan aylık, mobil varsayılan haftalık; üstten değiştirilebilir
+  const [view, setView] = useState<'month' | 'week'>(() =>
+    typeof window !== 'undefined' && window.innerWidth < 1024 ? 'week' : 'month'
+  );
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
+  const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(new Date()));
   const [multiMode, setMultiMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dragAnchor, setDragAnchor] = useState<string | null>(null);
@@ -30,11 +43,12 @@ export default function Timesheet() {
   const toast = useToast();
   const qc = useQueryClient();
 
-  // Fetch month entries
+  // Görünür aralık — aylık: ayın tamamı; haftalık: pazartesi–pazar
   const monthStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
-  const from = `${monthStr}-01`;
   const lastDay = new Date(calYear, calMonth + 1, 0).getDate();
-  const to = `${monthStr}-${String(lastDay).padStart(2, '0')}`;
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+  const from = view === 'month' ? `${monthStr}-01` : dateStr(weekStart);
+  const to = view === 'month' ? `${monthStr}-${String(lastDay).padStart(2, '0')}` : dateStr(weekEnd);
 
   const { data: entries = [] } = useQuery({
     queryKey: ['entries', from, to],
@@ -65,6 +79,15 @@ export default function Timesheet() {
     return arr;
   }, [calYear, calMonth]);
 
+  // Haftalık görünüm — pazartesiden 7 gün
+  const weekDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const dt = new Date(weekStart); dt.setDate(weekStart.getDate() + i);
+      const ds = dateStr(dt);
+      return { date: ds, dayNum: dt.getDate(), monthIdx: dt.getMonth(), dow: i, weekend: i >= 5, holiday: getHoliday(ds) };
+    });
+  }, [weekStart]);
+
   const entriesByDate = useMemo(() => {
     const map: Record<string, Entry[]> = {};
     entries.forEach((e) => { (map[e.date] = map[e.date] || []).push(e); });
@@ -76,9 +99,18 @@ export default function Timesheet() {
   const activeDays = new Set(entries.map((e) => e.date)).size;
   const totalDays = monthHours / 8;
 
-  const goPrev = () => { if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); } else setCalMonth(calMonth - 1); };
-  const goNext = () => { if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); } else setCalMonth(calMonth + 1); };
-  const goToday = () => { setCalYear(today.getFullYear()); setCalMonth(today.getMonth()); };
+  const goPrev = () => {
+    if (view === 'week') { const x = new Date(weekStart); x.setDate(x.getDate() - 7); setWeekStart(x); }
+    else if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); } else setCalMonth(calMonth - 1);
+  };
+  const goNext = () => {
+    if (view === 'week') { const x = new Date(weekStart); x.setDate(x.getDate() + 7); setWeekStart(x); }
+    else if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); } else setCalMonth(calMonth + 1);
+  };
+  const goToday = () => {
+    if (view === 'week') setWeekStart(mondayOf(new Date()));
+    else { setCalYear(today.getFullYear()); setCalMonth(today.getMonth()); }
+  };
 
   function clearAll() { setSelected(new Set()); setMultiMode(false); }
   function toggleMulti() {
@@ -136,48 +168,38 @@ export default function Timesheet() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['entries'] }),
   });
 
-  // Layout topbar'a ay/yıl + nav butonlarını inject et
+  // Layout topbar'a dönem etiketi + Ay/Hafta toggle + nav inject et
   const setExtras = useHeader((s) => s.setExtras);
   useEffect(() => {
     setExtras(
       <>
-        <span className="text-ink-4 font-normal hidden sm:inline">·</span>
-        <span className="text-sm sm:text-base font-bold tracking-tight">
-          {MONTHS[calMonth]} <span className="text-ink-4 font-medium">{calYear}</span>
-        </span>
-        <div className="flex-1" />
-        <button
-          className={clsx(
-            'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition',
-            multiMode
-              ? 'bg-brand-indigo text-white'
-              : 'bg-paper-2 text-ink-2 hover:bg-paper-3'
+        <span className="text-[13px] sm:text-base font-bold tracking-tight whitespace-nowrap">
+          {view === 'month' ? (
+            <>{MONTHS[calMonth]} <span className="text-ink-4 font-medium">{calYear}</span></>
+          ) : (
+            <>{weekStart.getDate()} {MONTHS[weekStart.getMonth()].slice(0, 3)} – {weekEnd.getDate()} {MONTHS[weekEnd.getMonth()].slice(0, 3)}</>
           )}
-          onClick={toggleMulti}
-        >
-          <CheckSquare size={13} />
-          <span className="hidden sm:inline">Çoklu Seçim</span>
-        </button>
-        <button className="px-2.5 py-1.5 rounded-lg bg-paper-2 text-ink-2 text-xs font-semibold hover:bg-paper-3 transition" onClick={goToday}>
-          Bugün
-        </button>
-        <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goPrev}>
-          <ChevronLeft size={15} />
-        </button>
-        <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goNext}>
-          <ChevronRight size={15} />
-        </button>
+        </span>
+        {/* Ay / Hafta */}
+        <div className="flex rounded-lg bg-paper-2 p-0.5 text-[11px] font-bold flex-shrink-0">
+          <button onClick={() => setView('month')} className={clsx('px-2 py-1 rounded-md transition', view === 'month' ? 'bg-surface shadow-sm text-ink' : 'text-ink-3')}>Ay</button>
+          <button onClick={() => setView('week')} className={clsx('px-2 py-1 rounded-md transition', view === 'week' ? 'bg-surface shadow-sm text-ink' : 'text-ink-3')}>Hafta</button>
+        </div>
+        <button className="px-2.5 py-1.5 rounded-lg bg-paper-2 text-ink-2 text-xs font-semibold hover:bg-paper-3 transition flex-shrink-0" onClick={goToday}>Bugün</button>
+        <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition flex-shrink-0" onClick={goPrev}><ChevronLeft size={15} /></button>
+        <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition flex-shrink-0" onClick={goNext}><ChevronRight size={15} /></button>
       </>
     );
     return () => setExtras(null);
-  }, [calMonth, calYear, multiMode, setExtras]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, calMonth, calYear, weekStart, setExtras]);
 
   return (
     <div className="animate-fade-in flex flex-col h-[calc(100vh-112px)]">
       <div className="min-w-0 flex-1 flex flex-col min-h-0">
         {/* Summary metrics + last entry — kompakt */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3">
-          <MetricCard label="Bu Ay" value={fmtHours(monthHours)} variant="indigo" />
+          <MetricCard label={view === 'week' ? 'Bu Hafta' : 'Bu Ay'} value={fmtHours(monthHours)} variant="indigo" />
           <MetricCard label="Aktif Gün" value={activeDays.toString()} variant="neutral" />
           <MetricCard label="Toplam Gün" value={totalDays.toFixed(1)} variant="emerald" />
           <LastEntryCard entries={entries} />
@@ -200,12 +222,67 @@ export default function Timesheet() {
           </div>
         )}
 
-        {/* Aksiyon butonları + ipucu — hint metninin yerine */}
-        <TimesheetActions />
+        {/* Aksiyon butonları + (aylıkta) Çoklu Seçim */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <TimesheetActions />
+          {view === 'month' && (
+            <button
+              className={clsx(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition',
+                multiMode ? 'bg-brand-indigo text-white' : 'bg-paper-2 text-ink-2 hover:bg-paper-3'
+              )}
+              onClick={toggleMulti}
+            >
+              <CheckSquare size={13} /> Çoklu Seçim
+            </button>
+          )}
+        </div>
 
+        {/* HAFTALIK görünüm — dikey ajanda (mobil + web uyumlu) */}
+        {view === 'week' && (
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
+            {weekDays.map((d) => {
+              const dayEntries = entriesByDate[d.date] || [];
+              const total = dayEntries.reduce((s, e) => s + entryHours(e), 0);
+              const isToday = d.date === dateStr(today);
+              return (
+                <button
+                  key={d.date}
+                  onClick={() => setActiveDate(d.date)}
+                  className={clsx(
+                    'w-full text-left rounded-xl border px-3.5 py-3 flex items-center gap-3 transition',
+                    isToday ? 'border-brand-indigo/40 bg-brand-indigo/[.04]' : 'border-paper-3 bg-surface hover:bg-paper-2/60',
+                    d.holiday && !isToday && 'bg-brand-amber/[.06]'
+                  )}
+                >
+                  <div className="flex flex-col items-center justify-center w-12 flex-shrink-0">
+                    <span className={clsx('text-[10px] font-bold uppercase tracking-wide', d.weekend ? 'text-brand-rose/70' : 'text-ink-3')}>{DAYS_SHORT[d.dow]}</span>
+                    <span className={clsx('text-lg font-extrabold leading-none mt-0.5', isToday ? 'text-brand-indigo' : 'text-ink')}>{d.dayNum}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {d.holiday && <div className="text-[10.5px] text-brand-amber font-semibold mb-0.5 truncate">{d.holiday}</div>}
+                    {dayEntries.length === 0 ? (
+                      <div className="text-[12.5px] text-ink-4">Kayıt yok — eklemek için dokun</div>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {dayEntries.slice(0, 4).map((e) => (
+                          <span key={e.id} className="text-[11px] font-medium bg-paper-2 border border-paper-3 rounded-md px-1.5 py-0.5 text-ink-2 truncate max-w-[160px]">
+                            {e.customer.name.split(' ')[0]} · {fmtHours(entryHours(e))}
+                          </span>
+                        ))}
+                        {dayEntries.length > 4 && <span className="text-[11px] text-ink-3 self-center">+{dayEntries.length - 4}</span>}
+                      </div>
+                    )}
+                  </div>
+                  {total > 0 && <span className="font-mono font-bold text-sm text-ink flex-shrink-0">{fmtHours(total)}</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-
-        {/* Calendar — macOS Calendar style clean grid, viewport'a göre esner */}
+        {/* AYLIK görünüm — macOS Calendar grid */}
+        {view === 'month' && (
         <div className="rounded-xl bg-surface border border-paper-3 overflow-hidden flex-1 flex flex-col min-h-0">
           {/* Day headers — hafta sonu renkli */}
           <div className="grid grid-cols-7 border-b border-paper-3 flex-shrink-0">
@@ -319,6 +396,7 @@ export default function Timesheet() {
             })}
           </div>
         </div>
+        )}
       </div>
 
       {/* Day Modal */}
