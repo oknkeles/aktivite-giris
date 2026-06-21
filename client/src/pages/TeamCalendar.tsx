@@ -9,6 +9,7 @@ import clsx from 'clsx';
 import { api, type Entry, type User } from '../api/client';
 import { fmtHours, qtyToHours, MONTHS, DAYS_SHORT } from '../lib/format';
 import { getHoliday } from '../lib/holidays';
+import { useHeader } from '../store/header';
 import Modal from '../components/Modal';
 
 function currentPeriod(): string {
@@ -108,22 +109,29 @@ export default function TeamCalendar() {
     return 'bg-brand-indigo/20 text-brand-indigo';
   }
 
+  // Dönem kontrolleri — Timesheet ile aynı mimari (masaüstü: topbar, mobil: gövde)
+  const dateControls = (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-sm font-extrabold tracking-tight whitespace-nowrap mr-1">{periodLabel(period)}</span>
+      {isFetching && <span className="text-[10px] text-ink-3 animate-pulse">yükleniyor…</span>}
+      {!isCurrent && (
+        <button onClick={() => setPeriod(currentPeriod())} className="px-2.5 py-1.5 rounded-lg bg-paper-2 text-ink-2 text-xs font-semibold hover:bg-paper-3 transition">Bugün</button>
+      )}
+      <button onClick={() => setPeriod(shiftPeriod(period, -1))} className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" title="Önceki ay"><ChevronLeft size={15} /></button>
+      <button onClick={() => setPeriod(shiftPeriod(period, 1))} className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" title="Sonraki ay"><ChevronRight size={15} /></button>
+    </div>
+  );
+  const setExtras = useHeader((s) => s.setExtras);
+  useEffect(() => {
+    setExtras(dateControls);
+    return () => setExtras(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, isCurrent, isFetching, setExtras]);
+
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Üst bar: ay gezintisi */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-extrabold tracking-tight">{periodLabel(period)}</span>
-          {isFetching && <span className="text-[10px] text-ink-3 animate-pulse">yükleniyor…</span>}
-          {!isCurrent && (
-            <button onClick={() => setPeriod(currentPeriod())} className="btn !py-1 !px-2.5 text-[11px]">Bugün</button>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setPeriod(shiftPeriod(period, -1))} className="w-9 h-9 rounded-xl bg-surface border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition" title="Önceki ay"><ChevronLeft size={16} /></button>
-          <button onClick={() => setPeriod(shiftPeriod(period, 1))} className="w-9 h-9 rounded-xl bg-surface border border-paper-3 shadow-sm flex items-center justify-center text-ink-2 hover:bg-paper-2 transition" title="Sonraki ay"><ChevronRight size={16} /></button>
-        </div>
-      </div>
+      {/* Mobilde dönem kontrolleri gövdede (masaüstünde topbar'da) */}
+      <div className="lg:hidden">{dateControls}</div>
 
       {/* Danışman seçimi */}
       <div className="card !p-3">
