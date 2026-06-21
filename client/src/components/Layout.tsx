@@ -6,7 +6,6 @@ import Sidebar from './Sidebar';
 import { useAuth, isAdmin } from '../store/auth';
 import { usePrivacy } from '../store/privacy';
 import { ToastHost } from './Toast';
-import { useHeader } from '../store/header';
 import { useQuickEntry } from '../store/quickEntry';
 import { useSpotlight } from '../store/spotlight';
 import { useAssistant } from '../store/assistant';
@@ -65,7 +64,6 @@ export default function Layout() {
   const title = TITLES[loc.pathname] || 'Aktivite Giriş';
   const section = SECTIONS[loc.pathname];
   const subtitle = SUBTITLES[loc.pathname];
-  const extras = useHeader((s) => s.extras);
   const { wizardOpen, closeWizard, bulkAIOpen, closeBulkAI } = useQuickEntry();
   const toggleSpotlight = useSpotlight((s) => s.toggle);
   const toggleAssistant = useAssistant((s) => s.toggle);
@@ -117,9 +115,8 @@ export default function Layout() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 min-w-0">
-            {extras && <div className="flex items-center gap-2 min-w-0 overflow-x-auto">{extras}</div>}
-            {/* Tutar maskeleme anahtarı (admin) */}
+          {/* Masaüstü: global aksiyonlar topbar'da. Mobil: yan menüde (Sidebar). */}
+          <div className="hidden lg:flex items-center gap-2 min-w-0">
             {admin && (
               <button
                 onClick={toggleMask}
@@ -132,27 +129,25 @@ export default function Layout() {
                 title={masked ? 'Tutarları göster' : 'Tutarları gizle'}
               >
                 {masked ? <EyeOff size={15} /> : <Eye size={15} />}
-                <span className="hidden lg:inline">{masked ? 'Tutarlar gizli' : 'Tutarlar açık'}</span>
+                <span>{masked ? 'Tutarlar gizli' : 'Tutarlar açık'}</span>
               </button>
             )}
-            {/* Spotlight tetikleyici */}
             <button
               onClick={toggleSpotlight}
-              className="hidden sm:flex items-center gap-2 text-ink-3 hover:text-ink bg-paper-2 hover:bg-paper-3/60 border border-paper-3 rounded-xl pl-3 pr-2 py-2 transition flex-shrink-0"
+              className="flex items-center gap-2 text-ink-3 hover:text-ink bg-paper-2 hover:bg-paper-3/60 border border-paper-3 rounded-xl pl-3 pr-2 py-2 transition flex-shrink-0"
               title="Komut paleti (⌘K)"
             >
               <SearchIcon size={15} />
-              <span className="text-[12px] hidden md:inline">Ara…</span>
-              <kbd className="text-[10px] font-mono bg-surface border border-paper-3 rounded px-1.5 py-0.5 hidden md:inline">⌘K</kbd>
+              <span className="text-[12px]">Ara…</span>
+              <kbd className="text-[10px] font-mono bg-surface border border-paper-3 rounded px-1.5 py-0.5">⌘K</kbd>
             </button>
-            {/* AI Asistan */}
             <button
               onClick={toggleAssistant}
-              className="flex items-center gap-1.5 bg-grad-primary text-white rounded-xl px-2.5 sm:px-3 py-2 text-xs font-bold shadow-glow hover:-translate-y-0.5 transition flex-shrink-0"
+              className="flex items-center gap-1.5 bg-grad-primary text-white rounded-xl px-3 py-2 text-xs font-bold shadow-glow hover:-translate-y-0.5 transition flex-shrink-0"
               title="AI Asistan"
             >
               <Sparkles size={15} />
-              <span className="hidden md:inline">Asistan</span>
+              <span>Asistan</span>
             </button>
           </div>
         </header>

@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight, CheckSquare, Sparkles, Trash2, Pencil, Zap, 
 import clsx from 'clsx';
 import { api, type Entry, type Customer, type Activity } from '../api/client';
 import { useAuth } from '../store/auth';
-import { useHeader } from '../store/header';
 import { useQuickEntry } from '../store/quickEntry';
 import { useToast, confettiBurst } from '../components/Toast';
 import Modal from '../components/Modal';
@@ -168,35 +167,32 @@ export default function Timesheet() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['entries'] }),
   });
 
-  // Layout topbar'a dönem etiketi + Ay/Hafta toggle + nav inject et
-  const setExtras = useHeader((s) => s.setExtras);
-  useEffect(() => {
-    setExtras(
-      <>
-        <span className="text-[13px] sm:text-base font-bold tracking-tight whitespace-nowrap">
-          {view === 'month' ? (
-            <>{MONTHS[calMonth]} <span className="text-ink-4 font-medium">{calYear}</span></>
-          ) : (
-            <>{weekStart.getDate()} {MONTHS[weekStart.getMonth()].slice(0, 3)} – {weekEnd.getDate()} {MONTHS[weekEnd.getMonth()].slice(0, 3)}</>
-          )}
-        </span>
-        {/* Ay / Hafta */}
-        <div className="flex rounded-lg bg-paper-2 p-0.5 text-[11px] font-bold flex-shrink-0">
-          <button onClick={() => setView('month')} className={clsx('px-2 py-1 rounded-md transition', view === 'month' ? 'bg-surface shadow-sm text-ink' : 'text-ink-3')}>Ay</button>
-          <button onClick={() => setView('week')} className={clsx('px-2 py-1 rounded-md transition', view === 'week' ? 'bg-surface shadow-sm text-ink' : 'text-ink-3')}>Hafta</button>
+  // Tarih kontrolleri gövdede (üst bar sade kalsın)
+  const dateToolbar = (
+    <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+      <span className="text-base sm:text-lg font-extrabold tracking-tight whitespace-nowrap">
+        {view === 'month' ? (
+          <>{MONTHS[calMonth]} <span className="text-ink-4 font-medium">{calYear}</span></>
+        ) : (
+          <>{weekStart.getDate()} {MONTHS[weekStart.getMonth()].slice(0, 3)} – {weekEnd.getDate()} {MONTHS[weekEnd.getMonth()].slice(0, 3)}</>
+        )}
+      </span>
+      <div className="flex items-center gap-2">
+        <div className="flex rounded-lg bg-paper-2 p-0.5 text-[12px] font-bold">
+          <button onClick={() => setView('month')} className={clsx('px-2.5 py-1 rounded-md transition', view === 'month' ? 'bg-surface shadow-sm text-ink' : 'text-ink-3')}>Ay</button>
+          <button onClick={() => setView('week')} className={clsx('px-2.5 py-1 rounded-md transition', view === 'week' ? 'bg-surface shadow-sm text-ink' : 'text-ink-3')}>Hafta</button>
         </div>
-        <button className="px-2.5 py-1.5 rounded-lg bg-paper-2 text-ink-2 text-xs font-semibold hover:bg-paper-3 transition flex-shrink-0" onClick={goToday}>Bugün</button>
-        <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition flex-shrink-0" onClick={goPrev}><ChevronLeft size={15} /></button>
-        <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition flex-shrink-0" onClick={goNext}><ChevronRight size={15} /></button>
-      </>
-    );
-    return () => setExtras(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, calMonth, calYear, weekStart, setExtras]);
+        <button className="px-2.5 py-1.5 rounded-lg bg-paper-2 text-ink-2 text-xs font-semibold hover:bg-paper-3 transition" onClick={goToday}>Bugün</button>
+        <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goPrev}><ChevronLeft size={15} /></button>
+        <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goNext}><ChevronRight size={15} /></button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="animate-fade-in flex flex-col h-[calc(100vh-112px)]">
       <div className="min-w-0 flex-1 flex flex-col min-h-0">
+        {dateToolbar}
         {/* Summary metrics + last entry — kompakt */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3">
           <MetricCard label={view === 'week' ? 'Bu Hafta' : 'Bu Ay'} value={fmtHours(monthHours)} variant="indigo" />

@@ -1,12 +1,16 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   Calendar, List, CheckSquare, Users, UserCog, BarChart3, LogOut, X,
-  ShieldCheck, ChevronDown, Briefcase, ScrollText, LayoutDashboard, Lock, CalendarRange, Sun, Moon
+  ShieldCheck, ChevronDown, Briefcase, ScrollText, LayoutDashboard, Lock, CalendarRange, Sun, Moon,
+  Search, Sparkles, Eye, EyeOff
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { useAuth, isAdmin } from '../store/auth';
 import { useTheme } from '../store/theme';
+import { useSpotlight } from '../store/spotlight';
+import { useAssistant } from '../store/assistant';
+import { usePrivacy } from '../store/privacy';
 import { useQueryClient } from '@tanstack/react-query';
 
 const ENTRY_ITEMS = [
@@ -40,6 +44,9 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
   const admin = isAdmin(user);
   const qc = useQueryClient();
   const { theme, toggle: toggleTheme } = useTheme();
+  const openSpotlight = useSpotlight((s) => s.setOpen);
+  const openAssistant = useAssistant((s) => s.setOpen);
+  const { masked, toggle: toggleMask } = usePrivacy();
 
   // Auto-open admin panel if currently on an admin route
   const isOnAdminPage = ADMIN_ITEMS.some(i => i.to === loc.pathname);
@@ -180,6 +187,31 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
             </div>
           )}
         </nav>
+
+        {/* Mobil: global aksiyonlar (masaüstünde topbar'da) */}
+        <div className="lg:hidden border-t border-white/5 p-3 space-y-1.5">
+          <button
+            onClick={() => { setMobileOpen(false); openSpotlight(true); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold text-white/65 hover:bg-white/5 hover:text-white/95 transition"
+          >
+            <Search size={16} /> Ara / Komut
+          </button>
+          <button
+            onClick={() => { setMobileOpen(false); openAssistant(true); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-bold bg-grad-primary text-white shadow-md transition"
+          >
+            <Sparkles size={16} /> AI Asistan
+          </button>
+          {admin && (
+            <button
+              onClick={toggleMask}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold text-white/65 hover:bg-white/5 hover:text-white/95 transition"
+            >
+              {masked ? <EyeOff size={16} /> : <Eye size={16} />}
+              {masked ? 'Tutarlar gizli' : 'Tutarlar açık'}
+            </button>
+          )}
+        </div>
       </aside>
     </>
   );
