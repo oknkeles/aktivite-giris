@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, CheckSquare, Sparkles, Trash2, Pencil, Zap, 
 import clsx from 'clsx';
 import { api, type Entry, type Customer, type Activity } from '../api/client';
 import { useAuth } from '../store/auth';
+import { useHeader } from '../store/header';
 import { useQuickEntry } from '../store/quickEntry';
 import { useToast, confettiBurst } from '../components/Toast';
 import Modal from '../components/Modal';
@@ -41,6 +42,8 @@ export default function Timesheet() {
   const { user } = useAuth();
   const toast = useToast();
   const qc = useQueryClient();
+  const openWizard = useQuickEntry((s) => s.openWizard);
+  const openBulkAI = useQuickEntry((s) => s.openBulkAI);
 
   // Görünür aralık — aylık: ayın tamamı; haftalık: pazartesi–pazar
   const monthStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
@@ -167,34 +170,41 @@ export default function Timesheet() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['entries'] }),
   });
 
-  // Tarih kontrolleri gövdede (üst bar sade kalsın)
-  const dateToolbar = (
-    <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
-      <span className="text-base sm:text-lg font-extrabold tracking-tight whitespace-nowrap">
+  // Tarih kontrolleri — kompakt küme (masaüstü: topbar, mobil: gövde)
+  const dateControls = (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-sm font-extrabold tracking-tight whitespace-nowrap mr-1">
         {view === 'month' ? (
           <>{MONTHS[calMonth]} <span className="text-ink-4 font-medium">{calYear}</span></>
         ) : (
           <>{weekStart.getDate()} {MONTHS[weekStart.getMonth()].slice(0, 3)} – {weekEnd.getDate()} {MONTHS[weekEnd.getMonth()].slice(0, 3)}</>
         )}
       </span>
-      <div className="flex items-center gap-2">
-        <div className="flex rounded-lg bg-paper-2 p-0.5 text-[12px] font-bold">
-          <button onClick={() => setView('month')} className={clsx('px-2.5 py-1 rounded-md transition', view === 'month' ? 'bg-surface shadow-sm text-ink' : 'text-ink-3')}>Ay</button>
-          <button onClick={() => setView('week')} className={clsx('px-2.5 py-1 rounded-md transition', view === 'week' ? 'bg-surface shadow-sm text-ink' : 'text-ink-3')}>Hafta</button>
-        </div>
-        <button className="px-2.5 py-1.5 rounded-lg bg-paper-2 text-ink-2 text-xs font-semibold hover:bg-paper-3 transition" onClick={goToday}>Bugün</button>
-        <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goPrev}><ChevronLeft size={15} /></button>
-        <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goNext}><ChevronRight size={15} /></button>
+      <div className="flex rounded-lg bg-paper-2 p-0.5 text-[11px] font-bold">
+        <button onClick={() => setView('month')} className={clsx('px-2.5 py-1 rounded-md transition', view === 'month' ? 'bg-surface shadow-sm text-ink' : 'text-ink-3')}>Ay</button>
+        <button onClick={() => setView('week')} className={clsx('px-2.5 py-1 rounded-md transition', view === 'week' ? 'bg-surface shadow-sm text-ink' : 'text-ink-3')}>Hafta</button>
       </div>
+      <button className="px-2.5 py-1.5 rounded-lg bg-paper-2 text-ink-2 text-xs font-semibold hover:bg-paper-3 transition" onClick={goToday}>Bugün</button>
+      <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goPrev}><ChevronLeft size={15} /></button>
+      <button className="w-8 h-8 rounded-lg bg-paper-2 text-ink-2 flex items-center justify-center hover:bg-paper-3 transition" onClick={goNext}><ChevronRight size={15} /></button>
     </div>
   );
 
+  // Masaüstünde tarih kontrollerini topbar'a inject et
+  const setExtras = useHeader((s) => s.setExtras);
+  useEffect(() => {
+    setExtras(dateControls);
+    return () => setExtras(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, calMonth, calYear, weekStart, setExtras]);
+
   return (
-    <div className="animate-fade-in flex flex-col h-[calc(100vh-112px)]">
+    <div className="animate-fade-in flex flex-col h-[calc(100vh-92px)]">
       <div className="min-w-0 flex-1 flex flex-col min-h-0">
-        {dateToolbar}
-        {/* Summary metrics + last entry — kompakt */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3">
+        {/* Mobilde tarih kontrolleri gövdede (masaüstünde topbar'da) */}
+        <div className="lg:hidden mb-3">{dateControls}</div>
+        {/* Özet metrikler — kompakt tek satır */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
           <MetricCard label={view === 'week' ? 'Bu Hafta' : 'Bu Ay'} value={fmtHours(monthHours)} variant="indigo" />
           <MetricCard label="Aktif Gün" value={activeDays.toString()} variant="neutral" />
           <MetricCard label="Toplam Gün" value={totalDays.toFixed(1)} variant="emerald" />
@@ -218,20 +228,36 @@ export default function Timesheet() {
           </div>
         )}
 
-        {/* Aksiyon butonları + (aylıkta) Çoklu Seçim */}
+        {/* Aksiyon butonları — tek temiz satır */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <TimesheetActions />
+          <button
+            onClick={openWizard}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-grad-primary text-white text-xs font-bold hover:-translate-y-0.5 transition-all shadow-glow"
+          >
+            <Zap size={13} /> Hızlı Kayıt
+          </button>
+          <button
+            onClick={openBulkAI}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border-2 border-brand-indigo text-brand-indigo text-xs font-bold hover:bg-brand-indigo hover:text-white transition"
+          >
+            <Wand2 size={13} /> AI ile Toplu Giriş
+          </button>
           {view === 'month' && (
             <button
               className={clsx(
-                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition',
-                multiMode ? 'bg-brand-indigo text-white' : 'bg-paper-2 text-ink-2 hover:bg-paper-3'
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition',
+                multiMode
+                  ? 'bg-brand-indigo text-white border-transparent'
+                  : 'bg-surface text-ink-2 border-paper-3 hover:bg-paper-2'
               )}
               onClick={toggleMulti}
             >
               <CheckSquare size={13} /> Çoklu Seçim
             </button>
           )}
+          <span className="text-[11px] text-ink-3 ml-auto hidden lg:inline">
+            Takvimde gün tıkla · sürükle ile birden fazla seç
+          </span>
         </div>
 
         {/* HAFTALIK görünüm — dikey ajanda (mobil + web uyumlu) */}
@@ -422,42 +448,14 @@ export default function Timesheet() {
 
 function MetricCard({ label, value, variant }: { label: string; value: string; variant: 'indigo' | 'emerald' | 'neutral' }) {
   return (
-    <div className="bg-surface border border-paper-3 rounded-xl px-3 py-2.5 transition-colors hover:border-paper-4">
-      <div className="text-[10px] font-semibold text-ink-3 uppercase tracking-wider mb-0.5">{label}</div>
+    <div className="bg-surface border border-paper-3 rounded-lg px-3 py-1.5 flex items-center justify-between gap-2">
+      <div className="text-[10px] font-semibold text-ink-3 uppercase tracking-wider">{label}</div>
       <div className={clsx(
-        'text-xl sm:text-[22px] font-bold font-mono tracking-tight leading-tight',
+        'text-base font-bold font-mono tracking-tight leading-none',
         variant === 'indigo' && 'text-brand-indigo',
         variant === 'emerald' && 'text-brand-emerald',
         variant === 'neutral' && 'text-ink'
       )}>{value}</div>
-    </div>
-  );
-}
-
-function TimesheetActions() {
-  const openWizard = useQuickEntry((s) => s.openWizard);
-  const openBulkAI = useQuickEntry((s) => s.openBulkAI);
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 mb-3 px-1">
-      <button
-        onClick={openWizard}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-grad-primary text-white text-xs font-bold hover:-translate-y-0.5 transition-all shadow-glow"
-        title="Hızlı Kayıt"
-      >
-        <Zap size={13} />
-        Hızlı Kayıt
-      </button>
-      <button
-        onClick={openBulkAI}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border-2 border-brand-indigo text-brand-indigo text-xs font-bold hover:bg-brand-indigo hover:text-white transition"
-      >
-        <Wand2 size={13} />
-        AI ile Toplu Giriş
-      </button>
-      <span className="text-[11px] text-ink-3 ml-auto hidden md:inline">
-        💡 takvimde gün tıkla · sürükle ile birden fazla seç
-      </span>
     </div>
   );
 }
@@ -470,34 +468,17 @@ function LastEntryCard({ entries }: { entries: Entry[] }) {
   );
 
   return (
-    <div className="bg-surface border border-paper-3 rounded-xl px-3 py-2.5 transition-colors hover:border-paper-4 flex flex-col">
-      <div className="text-[10px] font-semibold text-ink-3 uppercase tracking-wider mb-0.5">
-        Son Kayıt
-      </div>
+    <div className="bg-surface border border-paper-3 rounded-lg px-3 py-1.5 flex items-center gap-2 min-w-0">
+      <div className="text-[10px] font-semibold text-ink-3 uppercase tracking-wider flex-shrink-0">Son</div>
       {!last ? (
-        <div className="text-[12.5px] text-ink-4 flex-1 flex items-center">Henüz yok</div>
+        <div className="text-[12px] text-ink-4">Henüz yok</div>
       ) : (
-        <div className="flex items-center gap-2 flex-1">
-          <div className="w-8 h-8 rounded-md bg-paper-2 text-ink-2 flex flex-col items-center justify-center flex-shrink-0 leading-none">
-            <span className="text-[8px] font-semibold text-ink-3 uppercase">
-              {MONTHS[new Date(last.date + 'T00:00:00').getMonth()].substring(0, 3)}
-            </span>
-            <span className="text-[11.5px] font-bold">
-              {new Date(last.date + 'T00:00:00').getDate()}
-            </span>
+        <>
+          <div className="flex-1 min-w-0 text-right">
+            <span className="text-[12px] font-bold text-ink truncate">{last.customer.name}</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[12px] font-bold truncate text-ink leading-tight">
-              {last.customer.name}
-            </div>
-            <div className="text-[10px] text-ink-3 truncate leading-tight">
-              {last.activity.name}
-            </div>
-          </div>
-          <div className="text-[11.5px] font-mono font-bold text-brand-indigo flex-shrink-0">
-            {fmtHours(entryHours(last))}
-          </div>
-        </div>
+          <span className="text-[13px] font-mono font-bold text-brand-indigo flex-shrink-0">{fmtHours(entryHours(last))}</span>
+        </>
       )}
     </div>
   );
