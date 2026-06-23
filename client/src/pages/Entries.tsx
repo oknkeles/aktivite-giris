@@ -7,6 +7,7 @@ import { api, type Entry, type Customer, type User, type Activity } from '../api
 import { useAuth, isAdmin } from '../store/auth';
 import { useToast } from '../components/Toast';
 import ExcelImport from '../components/ExcelImport';
+import CustomerBulkImport from '../components/CustomerBulkImport';
 import { fmtHours, qtyToHours, MONTHS } from '../lib/format';
 
 function entryHours(e: Entry) { return qtyToHours(e.qty, e.activity.unit); }
@@ -33,6 +34,7 @@ export default function Entries() {
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkConfirmDelete, setBulkConfirmDelete] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [custImportOpen, setCustImportOpen] = useState(false);
 
   const { data: entries = [], isLoading: entriesLoading, isFetching: entriesFetching } = useQuery({
     queryKey: ['entries-all', userFilter],
@@ -192,8 +194,13 @@ export default function Entries() {
               <FileDown size={14} /> Excel
             </button>
             {admin && (
-              <button className="btn btn-sm" onClick={() => setImportOpen(true)} title="Dış sistem Excel'inden toplu aktar">
+              <button className="btn btn-sm" onClick={() => setImportOpen(true)} title="Excel'de müşteri kolonu olan çok-müşterili dosya">
                 <FileUp size={14} /> İçe Aktar
+              </button>
+            )}
+            {admin && (
+              <button className="btn btn-sm" onClick={() => setCustImportOpen(true)} title="Tek müşteriye Excel'den toplu aktivite">
+                <FileUp size={14} /> Müşteriye Toplu
               </button>
             )}
           </div>
@@ -401,6 +408,15 @@ export default function Entries() {
       <ExcelImport
         open={importOpen}
         onClose={() => setImportOpen(false)}
+        users={users}
+        customers={customers}
+        activities={activities}
+      />
+
+      {/* Müşteriye Toplu Aktivite (admin) */}
+      <CustomerBulkImport
+        open={custImportOpen}
+        onClose={() => setCustImportOpen(false)}
         users={users}
         customers={customers}
         activities={activities}
