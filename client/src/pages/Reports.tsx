@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { FileDown, BarChart3, FileText } from 'lucide-react';
+import { FileDown, BarChart3, FileText, X, Search } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { api, type ReportData, type Customer } from '../api/client';
+import clsx from 'clsx';
+import { api, type ReportData, type Customer, type Contractor } from '../api/client';
 import { useToast } from '../components/Toast';
 import { CountUp, Skeleton } from '../components/ui';
 import { fmtHours, curSymbol, maskMoney, maskMoneyByCurrency } from '../lib/format';
 import { usePrivacy } from '../store/privacy';
+
+const trLower = (s: string) => s.toLocaleLowerCase('tr-TR');
 
 export default function Reports() {
   const toast = useToast();
@@ -20,32 +23,45 @@ export default function Reports() {
 
   const [from, setFrom] = useState(`${yyyy}-${mm}-01`);
   const [to, setTo] = useState(`${yyyy}-${mm}-${String(last).padStart(2, '0')}`);
-  // Spotlight'tan müşteri seçilerek gelinmiş olabilir (?customerId=)
-  const [cusId, setCusId] = useState(searchParams.get('customerId') || '');
+  // Çoklu seçim: yüklenici + müşteri
+  const [selContractors, setSelContractors] = useState<Set<number>>(new Set());
+  const [selCustomers, setSelCustomers] = useState<Set<number>>(() => {
+    const p = searchParams.get('customerId');
+    return p ? new Set([Number(p)]) : new Set();
+  });
+  const [custSearch, setCustSearch] = useState('');
 
-  // Aynı sayfadayken Spotlight'tan başka müşteri seçilirse senkronla
   useEffect(() => {
     const p = searchParams.get('customerId');
-    if (p) setCusId(p);
+    if (p) setSelCustomers(new Set([Number(p)]));
   }, [searchParams]);
 
   const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => api.get<Customer[]>('/customers') });
+  const { data: contractors = [] } = useQuery({ queryKey: ['contractors'], queryFn: () => api.get<Contractor[]>('/contractors') });
 
-  // Filtreler değişince otomatik fetch
+  // Tarih aralığı için tüm kayıtlar; yüklenici/müşteri filtresi client-side
   const { data: report, isFetching: reportFetching, refetch: refetchReport } = useQuery({
-    queryKey: ['report', from, to, cusId],
+    queryKey: ['report', from, to],
     queryFn: () => {
       const params = new URLSearchParams();
       if (from) params.set('from', from);
       if (to) params.set('to', to);
-      if (cusId) params.set('customerId', cusId);
       return api.get<ReportData>(`/reports?${params.toString()}`);
     },
   });
 
+  // Çoklu filtre (yüklenici VE müşteri — ikisi de boşsa hepsi)
+  const filtered = useMemo(
+    () => (report?.entries || []).filter((e) =>
+      (selContractors.size === 0 || selContractors.has(e.contractorId)) &&
+      (selCustomers.size === 0 || selCustomers.has(e.customerId))
+    ),
+    [report, selContractors, selCustomers]
+  );
+
   // Müşteri → aktivite grupla (her müşteri kendi para biriminde)
   const customerGroups: Record<string, any> = {};
-  report?.entries.forEach((e) => {
+  filtered.forEach((e) => {
     const key = e.customerName;
     if (!customerGroups[key]) {
       customerGroups[key] = { name: key, id: e.customerId, currency: e.currency || 'TRY', acts: {}, net: 0, hours: 0 };
@@ -59,15 +75,23 @@ export default function Reports() {
     cu.hours += e.hours;
   });
 
-  // Toplam tutar para birimine göre (karışık olabilir)
   const totalByCurrency: Record<string, number> = {};
-  report?.entries.forEach((e) => {
-    const c = e.currency || 'TRY';
-    totalByCurrency[c] = (totalByCurrency[c] || 0) + e.net;
-  });
-
-  // Müşteriler saate göre azalan sıralı
+  filtered.forEach((e) => { const c = e.currency || 'TRY'; totalByCurrency[c] = (totalByCurrency[c] || 0) + e.net; });
+  const totalHours = filtered.reduce((s, e) => s + e.hours, 0);
   const groupList = Object.values(customerGroups).sort((a: any, b: any) => b.hours - a.hours);
+
+  // Müşteri çipleri — seçili yüklenicilere ve aramaya göre daralt
+  const chipCustomers = useMemo(() => {
+    const q = trLower(custSearch.trim());
+    return customers.filter((c) =>
+      (selContractors.size === 0 || selContractors.has(c.contractorId)) &&
+      (!q || trLower(c.name).includes(q))
+    );
+  }, [customers, selContractors, custSearch]);
+
+  function toggleSet(setter: React.Dispatch<React.SetStateAction<Set<number>>>, id: number) {
+    setter((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
 
   function downloadPdf(customerId: number, customerName: string) {
     const token = localStorage.getItem('aktivite_token') || '';
@@ -116,21 +140,21 @@ export default function Reports() {
   }
 
   function exportExcel() {
-    if (!report?.entries.length) return toast.show('Rapor boş', 'error');
+    if (!filtered.length) return toast.show('Rapor boş', 'error');
     const wb = XLSX.utils.book_new();
 
     // Sheet 1: Detay — para birimi kolonu eklendi (müşteri bazında farklı olabilir)
-    const detail: any[][] = [['Tarih', 'Müşteri', 'Aktivite', 'Talep ID', 'Açıklama', 'Saat', 'Gün', 'Tutar', 'Para Birimi']];
-    report.entries.forEach(e => {
+    const detail: any[][] = [['Tarih', 'Müşteri', 'Yüklenici', 'Aktivite', 'Talep ID', 'Açıklama', 'Saat', 'Gün', 'Tutar', 'Para Birimi']];
+    filtered.forEach(e => {
       detail.push([
-        e.date, e.customerName, e.activityName,
+        e.date, e.customerName, e.contractorName, e.activityName,
         e.ticketId || '', e.note || '',
         +e.hours.toFixed(2), +e.days.toFixed(2),
         +e.net.toFixed(2), e.currency || 'TRY',
       ]);
     });
     const ws1 = XLSX.utils.aoa_to_sheet(detail);
-    ws1['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 18 }, { wch: 14 }, { wch: 36 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }];
+    ws1['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 36 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws1, 'Detay');
 
     // Sheet 2: Müşteri × Aktivite özeti
@@ -149,34 +173,89 @@ export default function Reports() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="card">
-        <div className="clabel mb-4">Rapor Filtresi</div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-          <div><label className="label">Müşteri</label>
-            <select className="input" value={cusId} onChange={(e) => setCusId(e.target.value)}>
-              <option value="">Tümü</option>
-              {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+      <div className="card space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="clabel">Rapor Filtresi</div>
+          {(selContractors.size > 0 || selCustomers.size > 0) && (
+            <button
+              onClick={() => { setSelContractors(new Set()); setSelCustomers(new Set()); setCustSearch(''); }}
+              className="text-[11px] font-semibold text-ink-3 hover:text-ink flex items-center gap-1"
+            >
+              <X size={12} /> Filtreleri temizle
+            </button>
+          )}
+        </div>
+
+        {/* Yüklenici — çoklu seçim */}
+        <div>
+          <label className="label">Yüklenici {selContractors.size > 0 && <span className="text-brand-indigo">({selContractors.size})</span>}</label>
+          <div className="flex flex-wrap gap-1.5">
+            {contractors.map((c) => {
+              const on = selContractors.has(c.id);
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => toggleSet(setSelContractors, c.id)}
+                  className={clsx(
+                    'px-3 py-1.5 rounded-lg text-[12.5px] font-semibold border transition',
+                    on ? 'bg-brand-indigo/10 border-brand-indigo/40 text-brand-indigo'
+                       : 'bg-paper-2 border-paper-3 text-ink-3 hover:text-ink hover:border-ink-3/40'
+                  )}
+                >
+                  {c.name}
+                </button>
+              );
+            })}
+            {contractors.length === 0 && <span className="text-[12px] text-ink-3">Yüklenici yok</span>}
           </div>
+        </div>
+
+        {/* Müşteri — çoklu seçim (seçili yükleniciye ve aramaya göre daralır) */}
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <label className="label !mb-0">Müşteri {selCustomers.size > 0 && <span className="text-brand-indigo">({selCustomers.size})</span>}</label>
+            <div className="relative w-44">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
+              <input
+                value={custSearch}
+                onChange={(e) => setCustSearch(e.target.value)}
+                placeholder="Müşteri ara…"
+                className="input !py-1.5 !pl-8 !text-[12.5px]"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-0.5">
+            {chipCustomers.map((c) => {
+              const on = selCustomers.has(c.id);
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => toggleSet(setSelCustomers, c.id)}
+                  className={clsx(
+                    'px-2.5 py-1 rounded-lg text-[12px] font-medium border transition',
+                    on ? 'bg-brand-indigo/10 border-brand-indigo/40 text-brand-indigo'
+                       : 'bg-paper-2 border-paper-3 text-ink-3 hover:text-ink hover:border-ink-3/40'
+                  )}
+                >
+                  {c.name}
+                </button>
+              );
+            })}
+            {chipCustomers.length === 0 && <span className="text-[12px] text-ink-3 px-1 py-1">Eşleşen müşteri yok</span>}
+          </div>
+        </div>
+
+        {/* Tarih + aksiyon */}
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto_auto] gap-3 items-end">
           <div><label className="label">Başlangıç</label><input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
           <div><label className="label">Bitiş</label><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            className="btn"
-            onClick={() => refetchReport()}
-            disabled={reportFetching}
-            title="Verileri yeniden çek"
-          >
+          <button className="btn" onClick={() => refetchReport()} disabled={reportFetching} title="Verileri yeniden çek">
             <BarChart3 size={15} className={reportFetching ? 'animate-spin' : ''} />
             {reportFetching ? 'Yükleniyor...' : 'Yenile'}
           </button>
-          {report && report.count > 0 && (
-            <button className="btn btn-success" onClick={exportExcel}><FileDown size={15} /> Excel'e Aktar</button>
-          )}
-          <span className="text-[11px] text-ink-3 ml-auto italic">
-            💡 Filtreleri değiştirdiğinde rapor otomatik güncellenir
-          </span>
+          <button className="btn btn-success" onClick={exportExcel} disabled={!filtered.length}>
+            <FileDown size={15} /> Excel'e Aktar
+          </button>
         </div>
       </div>
 
@@ -196,8 +275,8 @@ export default function Reports() {
       {report && (
         <>
           <div className="grid grid-cols-3 gap-3">
-            <MetricCard label="Toplam Saat" value={<CountUp value={report.totalHours} format={fmtHours} />} grad="grad-primary" />
-            <MetricCard label="Kayıt Sayısı" value={<CountUp value={report.count} />} grad="" />
+            <MetricCard label="Toplam Saat" value={<CountUp value={totalHours} format={fmtHours} />} grad="grad-primary" />
+            <MetricCard label="Kayıt Sayısı" value={<CountUp value={filtered.length} />} grad="" />
             <MetricCard label="Toplam Tutar" value={maskMoneyByCurrency(totalByCurrency, masked)} grad="grad-mint" />
           </div>
 
