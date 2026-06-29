@@ -123,6 +123,7 @@ export interface ReportData {
     days: number;
     ticketId: string | null;
     note: string | null;
+    userName: string;
     customerId: number;
     customerName: string;
     projectId: number | null;

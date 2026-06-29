@@ -24,6 +24,7 @@ router.get('/', async (req, res) => {
       customer: { include: { contractor: true } },
       project: { include: { rates: true } },
       activity: true,
+      user: { select: { fullname: true } },
     },
     orderBy: { date: 'asc' },
   });
@@ -45,6 +46,7 @@ router.get('/', async (req, res) => {
       days,
       ticketId: e.ticketId,
       note: e.note,
+      userName: e.user.fullname,
       customerId: e.customer.id,
       customerName: e.customer.name,
       projectId: e.projectId,

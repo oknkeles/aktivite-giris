@@ -144,17 +144,17 @@ export default function Reports() {
     const wb = XLSX.utils.book_new();
 
     // Sheet 1: Detay — para birimi kolonu eklendi (müşteri bazında farklı olabilir)
-    const detail: any[][] = [['Tarih', 'Müşteri', 'Yüklenici', 'Aktivite', 'Talep ID', 'Açıklama', 'Saat', 'Gün', 'Tutar', 'Para Birimi']];
+    const detail: any[][] = [['Tarih', 'Çalışan', 'Müşteri', 'Yüklenici', 'Aktivite', 'Talep ID', 'Açıklama', 'Saat', 'Gün', 'Tutar', 'Para Birimi']];
     filtered.forEach(e => {
       detail.push([
-        e.date, e.customerName, e.contractorName, e.activityName,
+        e.date, e.userName, e.customerName, e.contractorName, e.activityName,
         e.ticketId || '', e.note || '',
         +e.hours.toFixed(2), +e.days.toFixed(2),
         +e.net.toFixed(2), e.currency || 'TRY',
       ]);
     });
     const ws1 = XLSX.utils.aoa_to_sheet(detail);
-    ws1['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 36 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }];
+    ws1['!cols'] = [{ wch: 12 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 36 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws1, 'Detay');
 
     // Sheet 2: Müşteri × Aktivite özeti
