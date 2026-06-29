@@ -7,12 +7,14 @@ import { audit } from '../services/audit.js';
 const router = Router();
 router.use(authRequired);
 
-router.get('/', async (_req, res) => {
+router.get('/', async (req: AuthRequest, res) => {
+  const isAdmin = req.user!.role === 'admin';
   const list = await prisma.contractor.findMany({
     orderBy: { name: 'asc' },
     include: { _count: { select: { customers: true } } },
   });
-  res.json(list);
+  // GÜVENLIK: iskonto (discount) gizli fiyat bilgisi — USER görmemeli.
+  res.json(isAdmin ? list : list.map(({ discount, ...c }) => c));
 });
 
 const schema = z.object({

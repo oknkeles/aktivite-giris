@@ -12,10 +12,16 @@ const customerInclude = {
   projects: { include: { rates: true }, orderBy: { name: 'asc' as const } },
 };
 
-router.get('/', async (_req, res) => {
+router.get('/', async (req: AuthRequest, res) => {
+  // GÜVENLIK: rate ve iskonto gizli veri — sadece admin görür.
+  // USER timesheet için müşteri+proje listesine ihtiyaç duyar ama fiyat görmemeli.
+  const isAdmin = req.user!.role === 'admin';
   const list = await prisma.customer.findMany({
     orderBy: { name: 'asc' },
-    include: customerInclude,
+    include: isAdmin ? customerInclude : {
+      contractor: { select: { id: true, name: true } },
+      projects: { select: { id: true, name: true, active: true }, orderBy: { name: 'asc' as const } },
+    },
   });
   res.json(list);
 });

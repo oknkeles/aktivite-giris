@@ -52,9 +52,9 @@ export default function App() {
             <Route path="/" element={<Navigate to="/timesheet" replace />} />
             <Route path="/timesheet" element={<Timesheet />} />
             <Route path="/entries" element={<Entries />} />
-            <Route path="/activities" element={<Activities />} />
-            <Route path="/contractors" element={<Contractors />} />
-            <Route path="/customers" element={<Customers />} />
+            <Route path="/activities" element={<Protected adminOnly><Activities /></Protected>} />
+            <Route path="/contractors" element={<Protected adminOnly><Contractors /></Protected>} />
+            <Route path="/customers" element={<Protected adminOnly><Customers /></Protected>} />
             <Route path="/dashboard" element={<Protected adminOnly><Dashboard /></Protected>} />
             <Route path="/team" element={<Protected adminOnly><TeamCalendar /></Protected>} />
             <Route path="/reports" element={<Protected adminOnly><Reports /></Protected>} />

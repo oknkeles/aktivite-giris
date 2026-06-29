@@ -10,7 +10,8 @@ const router = Router();
 router.use(authRequired);
 
 const entryInclude = {
-  customer: { include: { contractor: true } },
+  // GÜVENLIK: contractor.discount gizli — entry yanıtında sadece ad/id taşınır.
+  customer: { include: { contractor: { select: { id: true, name: true } } } },
   project: { select: { id: true, name: true } },
   activity: true,
   user: { select: { id: true, username: true, fullname: true } },

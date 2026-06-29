@@ -139,6 +139,10 @@ router.post('/', async (req: AuthRequest, res) => {
 
     // ── REPORT ──
     if (r.action === 'report') {
+      // GÜVENLIK: tutar/ciro raporu gizli — sadece yönetici görebilir.
+      if (req.user!.role !== 'admin') {
+        return res.json({ kind: 'message', reply: '⚠️ Tutar ve gelir raporları yalnızca yöneticilere açıktır. Kendi kayıtlarını görmek için "kayıtlarımı listele" diyebilirsin.' });
+      }
       const f = r.filter || {};
       const where: any = { userId };
       if (f.from || f.to) { where.date = {}; if (f.from) where.date.gte = f.from; if (f.to) where.date.lte = f.to; }
