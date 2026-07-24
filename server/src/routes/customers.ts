@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { authRequired, adminRequired, type AuthRequest } from '../middleware/auth.js';
+import { authRequired, adminRequired, canReadAll, type AuthRequest } from '../middleware/auth.js';
 import { audit } from '../services/audit.js';
 
 const router = Router();
@@ -9,21 +9,44 @@ router.use(authRequired);
 
 const customerInclude = {
   contractor: true,
-  projects: { include: { rates: true }, orderBy: { name: 'asc' as const } },
+  projects: {
+    include: {
+      rates: true,
+      // Proje bazlı roller (kim bu projede hangi rolde)
+      members: { select: { id: true, userId: true, activityId: true } },
+    },
+    orderBy: { name: 'asc' as const },
+  },
 };
 
 router.get('/', async (req: AuthRequest, res) => {
-  // GÜVENLIK: rate ve iskonto gizli veri — sadece admin görür.
+  // GÜVENLIK: rate ve iskonto gizli veri — sadece admin/py görür.
   // USER timesheet için müşteri+proje listesine ihtiyaç duyar ama fiyat görmemeli.
-  const isAdmin = req.user!.role === 'admin';
+  const isAdmin = canReadAll(req.user!.role);
+  const meId = req.user!.id;
   const list = await prisma.customer.findMany({
     orderBy: { name: 'asc' },
     include: isAdmin ? customerInclude : {
       contractor: { select: { id: true, name: true } },
-      projects: { select: { id: true, name: true, active: true }, orderBy: { name: 'asc' as const } },
+      projects: {
+        select: {
+          id: true, name: true, active: true,
+          // USER yalnızca KENDİ proje rolünü görür
+          members: { where: { userId: meId }, select: { userId: true, activityId: true } },
+        },
+        orderBy: { name: 'asc' as const },
+      },
     },
   });
-  res.json(list);
+  // Her projeye "bu kullanıcının bu projedeki rolü" alanını ekle (yoksa null)
+  const shaped = list.map((c: any) => ({
+    ...c,
+    projects: c.projects.map((p: any) => ({
+      ...p,
+      myActivityId: (p.members || []).find((m: any) => m.userId === meId)?.activityId ?? null,
+    })),
+  }));
+  res.json(shaped);
 });
 
 // Proje şeması — id varsa güncelle, yoksa oluştur. rates: activityId → rate
@@ -32,6 +55,8 @@ const projectSchema = z.object({
   name: z.string().min(1),
   active: z.boolean().optional(),
   rates: z.record(z.string(), z.number()).optional(),
+  // Proje bazlı roller: [{ userId, activityId }] — bu projede kimin hangi rolde olduğu
+  members: z.array(z.object({ userId: z.number().int(), activityId: z.number().int() })).optional(),
 });
 
 const schema = z.object({
@@ -61,6 +86,20 @@ async function syncProjects(customerId: number, projects: z.infer<typeof project
       projectId = created.id;
     }
     keepIds.add(projectId);
+
+    if (p.members) {
+      // Proje rollerini tam senkronla: gelmeyenler silinir, gelenler upsert edilir
+      await prisma.projectMember.deleteMany({
+        where: { projectId: projectId!, userId: { notIn: p.members.map((m) => m.userId) } },
+      });
+      for (const m of p.members) {
+        await prisma.projectMember.upsert({
+          where: { projectId_userId: { projectId: projectId!, userId: m.userId } },
+          create: { projectId: projectId!, userId: m.userId, activityId: m.activityId },
+          update: { activityId: m.activityId },
+        });
+      }
+    }
 
     if (p.rates) {
       // Tarih-bazlı rate: modalden gelen değer "açık dönem" (effectiveTo=null) rate'i günceller.

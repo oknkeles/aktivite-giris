@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { useAuth, isAdmin } from '../store/auth';
+import { useAuth, isAdmin, canReadAll } from '../store/auth';
 import { useTheme } from '../store/theme';
 import { useSpotlight } from '../store/spotlight';
 import { usePrivacy } from '../store/privacy';
@@ -41,6 +41,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
   const navigate = useNavigate();
   const loc = useLocation();
   const admin = isAdmin(user);
+  const readAll = canReadAll(user); // admin + py
   const qc = useQueryClient();
   const { theme, toggle: toggleTheme } = useTheme();
   const openSpotlight = useSpotlight((s) => s.setOpen);
@@ -134,7 +135,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
             {ENTRY_ITEMS.map((it) => (
               <NavItem key={it.to} {...it} onNav={() => setMobileOpen(false)} />
             ))}
-            {admin && ENTRY_ADMIN_ITEMS.map((it) => (
+            {readAll && ENTRY_ADMIN_ITEMS.map((it) => (
               <NavItem key={it.to} {...it} onNav={() => setMobileOpen(false)} />
             ))}
           </div>
@@ -173,8 +174,8 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
             </div>
           )}
 
-          {/* Finans section (admin only) */}
-          {admin && (
+          {/* Finans section (admin + PY) */}
+          {readAll && (
             <div className="mt-2">
               <div className="text-[9.5px] font-bold tracking-[.12em] text-white/30 uppercase px-3 pt-3 pb-1">
                 Finans
@@ -195,7 +196,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boo
             <Search size={16} /> Ara / Komut
             <kbd className="ml-auto text-[9px] font-mono text-white/30 border border-white/15 rounded px-1 py-0.5">⌘K</kbd>
           </button>
-          {admin && (
+          {readAll && (
             <button
               onClick={toggleMask}
               className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold text-white/65 hover:bg-white/5 hover:text-white/95 transition"

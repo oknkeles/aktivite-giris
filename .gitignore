@@ -14,3 +14,6 @@ server/prisma/dev.db-journal
 
 client/tsconfig.tsbuildinfo
 client/.tsbuildinfo
+
+# Tek seferlik veri taşıma scriptleri (Neon → Hetzner)
+server/_migrate_*.mjs

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { FileDown, BarChart3, FileText, X, Search } from 'lucide-react';
+import { FileDown, BarChart3, FileText, X, Search, Lock } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import clsx from 'clsx';
 import { api, type ReportData, type Customer, type Contractor } from '../api/client';
@@ -64,14 +64,16 @@ export default function Reports() {
   filtered.forEach((e) => {
     const key = e.customerName;
     if (!customerGroups[key]) {
-      customerGroups[key] = { name: key, id: e.customerId, currency: e.currency || 'TRY', acts: {}, net: 0, hours: 0 };
+      customerGroups[key] = { name: key, id: e.customerId, currency: e.currency || 'TRY', acts: {}, net: 0, gross: 0, hours: 0 };
     }
     const cu = customerGroups[key];
-    const ag = cu.acts[e.activityName] = cu.acts[e.activityName] || { name: e.activityName, hours: 0, days: 0, net: 0 };
+    const ag = cu.acts[e.activityName] = cu.acts[e.activityName] || { name: e.activityName, hours: 0, days: 0, net: 0, gross: 0 };
     ag.hours += e.hours;
     ag.days += e.days;
     ag.net += e.net;
+    ag.gross += e.gross;
     cu.net += e.net;
+    cu.gross += e.gross;
     cu.hours += e.hours;
   });
 
@@ -139,36 +141,47 @@ export default function Reports() {
       .catch((err) => toast.show(err.message || 'PDF hatası', 'error'));
   }
 
-  function exportExcel() {
+  // mode='customer' → müşteriyle paylaşılan çıktı: BRÜT tutar, komisyon/iskonto YOK.
+  // mode='internal'  → iç kullanım: brüt + komisyon % + net.
+  function exportExcel(mode: 'customer' | 'internal') {
     if (!filtered.length) return toast.show('Rapor boş', 'error');
+    const internal = mode === 'internal';
     const wb = XLSX.utils.book_new();
 
     // Sheet 1: Detay — para birimi kolonu eklendi (müşteri bazında farklı olabilir)
-    const detail: any[][] = [['Tarih', 'Çalışan', 'Müşteri', 'Yüklenici', 'Aktivite', 'Talep ID', 'Açıklama', 'Saat', 'Gün', 'Tutar', 'Para Birimi']];
+    const head = internal
+      ? ['Tarih', 'Çalışan', 'Müşteri', 'Yüklenici', 'Aktivite', 'Talep ID', 'Açıklama', 'Saat', 'Gün', 'Brüt', 'Komisyon %', 'Net', 'Para Birimi']
+      : ['Tarih', 'Çalışan', 'Müşteri', 'Aktivite', 'Talep ID', 'Açıklama', 'Saat', 'Gün', 'Tutar', 'Para Birimi'];
+    const detail: any[][] = [head];
     filtered.forEach(e => {
-      detail.push([
-        e.date, e.userName, e.customerName, e.contractorName, e.activityName,
-        e.ticketId || '', e.note || '',
-        +e.hours.toFixed(2), +e.days.toFixed(2),
-        +e.net.toFixed(2), e.currency || 'TRY',
-      ]);
+      const base = [e.date, e.userName, e.customerName];
+      const tail = [e.activityName, e.ticketId || '', e.note || '', +e.hours.toFixed(2), +e.days.toFixed(2)];
+      detail.push(internal
+        ? [...base, e.contractorName, ...tail, +e.gross.toFixed(2), e.discount || 0, +e.net.toFixed(2), e.currency || 'TRY']
+        : [...base, ...tail, +e.gross.toFixed(2), e.currency || 'TRY']);
     });
     const ws1 = XLSX.utils.aoa_to_sheet(detail);
-    ws1['!cols'] = [{ wch: 12 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 36 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }];
+    ws1['!cols'] = internal
+      ? [{ wch: 12 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 36 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 11 }, { wch: 14 }, { wch: 10 }]
+      : [{ wch: 12 }, { wch: 18 }, { wch: 22 }, { wch: 18 }, { wch: 14 }, { wch: 36 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws1, 'Detay');
 
     // Sheet 2: Müşteri × Aktivite özeti
-    const summary: any[][] = [['Müşteri', 'Aktivite', 'Saat', 'Gün', 'Tutar', 'Para Birimi']];
+    const summary: any[][] = [internal
+      ? ['Müşteri', 'Aktivite', 'Saat', 'Gün', 'Brüt', 'Net', 'Para Birimi']
+      : ['Müşteri', 'Aktivite', 'Saat', 'Gün', 'Tutar', 'Para Birimi']];
     Object.values(customerGroups).forEach((cu: any) => {
       Object.values(cu.acts).forEach((ag: any) => {
-        summary.push([cu.name, ag.name, +ag.hours.toFixed(2), +ag.days.toFixed(2), +ag.net.toFixed(2), cu.currency]);
+        const row = [cu.name, ag.name, +ag.hours.toFixed(2), +ag.days.toFixed(2), +ag.gross.toFixed(2)];
+        summary.push(internal ? [...row, +ag.net.toFixed(2), cu.currency] : [...row, cu.currency]);
       });
     });
     const ws2 = XLSX.utils.aoa_to_sheet(summary);
     ws2['!cols'] = [{ wch: 22 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws2, 'Özet');
 
-    XLSX.writeFile(wb, `rapor_${new Date().toISOString().split('T')[0]}.xlsx`);
+    const tag = internal ? 'ic-komisyonlu' : 'musteri';
+    XLSX.writeFile(wb, `rapor_${tag}_${new Date().toISOString().split('T')[0]}.xlsx`);
   }
 
   return (
@@ -246,16 +259,37 @@ export default function Reports() {
         </div>
 
         {/* Tarih + aksiyon */}
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto_auto] gap-3 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
           <div><label className="label">Başlangıç</label><input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
           <div><label className="label">Bitiş</label><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></div>
           <button className="btn" onClick={() => refetchReport()} disabled={reportFetching} title="Verileri yeniden çek">
             <BarChart3 size={15} className={reportFetching ? 'animate-spin' : ''} />
             {reportFetching ? 'Yükleniyor...' : 'Yenile'}
           </button>
-          <button className="btn btn-success" onClick={exportExcel} disabled={!filtered.length}>
-            <FileDown size={15} /> Excel'e Aktar
+        </div>
+
+        {/* Excel çıktıları — müşteriyle paylaşılan ile iç kullanım AYRI.
+            Müşteri çıktısında komisyon/iskonto kolonları hiç yer almaz. */}
+        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-paper-3">
+          <button
+            className="btn btn-success"
+            onClick={() => exportExcel('customer')}
+            disabled={!filtered.length}
+            title="Müşteriyle paylaşılabilir: brüt tutarlar, komisyon/iskonto YOK"
+          >
+            <FileDown size={15} /> Müşteri Excel
           </button>
+          <button
+            className="btn"
+            onClick={() => exportExcel('internal')}
+            disabled={!filtered.length}
+            title="İç kullanım: brüt + komisyon % + net"
+          >
+            <Lock size={14} /> İç Excel (komisyonlu)
+          </button>
+          <span className="text-[11px] text-ink-3 italic ml-auto">
+            🔒 "Müşteri Excel" komisyon bilgisi içermez — paylaşmak için güvenlidir
+          </span>
         </div>
       </div>
 

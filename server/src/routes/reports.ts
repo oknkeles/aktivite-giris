@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
-import { authRequired, adminRequired, type AuthRequest } from '../middleware/auth.js';
+import { authRequired, readAllRequired, type AuthRequest } from '../middleware/auth.js';
 import { buildPdfReport, type ReportEntry } from '../services/pdf-report.js';
 import { rateForDate } from '../services/rates.js';
+import { commissionRate, netFromGross } from '../services/commission.js';
 
 const router = Router();
-router.use(authRequired, adminRequired);
+router.use(authRequired, readAllRequired);
 
 router.get('/', async (req, res) => {
   const { from, to, customerId, contractorId } = req.query as Record<string, string | undefined>;
@@ -24,7 +25,7 @@ router.get('/', async (req, res) => {
       customer: { include: { contractor: true } },
       project: { include: { rates: true } },
       activity: true,
-      user: { select: { fullname: true } },
+      user: { select: { fullname: true, contractorId: true } },
     },
     orderBy: { date: 'asc' },
   });
@@ -35,8 +36,8 @@ router.get('/', async (req, res) => {
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
     const days = hours / 8;
     const gross = days * dayRate;
-    const disc = e.customer.contractor.discount || 0;
-    const net = gross * (1 - disc / 100);
+    const disc = commissionRate(e.user.contractorId, e.customer.contractorId, e.customer.contractor.discount);
+    const net = netFromGross(gross, disc);
     return {
       id: e.id,
       date: e.date,
@@ -90,6 +91,7 @@ router.get('/dashboard', async (req, res) => {
       customer: { include: { contractor: true } },
       project: { include: { rates: true } },
       activity: true,
+      user: { select: { contractorId: true } },
     },
   });
 
@@ -112,8 +114,8 @@ router.get('/dashboard', async (req, res) => {
   for (const e of entries) {
     const rate = rateForDate(e.project?.rates, e.activityId, e.date);
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
-    const disc = e.customer.contractor.discount || 0;
-    const net = (hours / 8) * rate * (1 - disc / 100);
+    const disc = commissionRate(e.user.contractorId, e.customer.contractorId, e.customer.contractor.discount);
+    const net = netFromGross((hours / 8) * rate, disc);
     const cur = e.customer.currency || 'TRY';
 
     const period = e.date.slice(0, 7);
@@ -164,7 +166,7 @@ router.get('/pdf', async (req: AuthRequest, res) => {
     include: {
       activity: true,
       project: { include: { rates: true } },
-      user: { select: { fullname: true } },
+      user: { select: { fullname: true, contractorId: true } },
     },
     orderBy: { date: 'asc' },
   });
@@ -174,8 +176,8 @@ router.get('/pdf', async (req: AuthRequest, res) => {
     const hours = e.activity.unit === 'saat' ? e.qty : e.qty * 8;
     const days = hours / 8;
     const gross = days * rate;
-    const disc = customer.contractor.discount || 0;
-    const net = gross * (1 - disc / 100);
+    const disc = commissionRate(e.user.contractorId, customer.contractorId, customer.contractor.discount);
+    const net = netFromGross(gross, disc);
     return {
       date: e.date,
       customerName: customer.name,
@@ -192,6 +194,13 @@ router.get('/pdf', async (req: AuthRequest, res) => {
     };
   });
 
+  // mode=customer (varsayılan): müşteriye giden mutabakat — KOMİSYON GÖSTERİLMEZ,
+  // tutarlar brüttür (müşterinin borcu). mode=internal: komisyon + net dahil.
+  const mode = String((req.query as any).mode || 'customer') === 'internal' ? 'internal' : 'customer';
+  if (mode === 'customer') {
+    for (const e of reportEntries) e.net = e.gross;
+  }
+
   const totalHours = reportEntries.reduce((s, e) => s + e.hours, 0);
   const totalGross = reportEntries.reduce((s, e) => s + e.gross, 0);
   const totalNet = reportEntries.reduce((s, e) => s + e.net, 0);
@@ -207,7 +216,7 @@ router.get('/pdf', async (req: AuthRequest, res) => {
       totalHours,
       totalGross,
       totalNet,
-      discount: customer.contractor.discount || 0,
+      discount: mode === 'internal' ? (customer.contractor.discount || 0) : 0,
       generatedAt: new Date(),
       generatedBy: req.user?.username,
     });

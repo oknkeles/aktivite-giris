@@ -42,13 +42,18 @@ export const api = {
 };
 
 // ── Domain types ─────────────────────────────────
+export type Role = 'admin' | 'py' | 'user';
+
 export interface User {
   id: number;
   username: string;
   fullname: string;
-  role: 'admin' | 'user';
+  role: Role;
   phone?: string | null;
   defaultActivityId?: number | null;
+  // Kullanıcının bağlı olduğu şirket (yüklenici) — komisyon hesabını belirler
+  contractorId?: number | null;
+  contractor?: { id: number; name: string } | null;
 }
 
 export interface Activity {
@@ -78,11 +83,21 @@ export interface ProjectRate {
   effectiveTo?: string | null;
 }
 
+// Proje bazlı rol — kullanıcı bu projede hangi rolde (Junior/Mid/Senior/Expert)
+export interface ProjectMember {
+  id?: number;
+  userId: number;
+  activityId: number;
+}
+
 export interface Project {
   id: number;
   name: string;
   active?: boolean;
   rates: ProjectRate[];
+  members?: ProjectMember[];
+  // Sunucu hesaplar: giriş yapan kullanıcının bu projedeki rolü (yoksa null)
+  myActivityId?: number | null;
 }
 
 export interface Customer {

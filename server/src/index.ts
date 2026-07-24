@@ -86,20 +86,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 API running on 0.0.0.0:${PORT} (${isProd ? 'production' : 'development'})`);
 });
 
-// Neon free tier 5 dk idle sonra DB compute'unu uyutuyor → ilk istek 2-5 sn
-// gecikme yaşıyor. Her 3 dk'da bir hafif bir SELECT atarak DB'yi sıcak tutuyoruz.
-// Production'da yararlı; development'ta gereksiz log oluşturmasın diye yok.
+// Self-hosted Postgres (Hetzner) uyumaz — Neon'a özgü keep-warm ping kaldırıldı.
 if (isProd) {
-  const KEEP_WARM_INTERVAL = 3 * 60 * 1000; // 3 dakika
-  setInterval(async () => {
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-    } catch (err: any) {
-      console.warn('Keep-warm ping failed:', err.message);
-    }
-  }, KEEP_WARM_INTERVAL);
-  console.log('🔥 DB keep-warm pinger aktif (3 dk aralık)');
-
   // Smart Reminders — her gün 18:00 (TR) WhatsApp hatırlatıcı
   startReminderCron();
 

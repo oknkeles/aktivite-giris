@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { authRequired, adminRequired, type AuthRequest } from '../middleware/auth.js';
+import { authRequired, adminRequired, canReadAll, type AuthRequest } from '../middleware/auth.js';
 import { audit } from '../services/audit.js';
 
 const router = Router();
 router.use(authRequired);
 
 router.get('/', async (req: AuthRequest, res) => {
-  const isAdmin = req.user!.role === 'admin';
+  const isAdmin = canReadAll(req.user!.role);
   const list = await prisma.contractor.findMany({
     orderBy: { name: 'asc' },
     include: { _count: { select: { customers: true } } },

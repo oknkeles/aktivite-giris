@@ -513,10 +513,29 @@ function DayModal({ date, onClose, entries, customers, activities }: {
   const projOptions = (customers.find((c) => c.id === cusId)?.projects || []).filter((p) => p.active !== false);
   const autoProject = projOptions.length === 1 ? projOptions[0] : null;
 
+  // Proje bazlı rol: bu projede kullanıcıya özel rol tanımlıysa (myActivityId)
+  // aktiviteyi ona çek; yoksa kullanıcının varsayılan rolü kalsın.
+  function applyProjectRole(pid: number | '') {
+    if (!pid) return;
+    const proj = projOptionsFor(cusId).find((p) => p.id === pid)
+      || customers.flatMap((c) => c.projects || []).find((p) => p.id === pid);
+    const role = (proj as any)?.myActivityId;
+    setActId(role ? role : defaultAct);
+  }
+  function projOptionsFor(id: number | '') {
+    return (customers.find((c) => c.id === id)?.projects || []).filter((p) => p.active !== false);
+  }
+  function chooseProject(pid: number | '') {
+    setProjId(pid);
+    applyProjectRole(pid);
+  }
   function chooseCustomer(id: number | '') {
     setCusId(id);
     const ap = (customers.find((c) => c.id === id)?.projects || []).filter((p) => p.active !== false);
-    setProjId(ap.length === 1 ? ap[0].id : '');
+    const only = ap.length === 1 ? ap[0] : null;
+    setProjId(only ? only.id : '');
+    // Tek proje otomatik seçiliyorsa o projedeki rolü de uygula
+    setActId(only && (only as any).myActivityId ? (only as any).myActivityId : defaultAct);
   }
   function resetFields() { setCusId(''); setProjId(''); setActId(defaultAct); setQty(''); setTicketId(''); setNote(''); }
   function startEdit(e: Entry) {
@@ -565,6 +584,10 @@ function DayModal({ date, onClose, entries, customers, activities }: {
     else addMut.mutate(p);
   }
 
+  // Seçili projede kullanıcıya özel rol tanımlı mı (etiket için)
+  const selectedProject = projOptions.find((p) => p.id === projId) || autoProject;
+  const projectRoleActId = (selectedProject as any)?.myActivityId || null;
+
   const busy = addMut.isPending || updateMut.isPending || delMut.isPending;
   const dayTotal = entries.reduce((s, e) => s + entryHours(e), 0);
 
@@ -581,7 +604,7 @@ function DayModal({ date, onClose, entries, customers, activities }: {
       {projOptions.length > 1 && (
         <div>
           <label className="label">Proje <span className="text-brand-rose">*</span></label>
-          <select className="input" value={projId} onChange={(e) => setProjId(e.target.value ? +e.target.value : '')}>
+          <select className="input" value={projId} onChange={(e) => chooseProject(e.target.value ? +e.target.value : '')}>
             <option value="">— Proje seçin —</option>
             {projOptions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
@@ -589,7 +612,14 @@ function DayModal({ date, onClose, entries, customers, activities }: {
       )}
       <div className="grid grid-cols-[1fr_120px] gap-3">
         <div>
-          <label className="label">Aktivite</label>
+          <label className="label">
+            Aktivite
+            {projectRoleActId && (
+              <span className="ml-1.5 text-[10px] font-semibold text-brand-violet">
+                • bu projedeki rolün
+              </span>
+            )}
+          </label>
           <select className="input" value={actId} onChange={(e) => setActId(e.target.value ? +e.target.value : '')}>
             <option value="">— Seçin —</option>
             {activities.filter((a) => a.active !== false).map((a) => <option key={a.id} value={a.id}>{a.name} ({a.unit})</option>)}

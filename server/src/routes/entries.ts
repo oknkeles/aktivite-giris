@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { authRequired, type AuthRequest } from '../middleware/auth.js';
+import { authRequired, canReadAll, type AuthRequest } from '../middleware/auth.js';
 import { audit } from '../services/audit.js';
 import { parseBulkText } from '../services/llm-bulk.js';
 import { lockedPeriodsAmong, lockedError } from '../services/period-lock.js';
@@ -37,7 +37,7 @@ async function resolveTarget(opts: { projectId?: number | null; customerId?: num
 
 router.get('/', async (req: AuthRequest, res) => {
   const { from, to, customerId, contractorId, userId } = req.query as Record<string, string | undefined>;
-  const isAdmin = req.user!.role === 'admin';
+  const isAdmin = canReadAll(req.user!.role); // admin + py tum kayitlari gorur
   const where: any = {};
 
   if (isAdmin) {

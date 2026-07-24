@@ -14,7 +14,7 @@ import { useSpotlight } from '../store/spotlight';
 import { useAssistant } from '../store/assistant';
 import { useQuickEntry } from '../store/quickEntry';
 import { useTheme } from '../store/theme';
-import { useAuth, isAdmin } from '../store/auth';
+import { useAuth, isAdmin, canReadAll } from '../store/auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, type Customer } from '../api/client';
 
@@ -37,6 +37,7 @@ export default function Spotlight() {
   const qc = useQueryClient();
   const { user, logout } = useAuth();
   const admin = isAdmin(user);
+  const readAll = canReadAll(user);
   const { openWizard, openBulkAI } = useQuickEntry();
   const openAssistant = useAssistant((s) => s.setOpen);
   const { theme, toggle: toggleTheme } = useTheme();
@@ -49,7 +50,7 @@ export default function Spotlight() {
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: () => api.get<Customer[]>('/customers'),
-    enabled: open && admin,
+    enabled: open && readAll,
   });
 
   // Açılışta sıfırla + odak
@@ -75,12 +76,12 @@ export default function Spotlight() {
     list.push({ id: 'act-logout', group: 'Aksiyon', label: 'Çıkış Yap', icon: LogOut, keywords: 'logout exit', run: () => { qc.clear(); logout(); navigate('/login'); close(); } });
 
     // Sayfalar
-    const pages: { to: string; label: string; icon: any; admin?: boolean }[] = [
+    const pages: { to: string; label: string; icon: any; admin?: boolean; readAll?: boolean }[] = [
       { to: '/timesheet', label: 'Timesheet', icon: Calendar },
       { to: '/entries', label: 'Tüm Aktiviteler', icon: List },
-      { to: '/team', label: 'Ekip Takvimi', icon: CalendarRange, admin: true },
-      { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, admin: true },
-      { to: '/reports', label: 'Raporlar', icon: BarChart3, admin: true },
+      { to: '/team', label: 'Ekip Takvimi', readAll: true, icon: CalendarRange },
+      { to: '/dashboard', label: 'Dashboard', readAll: true, icon: LayoutDashboard },
+      { to: '/reports', label: 'Raporlar', readAll: true, icon: BarChart3 },
       { to: '/activities', label: 'Aktivite Türleri', icon: CheckSquare, admin: true },
       { to: '/contractors', label: 'Yükleniciler', icon: Briefcase, admin: true },
       { to: '/customers', label: 'Müşteriler', icon: UserCog, admin: true },
@@ -88,12 +89,12 @@ export default function Spotlight() {
       { to: '/locks', label: 'Dönem Kilidi', icon: Lock, admin: true },
       { to: '/audit', label: 'Audit Log', icon: ScrollText, admin: true },
     ];
-    pages.filter((p) => !p.admin || admin).forEach((p) =>
+    pages.filter((p) => (p.admin ? admin : p.readAll ? readAll : true)).forEach((p) =>
       list.push({ id: 'page-' + p.to, group: 'Sayfa', label: p.label, icon: p.icon, run: () => go(p.to) })
     );
 
-    // Müşteriler (admin) → raporuna atla
-    if (admin) {
+    // Müşteriler (admin + PY) → raporuna atla
+    if (readAll) {
       customers.forEach((c) =>
         list.push({
           id: 'cus-' + c.id,
@@ -107,7 +108,7 @@ export default function Spotlight() {
       );
     }
     return list;
-  }, [admin, customers, theme]);
+  }, [admin, readAll, customers, theme]);
 
   const filtered = useMemo(() => {
     const query = trLower(q.trim());

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Pencil, Search, X, Loader2, Check, FolderPlus } from 'lucide-react';
-import { api, type Customer, type Contractor, type Activity } from '../api/client';
+import { api, type Customer, type Contractor, type Activity, type User } from '../api/client';
 import { useAuth, isAdmin } from '../store/auth';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
@@ -11,11 +11,14 @@ type FormState = { name: string; contractorId: number; contact: string; phone: s
 const EMPTY_FORM: FormState = { name: '', contractorId: 0, contact: '', phone: '', currency: 'TRY', active: true };
 
 // Modal içi düzenlenebilir proje
+interface ProjMember { userId: number; activityId: number }
+
 interface ProjForm {
   id?: number;
   name: string;
   active: boolean;
   rates: Record<number, number>; // activityId → rate
+  members: ProjMember[];
 }
 
 export default function Customers() {
@@ -27,6 +30,7 @@ export default function Customers() {
   const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: () => api.get<Customer[]>('/customers') });
   const { data: contractors = [] } = useQuery({ queryKey: ['contractors'], queryFn: () => api.get<Contractor[]>('/contractors') });
   const { data: activities = [] } = useQuery({ queryKey: ['activities'], queryFn: () => api.get<Activity[]>('/activities') });
+  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => api.get<User[]>('/users') });
 
   const trLower = (s: string) => s.toLocaleLowerCase('tr-TR');
   const filtered = useMemo(() => {
@@ -99,6 +103,7 @@ export default function Customers() {
           customer={editing === 'new' ? null : editing}
           contractors={contractors}
           activities={activities}
+          users={users}
           onClose={() => setEditing(null)}
         />
       )}
@@ -106,10 +111,11 @@ export default function Customers() {
   );
 }
 
-function CustomerModal({ customer, contractors, activities, onClose }: {
+function CustomerModal({ customer, contractors, activities, users, onClose }: {
   customer: Customer | null;
   contractors: Contractor[];
   activities: Activity[];
+  users: User[];
   onClose: () => void;
 }) {
   const toast = useToast();
@@ -139,12 +145,12 @@ function CustomerModal({ customer, contractors, activities, onClose }: {
           const rs = p.rates.filter((r) => r.activityId === a.id);
           rates[a.id] = (rs.find((r) => r.effectiveTo == null) || rs[0])?.rate || 0;
         });
-        return { id: p.id, name: p.name, active: p.active !== false, rates };
+        return { id: p.id, name: p.name, active: p.active !== false, rates, members: (p.members || []).map((mm) => ({ userId: mm.userId, activityId: mm.activityId })) };
       });
     }
     const rates: Record<number, number> = {};
     activities.forEach((a) => { rates[a.id] = 0; });
-    return [{ name: '', active: true, rates }];
+    return [{ name: '', active: true, rates, members: [] }];
   });
 
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -152,7 +158,7 @@ function CustomerModal({ customer, contractors, activities, onClose }: {
   function addProject() {
     const rates: Record<number, number> = {};
     activities.forEach((a) => { rates[a.id] = 0; });
-    setProjects((arr) => [...arr, { name: '', active: true, rates }]);
+    setProjects((arr) => [...arr, { name: '', active: true, rates, members: [] }]);
   }
   function removeProject(idx: number) {
     setProjects((arr) => arr.filter((_, i) => i !== idx));
@@ -170,6 +176,7 @@ function CustomerModal({ customer, contractors, activities, onClose }: {
           name: p.name.trim() || form.name, // boşsa müşteri adı
           active: p.active,
           rates: Object.fromEntries(Object.entries(p.rates)),
+          members: p.members,
         })),
       };
       return isNew ? api.post('/customers', payload) : api.patch(`/customers/${customer!.id}`, payload);
@@ -283,6 +290,38 @@ function CustomerModal({ customer, contractors, activities, onClose }: {
                     ))}
                   </div>
                 )}
+
+                {/* Proje bazlı roller — kişi bu projede farklı rolde olabilir.
+                    Tanımlanmayan kişi kendi varsayılan rolüyle çalışır. */}
+                <div className="mt-2.5">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-ink-3 mb-1.5">
+                    Proje Rolleri <span className="normal-case font-medium tracking-normal">(boş bırakılırsa kişinin varsayılan rolü geçerli)</span>
+                  </div>
+                  <div className="space-y-1">
+                    {users.map((u) => {
+                      const mem = p.members.find((mm) => mm.userId === u.id);
+                      return (
+                        <div key={u.id} className="grid grid-cols-[1fr_150px] gap-2 items-center">
+                          <span className="text-[12.5px] text-ink-2 truncate">{u.fullname}</span>
+                          <select
+                            className="input !py-1 !text-[12px]"
+                            value={mem ? String(mem.activityId) : ''}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const rest = p.members.filter((mm) => mm.userId !== u.id);
+                              setProject(idx, { members: v ? [...rest, { userId: u.id, activityId: +v }] : rest });
+                            }}
+                          >
+                            <option value="">— varsayılan —</option>
+                            {activities.filter((a) => a.active !== false).map((a) => (
+                              <option key={a.id} value={a.id}>{a.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             ))}
           </div>

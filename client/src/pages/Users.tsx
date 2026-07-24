@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, Phone, Sparkles, Loader2, Check, Search, X } from 'lucide-react';
-import { api, type Activity } from '../api/client';
+import { Plus, Trash2, Pencil, Phone, Sparkles, Loader2, Check, Search, X, Building2 } from 'lucide-react';
+import { api, type Activity, type Contractor } from '../api/client';
 import { useAuth } from '../store/auth';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
@@ -14,6 +14,8 @@ interface UserRow {
   phone?: string | null;
   defaultActivityId?: number | null;
   defaultActivity?: { id: number; name: string; unit: string } | null;
+  contractorId?: number | null;
+  contractor?: { id: number; name: string } | null;
   createdAt: string;
 }
 
@@ -24,6 +26,7 @@ export default function Users() {
 
   const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => api.get<UserRow[]>('/users') });
   const { data: activities = [] } = useQuery({ queryKey: ['activities'], queryFn: () => api.get<Activity[]>('/activities') });
+  const { data: contractors = [] } = useQuery({ queryKey: ['contractors'], queryFn: () => api.get<Contractor[]>('/contractors') });
 
   const trLower = (s: string) => s.toLocaleLowerCase('tr-TR');
   const filtered = useMemo(() => {
@@ -77,11 +80,12 @@ export default function Users() {
                   </div>
                 </div>
                 <div>
-                  <span className={`badge ${u.role === 'admin' ? 'bg-brand-indigo/15 text-brand-indigo' : 'bg-paper-2 text-ink-2'}`}>
-                    {u.role === 'admin' ? 'Yönetici' : 'Kullanıcı'}
+                  <span className={`badge ${u.role === 'admin' ? 'bg-brand-indigo/15 text-brand-indigo' : u.role === 'py' ? 'bg-brand-amber/15 text-[#B45309]' : 'bg-paper-2 text-ink-2'}`}>
+                    {u.role === 'admin' ? 'Yönetici' : u.role === 'py' ? 'PY (Proje Yön.)' : 'Kullanıcı'}
                   </span>
                 </div>
                 <div className="hidden sm:flex items-center gap-1.5 flex-wrap min-w-0">
+                  {u.contractor && <span className="badge bg-brand-emerald/15 text-brand-emerald !text-[10px] flex items-center gap-0.5"><Building2 size={9} /> {u.contractor.name}</span>}
                   {u.phone && <span className="badge bg-brand-cyan/15 text-brand-cyan font-mono !text-[10px] flex items-center gap-0.5"><Phone size={9} /> {u.phone}</span>}
                   {u.defaultActivity && <span className="badge bg-brand-violet/15 text-brand-violet !text-[10px] flex items-center gap-0.5"><Sparkles size={9} /> {u.defaultActivity.name}</span>}
                   {!u.phone && !u.defaultActivity && <span className="text-ink-3 text-[12px]">—</span>}
@@ -96,13 +100,13 @@ export default function Users() {
       </div>
 
       {editing !== null && (
-        <UserModal user={editing === 'new' ? null : editing} me={me?.id} activities={activities} onClose={() => setEditing(null)} />
+        <UserModal user={editing === 'new' ? null : editing} me={me?.id} activities={activities} contractors={contractors} onClose={() => setEditing(null)} />
       )}
     </div>
   );
 }
 
-function UserModal({ user, me, activities, onClose }: { user: UserRow | null; me?: number; activities: Activity[]; onClose: () => void }) {
+function UserModal({ user, me, activities, contractors, onClose }: { user: UserRow | null; me?: number; activities: Activity[]; contractors: Contractor[]; onClose: () => void }) {
   const toast = useToast();
   const qc = useQueryClient();
   const isNew = !user;
@@ -113,6 +117,7 @@ function UserModal({ user, me, activities, onClose }: { user: UserRow | null; me
     role: user?.role || 'user',
     phone: user?.phone || '',
     defaultActivityId: user?.defaultActivityId ? String(user.defaultActivityId) : '',
+    contractorId: user?.contractorId ? String(user.contractorId) : '',
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -123,6 +128,7 @@ function UserModal({ user, me, activities, onClose }: { user: UserRow | null; me
         role: form.role,
         phone: form.phone.trim() || null,
         defaultActivityId: form.defaultActivityId ? Number(form.defaultActivityId) : null,
+        contractorId: form.contractorId ? Number(form.contractorId) : null,
       };
       if (form.password) payload.password = form.password;
       if (isNew) { payload.username = form.username; return api.post('/users', payload); }
@@ -193,8 +199,19 @@ function UserModal({ user, me, activities, onClose }: { user: UserRow | null; me
             <label className="label">Rol</label>
             <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
               <option value="user">Kullanıcı (Aktivite Girişi)</option>
+              <option value="py">PY — Proje Yöneticisi (Tüm veriyi görür, yönetemez)</option>
               <option value="admin">Yönetici (Tam Yetki)</option>
             </select>
+          </div>
+          <div>
+            <label className="label flex items-center gap-1.5"><Building2 size={12} /> Şirket (Yüklenici)</label>
+            <select className="input" value={form.contractorId} onChange={(e) => setForm({ ...form, contractorId: e.target.value })}>
+              <option value="">— Seçilmedi —</option>
+              {contractors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <div className="text-[10.5px] text-ink-3 mt-1">
+              Komisyonu belirler: kişinin şirketi müşterinin yüklenicisiyle aynıysa komisyon uygulanmaz.
+            </div>
           </div>
           <div>
             <label className="label flex items-center gap-1.5"><Phone size={12} /> WhatsApp Telefon</label>

@@ -61,3 +61,7 @@ export const useAuth = create<AuthState>((set) => ({
 }));
 
 export const isAdmin = (user: User | null) => user?.role === 'admin';
+export const isPy = (user: User | null) => user?.role === 'py';
+// PY (proje yöneticisi) tüm veriyi OKUYABİLİR (raporlar, tutarlar, herkesin kaydı)
+// ama yönetim ekranları (kullanıcı/müşteri/rate/kilit) admin'e özeldir.
+export const canReadAll = (user: User | null) => user?.role === 'admin' || user?.role === 'py';

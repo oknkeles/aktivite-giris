@@ -2,22 +2,23 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { authRequired, adminRequired, type AuthRequest } from '../middleware/auth.js';
+import { authRequired, adminRequired, readAllRequired, type AuthRequest } from '../middleware/auth.js';
 import { audit } from '../services/audit.js';
 
 const router = Router();
-router.use(authRequired, adminRequired);
+router.use(authRequired);
 
 // E.164 format: + ile başlar, 8-15 rakam (örn. +905551234567)
 const phoneRegex = /^\+[1-9]\d{7,14}$/;
 
-router.get('/', async (_req, res) => {
+router.get('/', readAllRequired, async (_req, res) => {
   const list = await prisma.user.findMany({
     orderBy: { id: 'asc' },
     select: {
       id: true, username: true, fullname: true, role: true,
-      phone: true, defaultActivityId: true, createdAt: true,
+      phone: true, defaultActivityId: true, contractorId: true, createdAt: true,
       defaultActivity: { select: { id: true, name: true, unit: true } },
+      contractor: { select: { id: true, name: true } },
     },
   });
   res.json(list);
@@ -27,12 +28,13 @@ const createSchema = z.object({
   username: z.string().min(2),
   fullname: z.string().min(2),
   password: z.string().min(4),
-  role: z.enum(['admin', 'user']).default('user'),
+  role: z.enum(['admin', 'py', 'user']).default('user'),
   phone: z.string().regex(phoneRegex).optional().nullable(),
   defaultActivityId: z.number().int().optional().nullable(),
+  contractorId: z.number().int().optional().nullable(),
 });
 
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', adminRequired, async (req: AuthRequest, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Geçersiz veri (telefon E.164 formatında olmalı, örn. +905551234567)' });
   const { username, fullname, password, role, phone } = parsed.data;
@@ -51,10 +53,11 @@ router.post('/', async (req: AuthRequest, res) => {
       role,
       phone: phone || null,
       defaultActivityId: parsed.data.defaultActivityId || null,
+      contractorId: parsed.data.contractorId || null,
     },
     select: {
       id: true, username: true, fullname: true, role: true,
-      phone: true, defaultActivityId: true, createdAt: true,
+      phone: true, defaultActivityId: true, contractorId: true, createdAt: true,
     },
   });
   await audit({
@@ -71,13 +74,14 @@ router.post('/', async (req: AuthRequest, res) => {
 
 const updateSchema = z.object({
   fullname: z.string().min(2).optional(),
-  role: z.enum(['admin', 'user']).optional(),
+  role: z.enum(['admin', 'py', 'user']).optional(),
   phone: z.string().regex(phoneRegex).optional().nullable(),
   password: z.string().min(4).optional(),
   defaultActivityId: z.number().int().optional().nullable(),
+  contractorId: z.number().int().optional().nullable(),
 });
 
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', adminRequired, async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Geçersiz veri (telefon E.164 formatında olmalı)' });
@@ -96,6 +100,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
   if (phone !== undefined) data.phone = phone;
   if (parsed.data.defaultActivityId !== undefined)
     data.defaultActivityId = parsed.data.defaultActivityId;
+  if (parsed.data.contractorId !== undefined) data.contractorId = parsed.data.contractorId;
   if (password) data.passwordHash = await bcrypt.hash(password, 10);
 
   const updated = await prisma.user.update({
@@ -103,7 +108,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
     data,
     select: {
       id: true, username: true, fullname: true, role: true,
-      phone: true, defaultActivityId: true, createdAt: true,
+      phone: true, defaultActivityId: true, contractorId: true, createdAt: true,
     },
   });
   const changed = Object.keys(data).join(', ');
@@ -119,7 +124,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
   res.json(updated);
 });
 
-router.delete('/:id', async (req: AuthRequest, res) => {
+router.delete('/:id', adminRequired, async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   if (id === req.user!.id) return res.status(400).json({ error: 'Kendi hesabınızı silemezsiniz.' });
   const target = await prisma.user.findUnique({ where: { id }, select: { username: true, fullname: true } });

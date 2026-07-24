@@ -4,11 +4,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { authRequired, type AuthRequest } from '../middleware/auth.js';
+import { authRequired, canReadAll, type AuthRequest } from '../middleware/auth.js';
 import { audit } from '../services/audit.js';
 import { lockedPeriodsAmong, periodOf } from '../services/period-lock.js';
 import { parseAssistant, type AsstContext } from '../services/assistant-llm.js';
 import { rateForDate } from '../services/rates.js';
+import { commissionRate, netFromGross } from '../services/commission.js';
 
 const router = Router();
 router.use(authRequired);
@@ -140,22 +141,22 @@ router.post('/', async (req: AuthRequest, res) => {
     // ── REPORT ──
     if (r.action === 'report') {
       // GÜVENLIK: tutar/ciro raporu gizli — sadece yönetici görebilir.
-      if (req.user!.role !== 'admin') {
+      if (!canReadAll(req.user!.role)) {
         return res.json({ kind: 'message', reply: '⚠️ Tutar ve gelir raporları yalnızca yöneticilere açıktır. Kendi kayıtlarını görmek için "kayıtlarımı listele" diyebilirsin.' });
       }
       const f = r.filter || {};
       const where: any = { userId };
       if (f.from || f.to) { where.date = {}; if (f.from) where.date.gte = f.from; if (f.to) where.date.lte = f.to; }
       if (f.customerId) where.customerId = f.customerId;
-      const list = await prisma.entry.findMany({ where, include: { customer: { include: { contractor: true } }, project: { include: { rates: true } }, activity: true } });
+      const list = await prisma.entry.findMany({ where, include: { customer: { include: { contractor: true } }, project: { include: { rates: true } }, activity: true, user: { select: { contractorId: true } } } });
       if (!list.length) return res.json({ kind: 'message', reply: '📭 Bu dönem/kritere göre kayıt yok.' });
       let hours = 0; const byCur: Record<string, number> = {};
       for (const e of list) {
         const h = e.activity.unit === 'saat' ? e.qty : e.qty * 8; hours += h;
         const rate = rateForDate(e.project?.rates, e.activityId, e.date);
-        const disc = e.customer.contractor.discount || 0;
+        const disc = commissionRate(e.user.contractorId, e.customer.contractorId, e.customer.contractor.discount);
         const cur = e.customer.currency || 'TRY';
-        byCur[cur] = (byCur[cur] || 0) + (h / 8) * rate * (1 - disc / 100);
+        byCur[cur] = (byCur[cur] || 0) + netFromGross((h / 8) * rate, disc);
       }
       const money = Object.entries(byCur).filter(([, v]) => v > 0.5).map(([c, v]) => fmtMoney(v, c)).join(' · ') || '—';
       const scope = f.customerId ? cName(f.customerId) : 'tüm müşteriler';

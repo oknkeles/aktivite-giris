@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useAuth, isAdmin } from './store/auth';
+import { useAuth, isAdmin, canReadAll } from './store/auth';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Timesheet from './pages/Timesheet';
@@ -31,11 +31,12 @@ const qc = new QueryClient({
   },
 });
 
-function Protected({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
+function Protected({ children, adminOnly = false, readAll = false }: { children: React.ReactNode; adminOnly?: boolean; readAll?: boolean }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-ink-3">Yükleniyor...</div>;
   if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && !isAdmin(user)) return <Navigate to="/timesheet" replace />;
+  if (readAll && !canReadAll(user)) return <Navigate to="/timesheet" replace />;
   return <>{children}</>;
 }
 
@@ -55,9 +56,9 @@ export default function App() {
             <Route path="/activities" element={<Protected adminOnly><Activities /></Protected>} />
             <Route path="/contractors" element={<Protected adminOnly><Contractors /></Protected>} />
             <Route path="/customers" element={<Protected adminOnly><Customers /></Protected>} />
-            <Route path="/dashboard" element={<Protected adminOnly><Dashboard /></Protected>} />
-            <Route path="/team" element={<Protected adminOnly><TeamCalendar /></Protected>} />
-            <Route path="/reports" element={<Protected adminOnly><Reports /></Protected>} />
+            <Route path="/dashboard" element={<Protected readAll><Dashboard /></Protected>} />
+            <Route path="/team" element={<Protected readAll><TeamCalendar /></Protected>} />
+            <Route path="/reports" element={<Protected readAll><Reports /></Protected>} />
             <Route path="/users" element={<Protected adminOnly><Users /></Protected>} />
             <Route path="/audit" element={<Protected adminOnly><AuditLog /></Protected>} />
             <Route path="/locks" element={<Protected adminOnly><PeriodLocks /></Protected>} />

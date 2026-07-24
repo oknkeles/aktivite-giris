@@ -26,3 +26,16 @@ export function adminRequired(req: AuthRequest, res: Response, next: NextFunctio
   }
   next();
 }
+
+// PY (proje yöneticisi) = tam OKUMA yetkisi (tüm kayıtlar, raporlar, tutarlar).
+// Yönetim işlemleri (kullanıcı/müşteri/rate/kilit düzenleme) admin'de kalır.
+export function canReadAll(role?: string): boolean {
+  return role === 'admin' || role === 'py';
+}
+
+export function readAllRequired(req: AuthRequest, res: Response, next: NextFunction) {
+  if (!canReadAll(req.user?.role)) {
+    return res.status(403).json({ error: 'Yetki yok' });
+  }
+  next();
+}

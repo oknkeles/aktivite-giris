@@ -9,18 +9,40 @@ datasource db {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique
-  fullname     String
-  passwordHash String
-  role         String   @default("user") // admin | user
-  phone        String?  @unique // E.164 format (+905551234567) — WhatsApp bot için
+  id                Int      @id @default(autoincrement())
+  username          String   @unique
+  fullname          String
+  passwordHash      String
+  role              String   @default("user") // admin | py | user
+  phone             String?  @unique // E.164 format (+905551234567) — WhatsApp bot için
   defaultActivityId Int? // Yeni kayıt eklerken varsayılan olarak seçilir (Expert vb.)
-  createdAt    DateTime @default(now())
+  // Kullanıcının bağlı olduğu şirket (yüklenici). Komisyon hesabında kritik:
+  // kaydı giren kişinin şirketi müşterinin yüklenicisiyle aynıysa komisyon uygulanmaz.
+  contractorId      Int?
+  createdAt         DateTime @default(now())
 
   entries         Entry[]
   wpMessages      WhatsAppMessage[]
-  defaultActivity Activity? @relation(fields: [defaultActivityId], references: [id], onDelete: SetNull)
+  projectRoles    ProjectMember[]
+  defaultActivity Activity?         @relation(fields: [defaultActivityId], references: [id], onDelete: SetNull)
+  contractor      Contractor?       @relation(fields: [contractorId], references: [id], onDelete: SetNull)
+}
+
+// Proje bazlı rol: kullanıcı normalde Expert olsa da belirli bir projede
+// Senior olarak tanımlanabilir. Kayıt girerken bu proje için tanım varsa o rol,
+// yoksa kullanıcının varsayılan rolü kullanılır.
+model ProjectMember {
+  id         Int @id @default(autoincrement())
+  projectId  Int
+  userId     Int
+  activityId Int // bu projedeki rolü (Junior/Mid/Senior/Expert)
+
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
 }
 
 model Activity {
@@ -33,6 +55,7 @@ model Activity {
   rates           ProjectRate[]
   entries         Entry[]
   defaultForUsers User[]
+  projectRoles    ProjectMember[]
 }
 
 model Contractor {
@@ -45,6 +68,7 @@ model Contractor {
   discount Float   @default(0)
 
   customers Customer[]
+  users     User[]
 }
 
 model Customer {
@@ -64,15 +88,16 @@ model Customer {
 // Proje — bir müşterinin altında. Rate'ler proje seviyesinde tutulur
 // (aynı müşterinin farklı ratelerde projeleri olabilir).
 model Project {
-  id         Int     @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   customerId Int
   name       String
-  active     Boolean @default(true)
+  active     Boolean  @default(true)
   createdAt  DateTime @default(now())
 
-  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
   rates    ProjectRate[]
   entries  Entry[]
+  members  ProjectMember[]
 
   @@index([customerId])
 }
@@ -86,7 +111,7 @@ model ProjectRate {
   activityId    Int
   rate          Float
   effectiveFrom String  @default("2000-01-01") // YYYY-MM-DD, dahil
-  effectiveTo   String?                         // YYYY-MM-DD, dahil; null = sonsuz
+  effectiveTo   String? // YYYY-MM-DD, dahil; null = sonsuz
 
   project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
@@ -96,12 +121,12 @@ model ProjectRate {
 
 model Entry {
   id         Int      @id @default(autoincrement())
-  date       String   // YYYY-MM-DD
+  date       String // YYYY-MM-DD
   qty        Float
-  ticketId   String?  // Müşteri talep/ticket ID (örn. JIRA-1234, ZBT-5678)
+  ticketId   String? // Müşteri talep/ticket ID (örn. JIRA-1234, ZBT-5678)
   note       String?
-  customerId Int      // = project.customerId (gruplamada kolaylık için tutuluyor)
-  projectId  Int?     // proje seviyesi — migration sonrası tüm kayıtlarda dolu
+  customerId Int // = project.customerId (gruplamada kolaylık için tutuluyor)
+  projectId  Int? // proje seviyesi — migration sonrası tüm kayıtlarda dolu
   activityId Int
   userId     Int
   createdAt  DateTime @default(now())
@@ -123,7 +148,7 @@ model Entry {
 model WhatsAppMessage {
   id        Int      @id @default(autoincrement())
   userId    Int
-  role      String   // 'user' | 'bot'
+  role      String // 'user' | 'bot'
   body      String
   createdAt DateTime @default(now())
 
@@ -138,7 +163,7 @@ model WhatsAppMessage {
 model PeriodLock {
   id        Int      @id @default(autoincrement())
   period    String   @unique // YYYY-MM
-  lockedBy  String?  // kilitleyen kullanıcı (snapshot)
+  lockedBy  String? // kilitleyen kullanıcı (snapshot)
   createdAt DateTime @default(now())
 }
 
@@ -146,12 +171,12 @@ model PeriodLock {
 // Sadece admin'in görebileceği bir sayfada listelenir.
 model AuditLog {
   id        Int      @id @default(autoincrement())
-  userId    Int?     // null olabilir (örn. login fail vakalarında)
-  username  String?  // user silinse bile iz kalsın diye snapshot
-  action    String   // create | update | delete | login | login_fail
-  target    String   // entry | user | customer | contractor | activity | session
+  userId    Int? // null olabilir (örn. login fail vakalarında)
+  username  String? // user silinse bile iz kalsın diye snapshot
+  action    String // create | update | delete | login | login_fail
+  target    String // entry | user | customer | contractor | activity | session
   targetId  Int?
-  summary   String?  // İnsan-okur özet ("Müşteri 'Beymen' güncellendi")
+  summary   String? // İnsan-okur özet ("Müşteri 'Beymen' güncellendi")
   ip        String?
   createdAt DateTime @default(now())
 
