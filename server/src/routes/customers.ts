@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { authRequired, adminRequired, canReadAll, type AuthRequest } from '../middleware/auth.js';
 import { audit } from '../services/audit.js';
+import { scopeContractorIds } from '../services/scope.js';
 
 const router = Router();
 router.use(authRequired);
@@ -24,7 +25,13 @@ router.get('/', async (req: AuthRequest, res) => {
   // USER timesheet için müşteri+proje listesine ihtiyaç duyar ama fiyat görmemeli.
   const isAdmin = canReadAll(req.user!.role);
   const meId = req.user!.id;
+  // KAPSAM: admin/PY yalnızca sorumlu olduğu yüklenicilerin müşterilerini listeler.
+  // Normal kullanıcı kayıt girebilmek için tüm aktif müşterileri görmeye devam eder.
+  const scopeWhere = isAdmin
+    ? { contractorId: { in: await scopeContractorIds(req.user!.id) } }
+    : {};
   const list = await prisma.customer.findMany({
+    where: scopeWhere,
     orderBy: { name: 'asc' },
     include: isAdmin ? customerInclude : {
       contractor: { select: { id: true, name: true } },

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, Phone, Sparkles, Loader2, Check, Search, X, Building2 } from 'lucide-react';
+import { Plus, Trash2, Pencil, Phone, Sparkles, Loader2, Check, Search, X, Building2, Eye } from 'lucide-react';
 import { api, type Activity, type Contractor } from '../api/client';
 import { useAuth } from '../store/auth';
 import { useToast } from '../components/Toast';
@@ -16,6 +16,7 @@ interface UserRow {
   defaultActivity?: { id: number; name: string; unit: string } | null;
   contractorId?: number | null;
   contractor?: { id: number; name: string } | null;
+  scopes?: { contractorId: number }[];
   createdAt: string;
 }
 
@@ -110,6 +111,7 @@ function UserModal({ user, me, activities, contractors, onClose }: { user: UserR
   const toast = useToast();
   const qc = useQueryClient();
   const isNew = !user;
+  const [scopeIds, setScopeIds] = useState<number[]>(user?.scopes?.map((s) => s.contractorId) || []);
   const [form, setForm] = useState({
     username: user?.username || '',
     fullname: user?.fullname || '',
@@ -129,6 +131,7 @@ function UserModal({ user, me, activities, contractors, onClose }: { user: UserR
         phone: form.phone.trim() || null,
         defaultActivityId: form.defaultActivityId ? Number(form.defaultActivityId) : null,
         contractorId: form.contractorId ? Number(form.contractorId) : null,
+        scopeContractorIds: scopeIds,
       };
       if (form.password) payload.password = form.password;
       if (isNew) { payload.username = form.username; return api.post('/users', payload); }
@@ -213,6 +216,33 @@ function UserModal({ user, me, activities, contractors, onClose }: { user: UserR
               Komisyonu belirler: kişinin şirketi müşterinin yüklenicisiyle aynıysa komisyon uygulanmaz.
             </div>
           </div>
+          {form.role !== 'user' && (
+            <div className="sm:col-span-2">
+              <label className="label flex items-center gap-1.5"><Eye size={12} /> Sorumlu Olduğu Yükleniciler (görünürlük)</label>
+              <div className="flex flex-wrap gap-1.5">
+                {contractors.map((c) => {
+                  const on = scopeIds.includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setScopeIds((prev) => on ? prev.filter((x) => x !== c.id) : [...prev, c.id])}
+                      className={`px-3 py-1.5 rounded-lg text-[12.5px] font-semibold border transition ${
+                        on ? 'bg-brand-indigo/10 border-brand-indigo/40 text-brand-indigo'
+                           : 'bg-paper-2 border-paper-3 text-ink-3 hover:text-ink hover:border-ink-3/40'
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="text-[10.5px] text-ink-3 mt-1">
+                Yalnızca seçili yüklenicilere ait müşterilerin kayıtlarını, raporlarını ve takvimini görür.
+                Boş bırakılırsa sadece kendi şirketini görür. Komisyonu ETKİLEMEZ.
+              </div>
+            </div>
+          )}
           <div>
             <label className="label flex items-center gap-1.5"><Phone size={12} /> WhatsApp Telefon</label>
             <input className="input font-mono" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+905551234567" />

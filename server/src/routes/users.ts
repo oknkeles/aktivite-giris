@@ -19,6 +19,7 @@ router.get('/', readAllRequired, async (_req, res) => {
       phone: true, defaultActivityId: true, contractorId: true, createdAt: true,
       defaultActivity: { select: { id: true, name: true, unit: true } },
       contractor: { select: { id: true, name: true } },
+      scopes: { select: { contractorId: true } },
     },
   });
   res.json(list);
@@ -32,6 +33,8 @@ const createSchema = z.object({
   phone: z.string().regex(phoneRegex).optional().nullable(),
   defaultActivityId: z.number().int().optional().nullable(),
   contractorId: z.number().int().optional().nullable(),
+  // Görünürlük kapsamı: sorumlu olduğu yükleniciler (çoklu)
+  scopeContractorIds: z.array(z.number().int()).optional(),
 });
 
 router.post('/', adminRequired, async (req: AuthRequest, res) => {
@@ -60,6 +63,13 @@ router.post('/', adminRequired, async (req: AuthRequest, res) => {
       phone: true, defaultActivityId: true, contractorId: true, createdAt: true,
     },
   });
+  if (parsed.data.scopeContractorIds?.length) {
+    await prisma.userContractor.createMany({
+      data: parsed.data.scopeContractorIds.map((cid) => ({ userId: user.id, contractorId: cid })),
+      skipDuplicates: true,
+    });
+  }
+
   await audit({
     action: 'create',
     target: 'user',
@@ -79,6 +89,7 @@ const updateSchema = z.object({
   password: z.string().min(4).optional(),
   defaultActivityId: z.number().int().optional().nullable(),
   contractorId: z.number().int().optional().nullable(),
+  scopeContractorIds: z.array(z.number().int()).optional(),
 });
 
 router.put('/:id', adminRequired, async (req: AuthRequest, res) => {
@@ -101,6 +112,18 @@ router.put('/:id', adminRequired, async (req: AuthRequest, res) => {
   if (parsed.data.defaultActivityId !== undefined)
     data.defaultActivityId = parsed.data.defaultActivityId;
   if (parsed.data.contractorId !== undefined) data.contractorId = parsed.data.contractorId;
+
+  // Kapsam gönderildiyse tam senkronla (gelmeyenler silinir)
+  if (parsed.data.scopeContractorIds) {
+    const ids = parsed.data.scopeContractorIds;
+    await prisma.userContractor.deleteMany({ where: { userId: id, contractorId: { notIn: ids.length ? ids : [-1] } } });
+    if (ids.length) {
+      await prisma.userContractor.createMany({
+        data: ids.map((cid) => ({ userId: id, contractorId: cid })),
+        skipDuplicates: true,
+      });
+    }
+  }
   if (password) data.passwordHash = await bcrypt.hash(password, 10);
 
   const updated = await prisma.user.update({

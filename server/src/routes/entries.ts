@@ -5,6 +5,7 @@ import { authRequired, canReadAll, type AuthRequest } from '../middleware/auth.j
 import { audit } from '../services/audit.js';
 import { parseBulkText } from '../services/llm-bulk.js';
 import { lockedPeriodsAmong, lockedError } from '../services/period-lock.js';
+import { scopeContractorIds, applyScopeToEntryWhere } from '../services/scope.js';
 
 const router = Router();
 router.use(authRequired);
@@ -55,6 +56,13 @@ router.get('/', async (req: AuthRequest, res) => {
   }
   if (customerId) where.customerId = Number(customerId);
   if (contractorId) where.customer = { contractorId: Number(contractorId) };
+
+  // KAPSAM: admin/PY sadece sorumlu olduğu yüklenicilerin müşterilerini görür.
+  // Normal kullanıcı zaten yalnızca kendi kayıtlarını görüyor (kapsam gereksiz).
+  if (isAdmin) {
+    const scopeIds = await scopeContractorIds(req.user!.id);
+    applyScopeToEntryWhere(where, scopeIds);
+  }
 
   const list = await prisma.entry.findMany({ where, orderBy: { date: 'desc' }, include: entryInclude });
   res.json(list);

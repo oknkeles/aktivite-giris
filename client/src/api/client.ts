@@ -54,6 +54,8 @@ export interface User {
   // Kullanıcının bağlı olduğu şirket (yüklenici) — komisyon hesabını belirler
   contractorId?: number | null;
   contractor?: { id: number; name: string } | null;
+  // Görünürlük kapsamı — sorumlu olduğu yükleniciler (admin/PY için)
+  scopes?: { contractorId: number }[];
 }
 
 export interface Activity {

@@ -24,8 +24,25 @@ model User {
   entries         Entry[]
   wpMessages      WhatsAppMessage[]
   projectRoles    ProjectMember[]
+  scopes          UserContractor[]
   defaultActivity Activity?         @relation(fields: [defaultActivityId], references: [id], onDelete: SetNull)
   contractor      Contractor?       @relation(fields: [contractorId], references: [id], onDelete: SetNull)
+}
+
+// Görünürlük kapsamı — bir kullanıcı BİRDEN FAZLA yükleniciden sorumlu olabilir.
+// Admin/PY yalnızca kapsamındaki yüklenicilere ait müşterilerin kayıtlarını görür.
+// DİKKAT: bu KOMİSYONU ETKİLEMEZ; komisyon User.contractorId (çalıştığı şirket) ile
+// hesaplanır. Aksi halde TDEV'li birine SALDO kapsamı verince komisyon sıfırlanırdı.
+model UserContractor {
+  id           Int @id @default(autoincrement())
+  userId       Int
+  contractorId Int
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contractorId])
+  @@index([userId])
 }
 
 // Proje bazlı rol: kullanıcı normalde Expert olsa da belirli bir projede
@@ -69,6 +86,7 @@ model Contractor {
 
   customers Customer[]
   users     User[]
+  scopedTo  UserContractor[]
 }
 
 model Customer {

@@ -4,11 +4,12 @@ import { authRequired, readAllRequired, type AuthRequest } from '../middleware/a
 import { buildPdfReport, type ReportEntry } from '../services/pdf-report.js';
 import { rateForDate } from '../services/rates.js';
 import { commissionRate, netFromGross } from '../services/commission.js';
+import { scopeContractorIds, applyScopeToEntryWhere } from '../services/scope.js';
 
 const router = Router();
 router.use(authRequired, readAllRequired);
 
-router.get('/', async (req, res) => {
+router.get('/', async (req: AuthRequest, res) => {
   const { from, to, customerId, contractorId } = req.query as Record<string, string | undefined>;
   const where: any = {};
   if (from || to) {
@@ -18,6 +19,7 @@ router.get('/', async (req, res) => {
   }
   if (customerId) where.customerId = Number(customerId);
   if (contractorId) where.customer = { contractorId: Number(contractorId) };
+  applyScopeToEntryWhere(where, await scopeContractorIds(req.user!.id));
 
   const entries = await prisma.entry.findMany({
     where,
@@ -73,7 +75,7 @@ router.get('/', async (req, res) => {
 
 // Dashboard — admin özet verisi (seçili ay müşteri dağılımı + 6 aylık trend + toplam tutar)
 // ?period=YYYY-MM ile geçmişe/geleceğe gidilebilir; yoksa bu ay.
-router.get('/dashboard', async (req, res) => {
+router.get('/dashboard', async (req: AuthRequest, res) => {
   const now = new Date(Date.now() + 3 * 60 * 60 * 1000);
   const periodParam = String((req.query as any).period || '');
   const thisPeriod = /^\d{4}-(0[1-9]|1[0-2])$/.test(periodParam)
@@ -86,7 +88,10 @@ router.get('/dashboard', async (req, res) => {
   const windowEnd = new Date(Date.UTC(pYear, pMonth, 0)).toISOString().slice(0, 10);
 
   const entries = await prisma.entry.findMany({
-    where: { date: { gte: windowStart, lte: windowEnd } },
+    where: applyScopeToEntryWhere(
+      { date: { gte: windowStart, lte: windowEnd } },
+      await scopeContractorIds(req.user!.id)
+    ),
     include: {
       customer: { include: { contractor: true } },
       project: { include: { rates: true } },
@@ -157,6 +162,12 @@ router.get('/pdf', async (req: AuthRequest, res) => {
     include: { contractor: true },
   });
   if (!customer) return res.status(404).json({ error: 'Müşteri bulunamadı' });
+
+  // KAPSAM: kapsam dışı bir müşterinin raporu çekilemez
+  const pdfScope = await scopeContractorIds(req.user!.id);
+  if (!pdfScope.includes(customer.contractorId)) {
+    return res.status(403).json({ error: 'Bu müşteri sorumluluk kapsamınızda değil' });
+  }
 
   const entries = await prisma.entry.findMany({
     where: {
